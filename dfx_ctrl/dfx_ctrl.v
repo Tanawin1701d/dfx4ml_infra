@@ -1,4 +1,4 @@
-module MagicSeqTop #(
+module DFX_Ctrl #(
 
     parameter GLOB_ADDR_WIDTH = 32, // Address width for AXI interface
     parameter GLOB_DATA_WIDTH = 32, // Data width for AXI interface
@@ -504,7 +504,7 @@ m_axi_write #(
 ////////////// connect to main core //////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-MagicSeqCore #(
+DFX_Ctrl_Core #(
     .GLOB_ADDR_WIDTH(GLOB_ADDR_WIDTH),
     .GLOB_DATA_WIDTH(GLOB_DATA_WIDTH),
     .BANK1_INDEX_WIDTH(BANK1_INDEX_WIDTH),
@@ -524,7 +524,7 @@ MagicSeqCore #(
     .BANK0_ROUNDTRIP_WIDTH(BANK0_ROUNDTRIP_WIDTH),
     .DMA_INIT_TASK_CNT(DMA_INIT_TASK_CNT),
     .DMA_EXEC_TASK_CNT(DMA_EXEC_TASK_CNT)
-) magicSeqCore(
+) dfx_ctrl_core_0(
     .clk(clk),
     .reset(reset),
 
