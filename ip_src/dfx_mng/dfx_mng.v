@@ -504,7 +504,7 @@ m_axi_write #(
 ////////////// connect to main core //////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-DFX_Ctrl_Core #(
+DFX_Mng_Core #(
     .GLOB_ADDR_WIDTH(GLOB_ADDR_WIDTH),
     .GLOB_DATA_WIDTH(GLOB_DATA_WIDTH),
     .BANK1_INDEX_WIDTH(BANK1_INDEX_WIDTH),
@@ -524,7 +524,7 @@ DFX_Ctrl_Core #(
     .BANK0_ROUNDTRIP_WIDTH(BANK0_ROUNDTRIP_WIDTH),
     .DMA_INIT_TASK_CNT(DMA_INIT_TASK_CNT),
     .DMA_EXEC_TASK_CNT(DMA_EXEC_TASK_CNT)
-) dfx_ctrl_core_0(
+) dfx_mng_core_0(
     .clk(clk),
     .reset(reset),
 

@@ -1,4 +1,4 @@
-module DFX_Ctrl_Core #(
+module DFX_Mng_Core #(
 
     parameter GLOB_ADDR_WIDTH = 32, // Address width for AXI interface
     parameter GLOB_DATA_WIDTH = 32, // Data width for AXI interface
