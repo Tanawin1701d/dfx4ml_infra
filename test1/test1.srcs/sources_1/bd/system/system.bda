@@ -1,0 +1,761 @@
+{
+    "graphjs": {
+        "version": "1.0",
+        "keys": [
+            {
+                "abrv": "VH",
+                "name": "vert_hid",
+                "type": "int",
+                "for": "node"
+            },
+            {
+                "abrv": "VM",
+                "name": "vert_name",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "VT",
+                "name": "vert_type",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "BA",
+                "name": "base_addr",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "HA",
+                "name": "high_addr",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "BP",
+                "name": "base_param",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "HP",
+                "name": "high_param",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "MA",
+                "name": "master_addrspace",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "MX",
+                "name": "master_instance",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "MI",
+                "name": "master_interface",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "MS",
+                "name": "master_segment",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "MV",
+                "name": "master_vlnv",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "SX",
+                "name": "slave_instance",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "SI",
+                "name": "slave_interface",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "MM",
+                "name": "slave_memmap",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "SS",
+                "name": "slave_segment",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "SV",
+                "name": "slave_vlnv",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "TM",
+                "name": "memory_type",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "TU",
+                "name": "usage_type",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "LT",
+                "name": "lock_type",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "BT",
+                "name": "boot_type",
+                "type": "string",
+                "for": "node"
+            },
+            {
+                "abrv": "EH",
+                "name": "edge_hid",
+                "type": "int",
+                "for": "edge"
+            }
+        ],
+        "vertice_type_order": [
+            {
+                "abrv": "BC",
+                "desc": "Block Container"
+            },
+            {
+                "abrv": "PR",
+                "desc": "Parital Reference"
+            },
+            {
+                "abrv": "VR",
+                "desc": "Variant"
+            },
+            {
+                "abrv": "PM",
+                "desc": "Variant Permutations"
+            },
+            {
+                "abrv": "CX",
+                "desc": "Boundary Connection"
+            },
+            {
+                "abrv": "AC",
+                "desc": "Assignment Coordinate"
+            },
+            {
+                "abrv": "ACE",
+                "desc": "Excluded Assign Coordinate"
+            },
+            {
+                "abrv": "APX",
+                "desc": "Boundary Aperture"
+            },
+            {
+                "abrv": "CIP",
+                "desc": "High level Processing System"
+            }
+        ],
+        "vertices": {
+            "V0": {
+                "VM": "/hls4ml",
+                "VT": "BC",
+                "TU": "is_dfx_mode"
+            },
+            "V1": {
+                "VM": "system",
+                "VT": "BC"
+            },
+            "V2": {
+                "VH": "2",
+                "VM": "system",
+                "VT": "VR"
+            },
+            "V3": {
+                "VH": "5",
+                "VM": "hls4ml_inst_0",
+                "VT": "VR"
+            },
+            "V4": {
+                "VH": "7",
+                "VM": "hls4ml_1_inst_0",
+                "VT": "VR"
+            },
+            "V5": {
+                "VH": "11",
+                "VM": "hls4ml_2_inst_0",
+                "VT": "VR"
+            },
+            "V6": {
+                "VH": "10",
+                "VT": "PM",
+                "TU": "active"
+            },
+            "V7": {
+                "VH": "14",
+                "VT": "PM"
+            },
+            "V8": {
+                "VH": "22",
+                "VT": "PM"
+            },
+            "V9": {
+                "VT": "AC",
+                "BA": "0x00000000",
+                "HA": "0x7FFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_BS",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_BS",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_DDR_LOW",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_DDR_LOW",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V10": {
+                "VT": "AC",
+                "BA": "0x00000000",
+                "HA": "0x7FFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_IN",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_IN",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_DDR_LOW",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_DDR_LOW",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V11": {
+                "VT": "AC",
+                "BA": "0x00000000",
+                "HA": "0x7FFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_OUT",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_OUT",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC1_DDR_LOW",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC1_FPD",
+                "MM": "SAXIGP1",
+                "SS": "HPC1_DDR_LOW",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V12": {
+                "VT": "AC",
+                "BA": "0x00A0000000",
+                "HA": "0x00A000FFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "Data",
+                "MX": "/zynq_ultra_ps_e_0",
+                "MI": "M_AXI_HPM0_FPD",
+                "MS": "SEG_axi_intc_0_Reg",
+                "MV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "SX": "/axi_intc_0",
+                "SI": "s_axi",
+                "MM": "S_AXI",
+                "SS": "Reg",
+                "SV": "xilinx.com:ip:axi_intc:4.1",
+                "TM": "both",
+                "TU": "register"
+            },
+            "V13": {
+                "VT": "AC",
+                "BA": "0x00A0010000",
+                "HA": "0x00A001FFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "Data",
+                "MX": "/zynq_ultra_ps_e_0",
+                "MI": "M_AXI_HPM0_FPD",
+                "MS": "SEG_axi_gpio_0_Reg",
+                "MV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "SX": "/axi_gpio_0",
+                "SI": "S_AXI",
+                "SS": "Reg",
+                "SV": "xilinx.com:ip:axi_gpio:2.0",
+                "TM": "both",
+                "TU": "register"
+            },
+            "V14": {
+                "VT": "AC",
+                "BA": "0xC0000000",
+                "HA": "0xDFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_BS",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_BS",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_QSPI",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_QSPI",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V15": {
+                "VT": "AC",
+                "BA": "0xC0000000",
+                "HA": "0xDFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_IN",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_IN",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_QSPI",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_QSPI",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V16": {
+                "VT": "AC",
+                "BA": "0xC0000000",
+                "HA": "0xDFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_OUT",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_OUT",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC1_QSPI",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC1_FPD",
+                "MM": "SAXIGP1",
+                "SS": "HPC1_QSPI",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V17": {
+                "VT": "AC",
+                "BA": "0xFF000000",
+                "HA": "0xFFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_BS",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_BS",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_LPS_OCM",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_LPS_OCM",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "register"
+            },
+            "V18": {
+                "VT": "AC",
+                "BA": "0xFF000000",
+                "HA": "0xFFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_IN",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_IN",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_LPS_OCM",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_LPS_OCM",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "register"
+            },
+            "V19": {
+                "VT": "AC",
+                "BA": "0xFF000000",
+                "HA": "0xFFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_OUT",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_OUT",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC1_LPS_OCM",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC1_FPD",
+                "MM": "SAXIGP1",
+                "SS": "HPC1_LPS_OCM",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "register"
+            },
+            "V20": {
+                "VT": "AC",
+                "BA": "0x0400000000",
+                "HA": "0x04FFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "Data",
+                "MX": "/zynq_ultra_ps_e_0",
+                "MI": "M_AXI_HPM0_FPD",
+                "MS": "SEG_dfx_unified_0_reg0",
+                "MV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "SX": "/dfx_unified_0",
+                "SI": "S_AXI_CTRL",
+                "SS": "reg0",
+                "SV": "user.org:user:dfx_unified:1.0",
+                "TM": "both",
+                "TU": "register"
+            },
+            "V21": {
+                "VT": "ACE",
+                "BA": "0x800000000",
+                "HA": "0xFFFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_BS",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_BS",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_DDR_HIGH",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_DDR_HIGH",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V22": {
+                "VT": "ACE",
+                "BA": "0x800000000",
+                "HA": "0xFFFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_IN",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_IN",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC0_DDR_HIGH",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC0_FPD",
+                "MM": "SAXIGP0",
+                "SS": "HPC0_DDR_HIGH",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            },
+            "V23": {
+                "VT": "ACE",
+                "BA": "0x800000000",
+                "HA": "0xFFFFFFFFF",
+                "BP": "C_BASEADDR",
+                "HP": "C_HIGHADDR",
+                "MA": "M_AXI_DMA_OUT",
+                "MX": "/dfx_unified_0",
+                "MI": "M_AXI_DMA_OUT",
+                "MS": "SEG_zynq_ultra_ps_e_0_HPC1_DDR_HIGH",
+                "MV": "user.org:user:dfx_unified:1.0",
+                "SX": "/zynq_ultra_ps_e_0",
+                "SI": "S_AXI_HPC1_FPD",
+                "MM": "SAXIGP1",
+                "SS": "HPC1_DDR_HIGH",
+                "SV": "xilinx.com:ip:zynq_ultra_ps_e:3.5",
+                "TM": "both",
+                "TU": "memory"
+            }
+        },
+        "edges": [
+            {
+                "src": "V0",
+                "trg": "V3"
+            },
+            {
+                "src": "V0",
+                "trg": "V4"
+            },
+            {
+                "src": "V0",
+                "trg": "V5"
+            },
+            {
+                "src": "V1",
+                "trg": "V2"
+            },
+            {
+                "src": "V2",
+                "trg": "V6"
+            },
+            {
+                "src": "V2",
+                "trg": "V7"
+            },
+            {
+                "src": "V2",
+                "trg": "V8"
+            },
+            {
+                "src": "V3",
+                "trg": "V6"
+            },
+            {
+                "src": "V4",
+                "trg": "V7"
+            },
+            {
+                "src": "V5",
+                "trg": "V8"
+            },
+            {
+                "src": "V9",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V9",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V9",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V10",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V10",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V10",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V11",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V11",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V11",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V12",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V12",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V12",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V13",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V14",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V14",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V14",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V15",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V15",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V15",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V16",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V16",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V16",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V17",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V17",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V17",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V18",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V18",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V18",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V19",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V19",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V19",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V20",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V20",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V20",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V21",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V21",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V21",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V22",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V22",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V22",
+                "trg": "V8",
+                "EH": "22"
+            },
+            {
+                "src": "V23",
+                "trg": "V6",
+                "EH": "10"
+            },
+            {
+                "src": "V23",
+                "trg": "V7",
+                "EH": "14"
+            },
+            {
+                "src": "V23",
+                "trg": "V8",
+                "EH": "22"
+            }
+        ]
+    }
+}

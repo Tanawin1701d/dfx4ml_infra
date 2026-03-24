@@ -1,0 +1,26 @@
+# Vivado project generated files and directories
+*.jou
+*.log
+*.str
+*.backup.jou
+*.backup.log
+
+# Vivado project directories
+.Xil/
+*.cache/
+*.hw/
+*.sim/
+*.runs/
+*.gen/
+*.ip_user_files/
+
+# IP upgrade logs
+ip_upgrade.log
+
+# IDE files
+.idea/
+
+# Git directory (if needed to exclude)
+# .git/
+
+/export/hw/
