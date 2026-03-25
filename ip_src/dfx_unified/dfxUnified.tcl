@@ -294,8 +294,8 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
   }
 
   for {set i 0} {$i < [llength $interface_widths]} {incr i} {
-     set iw [lindex $interface_widths $i]            # iw      interface width
-     set aiw [lindex $applied_interface_widths $i]   # aiw     applied interface width
+     set iw  [lindex $interface_widths $i]         # iw      interface width
+     set aiw [lindex $applied_interface_widths $i] # aiw     applied interface width
 
      if { !($iw != 0 && ($iw & ($iw - 1)) == 0) } {
         catch {common::send_gid_msg -ssname BD::TCL -id 2094 -severity "ERROR" "interface_widths\[$i\] = <$iw> is not a power of two!"}
@@ -382,19 +382,25 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
    CONFIG.TUSER_WIDTH {0} \
    ] $S_AXIS_DS0
 
-  set S_AXIS_DS1 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:axis_rtl:1.0 S_AXIS_DS1 ]
-  set_property -dict [ list \
-   CONFIG.FREQ_HZ {99999001} \
-   CONFIG.HAS_TKEEP {0} \
-   CONFIG.HAS_TLAST {1} \
-   CONFIG.HAS_TREADY {1} \
-   CONFIG.HAS_TSTRB {0} \
-   CONFIG.LAYERED_METADATA {undef} \
-   CONFIG.TDATA_NUM_BYTES {4} \
-   CONFIG.TDEST_WIDTH {0} \
-   CONFIG.TID_WIDTH {0} \
-   CONFIG.TUSER_WIDTH {0} \
-   ] $S_AXIS_DS1
+  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+    set iw [lindex $interface_widths $i]
+    set tdata_num_bytes [expr {$iw / 8}]
+    set port_name "S_AXIS_DS$i"
+  
+    set S_AXIS_DS_PORT [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:axis_rtl:1.0 $port_name ]
+    set_property -dict [ list \
+     CONFIG.FREQ_HZ {99999001} \
+     CONFIG.HAS_TKEEP {0} \
+     CONFIG.HAS_TLAST {1} \
+     CONFIG.HAS_TREADY {1} \
+     CONFIG.HAS_TSTRB {0} \
+     CONFIG.LAYERED_METADATA {undef} \
+     CONFIG.TDATA_NUM_BYTES $tdata_num_bytes \
+     CONFIG.TDEST_WIDTH {0} \
+     CONFIG.TID_WIDTH {0} \
+     CONFIG.TUSER_WIDTH {0} \
+     ] $S_AXIS_DS_PORT
+  }
 
   set S_AXI_CTRL [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_CTRL ]
   set_property -dict [ list \
@@ -444,10 +450,14 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
    CONFIG.READ_WRITE_MODE {READ_ONLY} \
    ] $M_AXI_BS
 
-  set M_AXIS_DS1 [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 M_AXIS_DS1 ]
-  set_property -dict [ list \
-   CONFIG.FREQ_HZ {99999001} \
-   ] $M_AXIS_DS1
+  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+    set port_name "M_AXIS_DS$i"
+    
+    set M_AXIS_DS_PORT [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 $port_name ]
+    set_property -dict [ list \
+     CONFIG.FREQ_HZ {99999001} \
+     ] $M_AXIS_DS_PORT
+  }
 
 
   # Create ports
@@ -465,29 +475,51 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
   # Create instance: DFX_Ctrl_A, and set properties
   set DFX_Ctrl_A [ create_bd_cell -type ip -vlnv user.org:user:DFX_Ctrl:1.0 DFX_Ctrl_A ]
 
-  # Create instance: Dfx_Streamer_1, and set properties
-  set Dfx_Streamer_1 [ create_bd_cell -type ip -vlnv user.org:user:Dfx_Streamer:1.0 Dfx_Streamer_1 ]
+  # Create instance: Dfx_Streamer_i, and set properties
+  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+    set Dfx_Streamer_$i [ create_bd_cell -type ip -vlnv user.org:user:Dfx_Streamer:1.0 Dfx_Streamer_$i ]
+  }
 
   # Create instance: xlconcat_0, and set properties
-  set xlconcat_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 xlconcat_0 ]
-  set_property -dict [list \
-    CONFIG.IN1_WIDTH {1} \
-    CONFIG.IN2_WIDTH {6} \
-    CONFIG.NUM_PORTS {3} \
-  ] $xlconcat_0
+  # Calculate total port width and number of interface widths
+  set total_port_width [expr {1 << $slot_index_width}]
+  set num_interface_widths [llength $interface_widths]
+  
+  # Build property list for xlconcat
+  set config_list [list]
+  
+  # First N ports are 1 bit width
+  for {set i 0} {$i < $num_interface_widths} {incr i} {
+    lappend config_list "CONFIG.IN${i}_WIDTH" {1}
+  }
+  
+  # Calculate remaining width
+  set remaining_width [expr {$total_port_width - $num_interface_widths}]
+  
+  # Determine number of ports
+  if {$remaining_width > 0} {
+    set num_ports [expr {$num_interface_widths + 1}]
+    lappend config_list "CONFIG.IN${num_interface_widths}_WIDTH" $remaining_width
+  } else {
+    set num_ports $num_interface_widths
+  }
+  
+  lappend config_list "CONFIG.NUM_PORTS" $num_ports
+  
+  # Create the fin_store_concat_0 instance
+  set fin_store_concat_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 fin_store_concat_0 ]
+  set_property -dict $config_list $fin_store_concat_0
 
 
-  # Create instance: xlconstant_0, and set properties
-  set xlconstant_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_0 ]
-  set_property CONFIG.CONST_VAL {0} $xlconstant_0
 
-
-  # Create instance: xlconstant_1, and set properties
-  set xlconstant_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_1 ]
-  set_property -dict [list \
-    CONFIG.CONST_VAL {0} \
-    CONFIG.CONST_WIDTH {6} \
-  ] $xlconstant_1
+  # Create instance: dummy_fin_store, and set properties
+  if {$remaining_width > 0} {
+    set dummy_fin_store [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 dummy_fin_store ]
+    set_property -dict [list \
+      CONFIG.CONST_VAL {0} \
+      CONFIG.CONST_WIDTH $remaining_width \
+    ] $dummy_fin_store
+  }
 
 
   # Create instance: DFX_Ctrl_0_axi_periph, and set properties
@@ -565,37 +597,65 @@ rm7 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low}
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M04_AXI [get_bd_intf_pins axi_dfx_decup/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M04_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_B_ICAP [get_bd_intf_pins DFX_Ctrl_B/ICAP] [get_bd_intf_pins icapWrap_0/ICAP]
   connect_bd_intf_net -intf_net DFX_Ctrl_B_M_AXI_MEM [get_bd_intf_ports M_AXI_BS] [get_bd_intf_pins DFX_Ctrl_B/M_AXI_MEM]
-  connect_bd_intf_net -intf_net Dfx_Streamer_1_M_AXI [get_bd_intf_ports M_AXIS_DS1] [get_bd_intf_pins Dfx_Streamer_1/M_AXI]
+  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+    set port_name_s "S_AXIS_DS$i"
+    set port_name_m "M_AXIS_DS$i"
+    
+    connect_bd_intf_net -intf_net Dfx_Streamer_${i}_M_AXI [get_bd_intf_ports $port_name_m] [get_bd_intf_pins Dfx_Streamer_${i}/M_AXI]
+    connect_bd_intf_net -intf_net S_AXI_${i}_1 [get_bd_intf_ports $port_name_s] [get_bd_intf_pins Dfx_Streamer_${i}/S_AXI]
+
+  }
+  
   connect_bd_intf_net -intf_net S01_AXI_0_1 [get_bd_intf_ports S_AXI_CTRL] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/S01_AXI]
   connect_bd_intf_net -intf_net S_AXIS_DS0_1 [get_bd_intf_ports S_AXIS_DS0] [get_bd_intf_pins dma_hier/S_AXIS_DS0]
-  connect_bd_intf_net -intf_net S_AXI_0_1 [get_bd_intf_ports S_AXIS_DS1] [get_bd_intf_pins Dfx_Streamer_1/S_AXI]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_MM2S [get_bd_intf_ports M_AXI_DMA_IN] [get_bd_intf_pins dma_hier/M_AXI_DMA_IN]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_S2MM [get_bd_intf_ports M_AXI_DMA_OUT] [get_bd_intf_pins dma_hier/M_AXI_DMA_OUT]
   connect_bd_intf_net -intf_net dfx_decoupler_1_rp_intf_0 [get_bd_intf_ports M_AXIS_DS0] [get_bd_intf_pins dma_hier/M_AXIS_DS0]
 
   # Create port connections
-  connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadInit [get_bd_pins DFX_Ctrl_A/slaveMgsLoadInit] [get_bd_pins Dfx_Streamer_1/loadInit_pool]
-  connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadReset [get_bd_pins DFX_Ctrl_A/slaveMgsLoadReset] [get_bd_pins Dfx_Streamer_1/loadReset_pool]
-  connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreInit [get_bd_pins DFX_Ctrl_A/slaveMgsStoreInit] [get_bd_pins Dfx_Streamer_1/storeInit_pool]
-  connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreReset [get_bd_pins DFX_Ctrl_A/slaveMgsStoreReset] [get_bd_pins Dfx_Streamer_1/storeReset_pool]
-  connect_bd_net -net DFX_Ctrl_A_hw_intr [get_bd_pins DFX_Ctrl_A/hw_intr] [get_bd_ports dfx_intr]
-  connect_bd_net -net DFX_Ctrl_A_slaveReprog [get_bd_pins DFX_Ctrl_A/slaveReprog] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_hw_triggers]
-  connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_decouple [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_decouple] [get_bd_pins util_vector_logic_0/Op1]
-  connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_reset [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_reset] [get_bd_pins reset_join/Op1]
+
+  
+  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadInit [get_bd_pins DFX_Ctrl_A/slaveMgsLoadInit] [get_bd_pins Dfx_Streamer_${i}/loadInit_pool]
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadReset [get_bd_pins DFX_Ctrl_A/slaveMgsLoadReset] [get_bd_pins Dfx_Streamer_${i}/loadReset_pool]
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreInit [get_bd_pins DFX_Ctrl_A/slaveMgsStoreInit] [get_bd_pins Dfx_Streamer_${i}/storeInit_pool]
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreReset [get_bd_pins DFX_Ctrl_A/slaveMgsStoreReset] [get_bd_pins Dfx_Streamer_${i}/storeReset_pool]
+    connect_bd_net -net util_vector_logic_0_Res [get_bd_pins util_vector_logic_0/Res] [get_bd_pins dma_hier/decouple] [get_bd_pins Dfx_Streamer_${i}/decup]
+  }
+  
+  
   connect_bd_net -net Dfx_Streamer_1_dbg_amt_load_bytes [get_bd_pins Dfx_Streamer_1/dbg_amt_load_bytes] [get_bd_ports dbg_amt_load_bytes_0]
   connect_bd_net -net Dfx_Streamer_1_dbg_amt_store_bytes [get_bd_pins Dfx_Streamer_1/dbg_amt_store_bytes] [get_bd_ports dbg_amt_store_bytes_0]
   connect_bd_net -net Dfx_Streamer_1_dbg_state [get_bd_pins Dfx_Streamer_1/dbg_state] [get_bd_ports dbg_state_0]
   connect_bd_net -net Dfx_Streamer_1_finStore [get_bd_pins Dfx_Streamer_1/finStore] [get_bd_pins xlconcat_0/In1]
+
+
+
+  connect_bd_net -net DFX_Ctrl_A_hw_intr [get_bd_pins DFX_Ctrl_A/hw_intr] [get_bd_ports dfx_intr]
+  connect_bd_net -net DFX_Ctrl_A_slaveReprog [get_bd_pins DFX_Ctrl_A/slaveReprog] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_hw_triggers]
+  connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_decouple [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_decouple] [get_bd_pins util_vector_logic_0/Op1]
+  connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_reset [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_reset] [get_bd_pins reset_join/Op1]
+
   connect_bd_net -net axi_dfx_decup_gpio_io_o [get_bd_pins axi_dfx_decup/gpio_io_o] [get_bd_pins util_vector_logic_0/Op2]
   connect_bd_net -net axi_dfx_reset_gpio_io_o [get_bd_pins axi_dfx_reset/gpio_io_o] [get_bd_pins reset_join/Op2]
-  connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins dma_hier/s2mm_introut] [get_bd_pins xlconcat_0/In0]
-  connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ACLK] [get_bd_pins DFX_Ctrl_B/clk] [get_bd_pins DFX_Ctrl_B/icap_clk] [get_bd_pins axi_dfx_reset/s_axi_aclk] [get_bd_pins axi_dfx_decup/s_axi_aclk] [get_bd_pins DFX_Ctrl_A/clk] [get_bd_pins icapWrap_0/CLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ACLK] [get_bd_pins dma_hier/clk] [get_bd_pins Dfx_Streamer_1/clk]
-  connect_bd_net -net reset_0_1 [get_bd_ports nreset] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ARESETN] [get_bd_pins DFX_Ctrl_B/reset] [get_bd_pins DFX_Ctrl_B/icap_reset] [get_bd_pins axi_dfx_reset/s_axi_aresetn] [get_bd_pins axi_dfx_decup/s_axi_aresetn] [get_bd_pins DFX_Ctrl_A/reset] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ARESETN] [get_bd_pins dma_hier/nreset] [get_bd_pins Dfx_Streamer_1/reset]
+  connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins dma_hier/s2mm_introut] [get_bd_pins fin_store_concat_0/In0]
+  connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ACLK] [get_bd_pins DFX_Ctrl_B/clk] [get_bd_pins DFX_Ctrl_B/icap_clk] [get_bd_pins axi_dfx_reset/s_axi_aclk] [get_bd_pins axi_dfx_decup/s_axi_aclk] [get_bd_pins DFX_Ctrl_A/clk] [get_bd_pins icapWrap_0/CLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ACLK] [get_bd_pins dma_hier/clk]
+  connect_bd_net -net reset_0_1 [get_bd_ports nreset] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ARESETN] [get_bd_pins DFX_Ctrl_B/reset] [get_bd_pins DFX_Ctrl_B/icap_reset] [get_bd_pins axi_dfx_reset/s_axi_aresetn] [get_bd_pins axi_dfx_decup/s_axi_aresetn] [get_bd_pins DFX_Ctrl_A/reset] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ARESETN] [get_bd_pins dma_hier/nreset]
   connect_bd_net -net reset_join_Res [get_bd_pins reset_join/Res] [get_bd_ports pr_reset] [get_bd_pins DFX_Ctrl_A/nslaveReset]
-  connect_bd_net -net util_vector_logic_0_Res [get_bd_pins util_vector_logic_0/Res] [get_bd_pins dma_hier/decouple] [get_bd_pins Dfx_Streamer_1/decup]
-  connect_bd_net -net xlconcat_0_dout [get_bd_pins xlconcat_0/dout] [get_bd_pins DFX_Ctrl_A/mgsFinExec]
+  
+  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+    connect_bd_net -net clk_streamer [get_bd_ports clk] [get_bd_pins Dfx_Streamer_${i}/clk]
+    connect_bd_net -net reset_streamer [get_bd_ports nreset] [get_bd_pins Dfx_Streamer_${i}/reset]
+  }
+
+  connect_bd_net -net fin_store_concat_0_dout [get_bd_pins fin_store_concat_0/dout] [get_bd_pins DFX_Ctrl_A/mgsFinExec]
   connect_bd_net -net xlconstant_0_dout [get_bd_pins xlconstant_0/dout] [get_bd_pins DFX_Ctrl_A/hw_ctrl_start] [get_bd_pins DFX_Ctrl_A/hw_intr_clear]
-  connect_bd_net -net xlconstant_1_dout [get_bd_pins xlconstant_1/dout] [get_bd_pins xlconcat_0/In2]
+  
+  if {$remaining_width > 0} {
+    connect_bd_net -net xlconstant_1_dout [get_bd_pins dummy_fin_store/dout] [get_bd_pins fin_store_concat_0/In${[llength $interface_widths]}]
+  }
+  
+  
   connect_bd_net -net xlconstant_2_dout [get_bd_pins xlconstant_2/dout] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_shutdown_ack]
 
   # Create address segments
