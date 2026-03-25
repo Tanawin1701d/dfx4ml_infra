@@ -271,13 +271,41 @@ TUSER {PRESENT 0 WIDTH 0} TLAST {PRESENT 1 WIDTH 1} TID {PRESENT 0 WIDTH 0} TDES
 
 # Procedure to create entire design; Provide argument to make
 # procedure reusable. If parentCell is "", will use root.
-proc create_root_design { parentCell } {
+proc create_root_design { parentCell slot_index_width interface_widths applied_interface_widths } {
 
   variable script_folder
   variable design_name
 
   if { $parentCell eq "" } {
      set parentCell [get_bd_cells /]
+  }
+
+  # 1. slot_index_width must be power of two
+  if { !($slot_index_width != 0 && ($slot_index_width & ($slot_index_width - 1)) == 0) } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "slot_index_width <$slot_index_width> is not a power of two!"}
+     return
+  }
+
+  # 2. interface_widths elements must be power of two
+  # 3. applied_interface_widths elements must be <= interface_widths elements at same index
+  if { [llength $interface_widths] != [llength $applied_interface_widths] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2093 -severity "ERROR" "interface_widths and applied_interface_widths must have the same length!"}
+     return
+  }
+
+  for {set i 0} {$i < [llength $interface_widths]} {incr i} {
+     set iw [lindex $interface_widths $i]            # iw      interface width
+     set aiw [lindex $applied_interface_widths $i]   # aiw     applied interface width
+
+     if { !($iw != 0 && ($iw & ($iw - 1)) == 0) } {
+        catch {common::send_gid_msg -ssname BD::TCL -id 2094 -severity "ERROR" "interface_widths\[$i\] = <$iw> is not a power of two!"}
+        return
+     }
+
+     if { $aiw > $iw } {
+        catch {common::send_gid_msg -ssname BD::TCL -id 2095 -severity "ERROR" "applied_interface_widths\[$i\] = <$aiw> must be lower or equal to interface_widths\[$i\] = <$iw>!"}
+        return
+     }
   }
 
   # Get object for parentCell
@@ -602,6 +630,6 @@ rm7 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low}
 
 common::send_gid_msg -ssname BD::TCL -id 2052 -severity "CRITICAL WARNING" "This Tcl script was generated from a block design that is out-of-date/locked. It is possible that design <$design_name> may result in errors during construction."
 
-create_root_design ""
+# create_root_design ""
 
 
