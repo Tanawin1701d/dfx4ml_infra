@@ -13,6 +13,7 @@
 *.runs/
 *.gen/
 *.ip_user_files/
+ip_repo/
 
 # IP upgrade logs
 ip_upgrade.log
