@@ -26,7 +26,7 @@ source [file join [file dirname [info script]] dfx_unified.tcl]
 # These values are example parameters; adjust them according to your specific needs.
 set parentCell ""
 set clk_frq 99999001 ;
-set rm_index_width 3 ;
+set rm_index_width 2 ;
 set num_dfx_streamer 8 ; # dma included
 set interface_widths [list 32 32 32 32 32 32 32 32] ;# Must be power of two
 set applied_interface_widths [list 32 32 32 32 32 32 32 32] ;# Must be <= interface_widths

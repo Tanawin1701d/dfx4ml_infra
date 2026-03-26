@@ -342,8 +342,10 @@ proc create_root_design { parentCell clk_frq rm_index_width num_dfx_streamer int
   set DFX_Mng [ create_bd_cell -type ip -vlnv user.org:user:DFX_Mng:1.0 DFX_Mng ]
   set_property -dict [ list \
      CONFIG.BANK1_INDEX_WIDTH  "$rm_index_width" \
+     CONFIG.BANK0_CNT_WIDTH    "$rm_index_width" \
      CONFIG.BANK1_LD_MSK_WIDTH "$num_dfx_streamer" \
      CONFIG.BANK1_ST_MSK_WIDTH "$num_dfx_streamer" \
+
      ] $DFX_Mng
 
   # Create instance: Dfx_Streamer_i, and set properties
@@ -387,25 +389,46 @@ proc create_root_design { parentCell clk_frq rm_index_width num_dfx_streamer int
     CONFIG.NUM_MI {5} \
     CONFIG.NUM_SI {2} \
   ] $DFX_Ctrl_0_axi_periph
+  
+  
+  set rm_list {}
+  set num_rms [expr {1 << $rm_index_width}]
+  for {set i 0} {$i < $num_rms} {incr i} {
+    lappend rm_list "rm$i" [list ID $i NAME "rm$i" BS [list 0 [list ID 0 ADDR 0 SIZE 0 CLEAR 0]] SHUTDOWN_REQUIRED hw RESET_REQUIRED low]
+  }
+  set num_rms_val $num_rms
 
-
+      
   # Create instance: DFX_Ctrl_B, and set properties
   set DFX_Ctrl_B [ create_bd_cell -type ip -vlnv xilinx.com:ip:dfx_controller:1.0 DFX_Ctrl_B ]
-  set_property -dict [list \
-    CONFIG.ALL_PARAMS {HAS_AXI_LITE_IF 1 RESET_ACTIVE_LEVEL 0 CP_FIFO_DEPTH 32 CP_FIFO_TYPE lutram CDC_STAGES 6 VS {vs4ml {ID 0 NAME vs4ml RM {rm0 {ID 0 NAME rm0 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED\
-hw RESET_REQUIRED low} rm1 {ID 1 NAME rm1 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low} rm3 {ID 3 NAME rm3 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED\
-low} rm2 {ID 2 NAME rm2 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low} rm4 {ID 4 NAME rm4 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low} rm5\
-{ID 5 NAME rm5 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low} rm6 {ID 6 NAME rm6 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low} rm7 {ID 7 NAME\
-rm7 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low}} POR_RM rm0 NUM_HW_TRIGGERS 8 NUM_TRIGGERS_ALLOCATED 8 START_IN_SHUTDOWN 1 RMS_ALLOCATED 8}} CP_FAMILY ultrascale_plus DIRTY\
-3} \
-    CONFIG.GUI_RM_NEW_NAME {rm7} \
-    CONFIG.GUI_RM_RESET_REQUIRED {low} \
-    CONFIG.GUI_RM_SHUTDOWN_TYPE {hw} \
-    CONFIG.GUI_VS_NEW_NAME {vs4ml} \
-    CONFIG.GUI_VS_NUM_HW_TRIGGERS {8} \
-    CONFIG.GUI_VS_NUM_RMS_ALLOCATED {8} \
-    CONFIG.GUI_VS_NUM_TRIGGERS_ALLOCATED {8} \
-  ] $DFX_Ctrl_B
+set_property -dict [list \
+  CONFIG.ALL_PARAMS [list \
+    HAS_AXI_LITE_IF 1 \
+    RESET_ACTIVE_LEVEL 0 \
+    CP_FIFO_DEPTH 32 \
+    CP_FIFO_TYPE lutram \
+    CDC_STAGES 6 \
+    VS [list vs4ml [list \
+      ID 0 \
+      NAME vs4ml \
+      RM $rm_list \
+      POR_RM rm0 \
+      NUM_HW_TRIGGERS $num_rms_val \
+      NUM_TRIGGERS_ALLOCATED $num_rms_val \
+      START_IN_SHUTDOWN 1 \
+      RMS_ALLOCATED $num_rms_val \
+    ]] \
+    CP_FAMILY ultrascale_plus \
+    DIRTY 3 \
+  ] \
+  CONFIG.GUI_RM_NEW_NAME [format "rm%d" [expr {$num_rms - 1}]] \
+  CONFIG.GUI_RM_RESET_REQUIRED low \
+  CONFIG.GUI_RM_SHUTDOWN_TYPE hw \
+  CONFIG.GUI_VS_NEW_NAME vs4ml \
+  CONFIG.GUI_VS_NUM_HW_TRIGGERS $num_rms_val \
+  CONFIG.GUI_VS_NUM_RMS_ALLOCATED $num_rms_val \
+  CONFIG.GUI_VS_NUM_TRIGGERS_ALLOCATED $num_rms_val \
+] $DFX_Ctrl_B
 
   set dummy_dfx_mng_hw_plug [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 dummy_dfx_mng_hw_plug ]
   set_property -dict [list \
