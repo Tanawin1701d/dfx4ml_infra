@@ -118,32 +118,31 @@ module SlotArr #(
 
 
 
-    //// build read mux
-    // Use a multiplexer to select the output from the appropriate slot based on the input index
+//// build read mux
+// Use a multiplexer to select the output from the appropriate slot based on the input index
 integer muxIdx;
 always @(*) begin
+    out_src_addr = 0;
+    out_src_size = 0;
+    out_des_addr = 0;
+    out_des_size = 0;
+    out_status   = 0;
+    out_profile  = 0;
 
-                out_src_addr = 0;
-                out_src_size = 0;
-                out_des_addr = 0;
-                out_des_size = 0;
-                out_status   = 0;
-                out_profile  = 0;
-
-        for (muxIdx = 0; muxIdx < (1 << INDEX_WIDTH); muxIdx = muxIdx + 1) begin
-            if (out_index == muxIdx) begin
-                // If the index matches, assign the output from the corresponding slot
-                out_src_addr     = out_src_addr_pool[muxIdx];
-                out_src_size     = out_src_size_pool[muxIdx];
-                out_des_addr     = out_des_addr_pool[muxIdx];
-                out_des_size     = out_des_size_pool[muxIdx];
-                out_status       = out_status_pool[muxIdx];
-                out_profile      = out_profile_pool[muxIdx];
-                out_ld_mask      = out_ld_mask_pool[muxIdx];
-                out_st_mask      = out_st_mask_pool[muxIdx];
-                out_st_intr_mask = out_st_intr_mask_pool[muxIdx];
-            end
+    for (muxIdx = 0; muxIdx < (1 << INDEX_WIDTH); muxIdx = muxIdx + 1) begin
+        if (out_index == muxIdx) begin
+            // If the index matches, assign the output from the corresponding slot
+            out_src_addr     = out_src_addr_pool[muxIdx];
+            out_src_size     = out_src_size_pool[muxIdx];
+            out_des_addr     = out_des_addr_pool[muxIdx];
+            out_des_size     = out_des_size_pool[muxIdx];
+            out_status       = out_status_pool[muxIdx];
+            out_profile      = out_profile_pool[muxIdx];
+            out_ld_mask      = out_ld_mask_pool[muxIdx];
+            out_st_mask      = out_st_mask_pool[muxIdx];
+            out_st_intr_mask = out_st_intr_mask_pool[muxIdx];
         end
+    end
 
 end
 
