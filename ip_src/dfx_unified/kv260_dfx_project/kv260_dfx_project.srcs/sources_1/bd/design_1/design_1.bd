@@ -2287,6 +2287,17 @@
         "xci_name": "design_1_DFX_Mng_0",
         "xci_path": "ip/design_1_DFX_Mng_0/design_1_DFX_Mng_0.xci",
         "inst_hier_path": "DFX_Mng",
+        "parameters": {
+          "BANK1_INDEX_WIDTH": {
+            "value": "3"
+          },
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          }
+        },
         "interface_ports": {
           "M_AXI": {
             "vlnv": "xilinx.com:interface:aximm_rtl:1.0",
@@ -2318,49 +2329,189 @@
         "ip_revision": "2",
         "xci_name": "design_1_Dfx_Streamer_1_0",
         "xci_path": "ip/design_1_Dfx_Streamer_1_0/design_1_Dfx_Streamer_1_0.xci",
-        "inst_hier_path": "Dfx_Streamer_1"
+        "inst_hier_path": "Dfx_Streamer_1",
+        "parameters": {
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          },
+          "DATA_WIDTH": {
+            "value": "32"
+          },
+          "ITF_DATA_WIDTH": {
+            "value": "32"
+          },
+          "STORAGE_IDX_WIDTH": {
+            "value": "10"
+          },
+          "STREAMER_IDX": {
+            "value": "1"
+          }
+        }
       },
       "Dfx_Streamer_2": {
         "vlnv": "user.org:user:Dfx_Streamer:1.0",
         "ip_revision": "2",
         "xci_name": "design_1_Dfx_Streamer_2_0",
         "xci_path": "ip/design_1_Dfx_Streamer_2_0/design_1_Dfx_Streamer_2_0.xci",
-        "inst_hier_path": "Dfx_Streamer_2"
+        "inst_hier_path": "Dfx_Streamer_2",
+        "parameters": {
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          },
+          "DATA_WIDTH": {
+            "value": "32"
+          },
+          "ITF_DATA_WIDTH": {
+            "value": "32"
+          },
+          "STORAGE_IDX_WIDTH": {
+            "value": "10"
+          },
+          "STREAMER_IDX": {
+            "value": "2"
+          }
+        }
       },
       "Dfx_Streamer_3": {
         "vlnv": "user.org:user:Dfx_Streamer:1.0",
         "ip_revision": "2",
         "xci_name": "design_1_Dfx_Streamer_3_0",
         "xci_path": "ip/design_1_Dfx_Streamer_3_0/design_1_Dfx_Streamer_3_0.xci",
-        "inst_hier_path": "Dfx_Streamer_3"
+        "inst_hier_path": "Dfx_Streamer_3",
+        "parameters": {
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          },
+          "DATA_WIDTH": {
+            "value": "32"
+          },
+          "ITF_DATA_WIDTH": {
+            "value": "32"
+          },
+          "STORAGE_IDX_WIDTH": {
+            "value": "10"
+          },
+          "STREAMER_IDX": {
+            "value": "3"
+          }
+        }
       },
       "Dfx_Streamer_4": {
         "vlnv": "user.org:user:Dfx_Streamer:1.0",
         "ip_revision": "2",
         "xci_name": "design_1_Dfx_Streamer_4_0",
         "xci_path": "ip/design_1_Dfx_Streamer_4_0/design_1_Dfx_Streamer_4_0.xci",
-        "inst_hier_path": "Dfx_Streamer_4"
+        "inst_hier_path": "Dfx_Streamer_4",
+        "parameters": {
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          },
+          "DATA_WIDTH": {
+            "value": "32"
+          },
+          "ITF_DATA_WIDTH": {
+            "value": "32"
+          },
+          "STORAGE_IDX_WIDTH": {
+            "value": "10"
+          },
+          "STREAMER_IDX": {
+            "value": "4"
+          }
+        }
       },
       "Dfx_Streamer_5": {
         "vlnv": "user.org:user:Dfx_Streamer:1.0",
         "ip_revision": "2",
         "xci_name": "design_1_Dfx_Streamer_5_0",
         "xci_path": "ip/design_1_Dfx_Streamer_5_0/design_1_Dfx_Streamer_5_0.xci",
-        "inst_hier_path": "Dfx_Streamer_5"
+        "inst_hier_path": "Dfx_Streamer_5",
+        "parameters": {
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          },
+          "DATA_WIDTH": {
+            "value": "32"
+          },
+          "ITF_DATA_WIDTH": {
+            "value": "32"
+          },
+          "STORAGE_IDX_WIDTH": {
+            "value": "10"
+          },
+          "STREAMER_IDX": {
+            "value": "5"
+          }
+        }
       },
       "Dfx_Streamer_6": {
         "vlnv": "user.org:user:Dfx_Streamer:1.0",
         "ip_revision": "2",
         "xci_name": "design_1_Dfx_Streamer_6_0",
         "xci_path": "ip/design_1_Dfx_Streamer_6_0/design_1_Dfx_Streamer_6_0.xci",
-        "inst_hier_path": "Dfx_Streamer_6"
+        "inst_hier_path": "Dfx_Streamer_6",
+        "parameters": {
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          },
+          "DATA_WIDTH": {
+            "value": "32"
+          },
+          "ITF_DATA_WIDTH": {
+            "value": "32"
+          },
+          "STORAGE_IDX_WIDTH": {
+            "value": "10"
+          },
+          "STREAMER_IDX": {
+            "value": "6"
+          }
+        }
       },
       "Dfx_Streamer_7": {
         "vlnv": "user.org:user:Dfx_Streamer:1.0",
         "ip_revision": "2",
         "xci_name": "design_1_Dfx_Streamer_7_0",
         "xci_path": "ip/design_1_Dfx_Streamer_7_0/design_1_Dfx_Streamer_7_0.xci",
-        "inst_hier_path": "Dfx_Streamer_7"
+        "inst_hier_path": "Dfx_Streamer_7",
+        "parameters": {
+          "BANK1_LD_MSK_WIDTH": {
+            "value": "8"
+          },
+          "BANK1_ST_MSK_WIDTH": {
+            "value": "8"
+          },
+          "DATA_WIDTH": {
+            "value": "32"
+          },
+          "ITF_DATA_WIDTH": {
+            "value": "32"
+          },
+          "STORAGE_IDX_WIDTH": {
+            "value": "10"
+          },
+          "STREAMER_IDX": {
+            "value": "7"
+          }
+        }
       },
       "fin_store_concat_0": {
         "vlnv": "xilinx.com:ip:xlconcat:2.1",

@@ -25,12 +25,15 @@ source [file join [file dirname [info script]] dfx_unified.tcl]
 # Define arguments for create_root_design
 # These values are example parameters; adjust them according to your specific needs.
 set parentCell ""
-set slot_index_width 3 ;# Must be a power of two
+set clk_frq 99999001 ;
+set rm_index_width 3 ;
+set num_dfx_streamer 8 ; # dma included
 set interface_widths [list 32 32 32 32 32 32 32 32] ;# Must be power of two
 set applied_interface_widths [list 32 32 32 32 32 32 32 32] ;# Must be <= interface_widths
+set storage_index_widths [list 10 10 10 10 10 10 10 10] ;
 
 # Call create_root_design
-create_root_design $parentCell $slot_index_width $interface_widths $applied_interface_widths
+create_root_design $parentCell $clk_frq $rm_index_width $num_dfx_streamer $interface_widths $applied_interface_widths $storage_index_widths
 
 # Finalize block design
 save_bd_design

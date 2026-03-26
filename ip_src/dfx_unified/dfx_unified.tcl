@@ -105,7 +105,7 @@ TUSER {PRESENT 0 WIDTH 0} TLAST {PRESENT 1 WIDTH 1} TID {PRESENT 0 WIDTH 0} TDES
 
 # Procedure to create entire design; Provide argument to make
 # procedure reusable. If parentCell is "", will use root.
-proc create_root_design { parentCell slot_index_width interface_widths applied_interface_widths } {
+proc create_root_design { parentCell clk_frq rm_index_width num_dfx_streamer interface_widths applied_interface_widths storage_index_widths} {
 
   variable script_folder
   variable design_name
@@ -113,12 +113,36 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
   if { $parentCell eq "" } {
      set parentCell [get_bd_cells /]
   }
-
-  # 1. slot_index_width must be power of two
-  if { $slot_index_width == 0 } {
-     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "slot_index_width <$slot_index_width> is zero"}
+  
+  # Check rm_index_width is not zero
+  if { $rm_index_width == 0 } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "rm_index_width <$rm_index_width> is zero"}
      return
   }
+
+  # 1. num_dfx_streamer must be power of two
+  if { $num_dfx_streamer == 0 } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <num_dfx_streamer> is zero"}
+     return
+  }
+  
+  # Check num_dfx_streamer matches array lengths
+  if { $num_dfx_streamer != [llength $interface_widths] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <$num_dfx_streamer> must equal length of interface_widths <[llength $interface_widths]>!"}
+     return
+  }
+
+  if { $num_dfx_streamer != [llength $applied_interface_widths] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <$num_dfx_streamer> must equal length of applied_interface_widths <[llength $applied_interface_widths]>!"}
+     return
+  }
+  
+  if { $num_dfx_streamer != [llength $storage_index_widths] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <$num_dfx_streamer> must equal length of storage_index_widths <[llength $storage_index_widths]>!"}
+     return
+  }
+  
+  
 
   # 2. interface_widths elements must be power of two
   # 3. applied_interface_widths elements must be <= interface_widths elements at same index
@@ -127,9 +151,10 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
      return
   }
 
-  for {set i 0} {$i < [llength $interface_widths]} {incr i} {
+  for {set i 0} {$i < $num_dfx_streamer} {incr i} {
      set iw  [lindex $interface_widths $i]         ;# iw      interface width
      set aiw [lindex $applied_interface_widths $i] ;# aiw     applied interface width
+     set sw  [lindex $storage_index_widths $i]     ;# sw      storage index width
 
      if { !($iw != 0 && ($iw & ($iw - 1)) == 0) } {
         catch {common::send_gid_msg -ssname BD::TCL -id 2094 -severity "ERROR" "interface_widths\[$i\] = <$iw> is not a power of two!"}
@@ -140,6 +165,13 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
         catch {common::send_gid_msg -ssname BD::TCL -id 2095 -severity "ERROR" "applied_interface_widths\[$i\] = <$aiw> must be lower or equal to interface_widths\[$i\] = <$iw>!"}
         return
      }
+
+     if { $sw <= 0 } {
+        catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "storage_index_widths\[$i\] = <$sw> must be greater than 0!"}
+        return
+     }
+     
+     
   }
 
   # Get object for parentCell
@@ -168,7 +200,7 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
   set_property -dict [ list \
    CONFIG.ADDR_WIDTH {32} \
    CONFIG.DATA_WIDTH {32} \
-   CONFIG.FREQ_HZ {99999001} \
+   CONFIG.FREQ_HZ "$clk_frq" \
    CONFIG.HAS_BRESP {0} \
    CONFIG.HAS_BURST {0} \
    CONFIG.HAS_LOCK {0} \
@@ -185,7 +217,7 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
   set_property -dict [ list \
    CONFIG.ADDR_WIDTH {32} \
    CONFIG.DATA_WIDTH {32} \
-   CONFIG.FREQ_HZ {99999001} \
+   CONFIG.FREQ_HZ "$clk_frq" \
    CONFIG.HAS_BURST {0} \
    CONFIG.HAS_LOCK {0} \
    CONFIG.HAS_QOS {0} \
@@ -199,12 +231,12 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
 
   set M_AXIS_DS0 [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 M_AXIS_DS0 ]
   set_property -dict [ list \
-   CONFIG.FREQ_HZ {99999001} \
+   CONFIG.FREQ_HZ "$clk_frq" \
    ] $M_AXIS_DS0
 
   set S_AXIS_DS0 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:axis_rtl:1.0 S_AXIS_DS0 ]
   set_property -dict [ list \
-   CONFIG.FREQ_HZ {99999001} \
+   CONFIG.FREQ_HZ "$clk_frq" \
    CONFIG.HAS_TKEEP {1} \
    CONFIG.HAS_TLAST {1} \
    CONFIG.HAS_TREADY {1} \
@@ -216,14 +248,14 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
    CONFIG.TUSER_WIDTH {0} \
    ] $S_AXIS_DS0
 
-  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+  for {set i 1} {$i < $num_dfx_streamer} {incr i} {
     set iw [lindex $interface_widths $i]
     set tdata_num_bytes [expr {$iw / 8}]
     set port_name "S_AXIS_DS$i"
   
     set S_AXIS_DS_PORT [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:axis_rtl:1.0 $port_name ]
     set_property -dict [ list \
-     CONFIG.FREQ_HZ {99999001} \
+     CONFIG.FREQ_HZ "$clk_frq" \
      CONFIG.HAS_TKEEP {0} \
      CONFIG.HAS_TLAST {1} \
      CONFIG.HAS_TREADY {1} \
@@ -243,7 +275,7 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
    CONFIG.AWUSER_WIDTH {0} \
    CONFIG.BUSER_WIDTH {0} \
    CONFIG.DATA_WIDTH {32} \
-   CONFIG.FREQ_HZ {99999001} \
+   CONFIG.FREQ_HZ "$clk_frq" \
    CONFIG.HAS_BRESP {1} \
    CONFIG.HAS_BURST {1} \
    CONFIG.HAS_CACHE {1} \
@@ -272,7 +304,7 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
   set_property -dict [ list \
    CONFIG.ADDR_WIDTH {32} \
    CONFIG.DATA_WIDTH {32} \
-   CONFIG.FREQ_HZ {99999001} \
+   CONFIG.FREQ_HZ "$clk_frq" \
    CONFIG.HAS_BRESP {0} \
    CONFIG.HAS_LOCK {0} \
    CONFIG.HAS_QOS {0} \
@@ -284,18 +316,18 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
    CONFIG.READ_WRITE_MODE {READ_ONLY} \
    ] $M_AXI_BS
 
-  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+  for {set i 1} {$i < $num_dfx_streamer} {incr i} {
     set port_name "M_AXIS_DS$i"
     
     set M_AXIS_DS_PORT [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 $port_name ]
     set_property -dict [ list \
-     CONFIG.FREQ_HZ {99999001} \
+     CONFIG.FREQ_HZ "$clk_frq" \
      ] $M_AXIS_DS_PORT
   }
 
 
   # Create ports
-  set clk [ create_bd_port -dir I -type clk -freq_hz 99999001 clk ]
+  set clk [ create_bd_port -dir I -type clk -freq_hz $clk_frq clk ]
   set_property -dict [ list \
    CONFIG.ASSOCIATED_BUSIF {M_AXI_DMA_IN:M_AXI_DMA_OUT:M_AXIS_DS0:S_AXIS_DS0:S_AXIS_DS1:S_AXI_CTRL:M_AXI_BS:M_AXIS_DS1} \
  ] $clk
@@ -308,52 +340,45 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
 
   # Create instance: DFX_Mng, and set properties
   set DFX_Mng [ create_bd_cell -type ip -vlnv user.org:user:DFX_Mng:1.0 DFX_Mng ]
+  set_property -dict [ list \
+     CONFIG.BANK1_INDEX_WIDTH  "$rm_index_width" \
+     CONFIG.BANK1_LD_MSK_WIDTH "$num_dfx_streamer" \
+     CONFIG.BANK1_ST_MSK_WIDTH "$num_dfx_streamer" \
+     ] $DFX_Mng
 
   # Create instance: Dfx_Streamer_i, and set properties
-  for {set i 1} {$i < [llength $interface_widths]} {incr i} {
+  for {set i 1} {$i < $num_dfx_streamer} {incr i} {
     set Dfx_Streamer_$i [ create_bd_cell -type ip -vlnv user.org:user:Dfx_Streamer:1.0 Dfx_Streamer_$i ]
+    set target_streamer [set Dfx_Streamer_$i]
+    set aiw [lindex $applied_interface_widths $i] ; # actual/applied index width
+    set iw [lindex $interface_widths $i]          ; # interface index width
+    set sw [lindex $storage_index_widths $i]      ; # storage index width
+    set_property -dict [ list \
+         CONFIG.DATA_WIDTH "$aiw" \
+         CONFIG.ITF_DATA_WIDTH "$iw" \
+         CONFIG.STORAGE_IDX_WIDTH "$sw" \
+         CONFIG.BANK1_ST_MSK_WIDTH "$num_dfx_streamer" \
+         CONFIG.BANK1_LD_MSK_WIDTH "$num_dfx_streamer" \
+         CONFIG.STREAMER_IDX "$i" \
+         ] $target_streamer
   }
 
   # Create instance: xlconcat_0, and set properties
   # Calculate total port width and number of interface widths
-  set total_port_width [expr {1 << $slot_index_width}]
-  set num_interface_widths [llength $interface_widths]
   
   # Build property list for xlconcat
   set config_list [list]
   
   # First N ports are 1 bit width
-  for {set i 0} {$i < $num_interface_widths} {incr i} {
+  for {set i 0} {$i < $num_dfx_streamer} {incr i} {
     lappend config_list "CONFIG.IN${i}_WIDTH" {1}
   }
-  
-  # Calculate remaining width
-  set remaining_width [expr {$total_port_width - $num_interface_widths}]
-  
-  # Determine number of ports
-  if {$remaining_width > 0} {
-    set num_ports [expr {$num_interface_widths + 1}]
-    lappend config_list "CONFIG.IN${num_interface_widths}_WIDTH" $remaining_width
-  } else {
-    set num_ports $num_interface_widths
-  }
-  
-  lappend config_list "CONFIG.NUM_PORTS" $num_ports
-  
+  lappend config_list "CONFIG.NUM_PORTS" $num_dfx_streamer
+
+
   # Create the fin_store_concat_0 instance
   set fin_store_concat_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 fin_store_concat_0 ]
   set_property -dict $config_list $fin_store_concat_0
-
-
-
-  # Create instance: dummy_fin_store, and set properties
-  if {$remaining_width > 0} {
-    set dummy_fin_store [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 dummy_fin_store ]
-    set_property -dict [list \
-      CONFIG.CONST_VAL {0} \
-      CONFIG.CONST_WIDTH $remaining_width \
-    ] $dummy_fin_store
-  }
 
 
   # Create instance: DFX_Ctrl_0_axi_periph, and set properties
@@ -495,10 +520,6 @@ rm7 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low}
 
   connect_bd_net -net fin_store_concat_0_dout [get_bd_pins fin_store_concat_0/dout] [get_bd_pins DFX_Mng/mgsFinExec]
   connect_bd_net -net dummy_dfx_mng_hw_plug_dout [get_bd_pins dummy_dfx_mng_hw_plug/dout] [get_bd_pins DFX_Mng/hw_ctrl_start] [get_bd_pins DFX_Mng/hw_intr_clear]
-  
-  if {$remaining_width > 0} {
-    connect_bd_net -net dummy_fin_store_dout [get_bd_pins dummy_fin_store/dout] [get_bd_pins fin_store_concat_0/In${[llength $interface_widths]}]
-  }
   
   
   connect_bd_net -net dfx_b_auto_ack_dout [get_bd_pins dfx_b_auto_ack/dout] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_shutdown_ack]
