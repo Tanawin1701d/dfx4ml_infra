@@ -13,6 +13,7 @@
 *.runs/
 *.gen/
 *.ip_user_files/
+ip_src/dfx_unified/kv260_dfx_project
 ip_repo/
 
 # IP upgrade logs

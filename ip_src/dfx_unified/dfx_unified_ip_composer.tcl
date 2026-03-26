@@ -12,7 +12,7 @@ create_project $project_name $project_dir -part $part -force
 set_property board_part $board_part [current_project]
 
 # Add IP repository
-set project_root [file normalize [file join [file dirname [info script]] ../../ip_repo]]
+set project_root [file normalize [file join [file dirname [info script]] ../../]]
 set_property  ip_repo_paths  [list [file join $project_root ip_repo]] [current_project]
 update_ip_catalog
 

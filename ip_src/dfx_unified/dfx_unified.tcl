@@ -306,8 +306,8 @@ proc create_root_design { parentCell slot_index_width interface_widths applied_i
   set dbg_amt_store_bytes_0 [ create_bd_port -dir O -from 10 -to 0 dbg_amt_store_bytes_0 ]
   set dbg_state_0 [ create_bd_port -dir O -from 3 -to 0 dbg_state_0 ]
 
-  # Create instance: DFX_Ctrl_A, and set properties
-  set DFX_Ctrl_A [ create_bd_cell -type ip -vlnv user.org:user:DFX_Ctrl:1.0 DFX_Ctrl_A ]
+  # Create instance: DFX_Mng, and set properties
+  set DFX_Mng [ create_bd_cell -type ip -vlnv user.org:user:DFX_Mng:1.0 DFX_Mng ]
 
   # Create instance: Dfx_Streamer_i, and set properties
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
@@ -382,9 +382,19 @@ rm7 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low}
     CONFIG.GUI_VS_NUM_TRIGGERS_ALLOCATED {8} \
   ] $DFX_Ctrl_B
 
+  set dummy_dfx_mng_hw_plug [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 dummy_dfx_mng_hw_plug ]
+  set_property -dict [list \
+    CONFIG.CONST_VAL {0} \
+    CONFIG.CONST_WIDTH 1 \
+  ] $dummy_dfx_mng_hw_plug
 
-  # Create instance: xlconstant_2, and set properties
-  set xlconstant_2 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_2 ]
+
+  # Create instance: dfx_b_auto_ack, and set properties
+  set dfx_b_auto_ack [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 dfx_b_auto_ack ]
+  set_property -dict [list \
+      CONFIG.CONST_VAL {1} \
+      CONFIG.CONST_WIDTH 1 \
+    ] $dfx_b_auto_ack
 
   # Create instance: reset_join, and set properties
   set reset_join [ create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 reset_join ]
@@ -423,9 +433,9 @@ rm7 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low}
   create_hier_cell_dma_hier [current_bd_instance .] dma_hier
 
   # Create interface connections
-  connect_bd_intf_net -intf_net DFX_Ctrl_0_M_AXI [get_bd_intf_pins DFX_Ctrl_A/M_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/S00_AXI]
+  connect_bd_intf_net -intf_net DFX_Ctrl_0_M_AXI [get_bd_intf_pins DFX_Mng/M_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/S00_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M00_AXI [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M00_AXI] [get_bd_intf_pins dma_hier/S_AXI_LITE]
-  connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M01_AXI [get_bd_intf_pins DFX_Ctrl_A/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M01_AXI]
+  connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M01_AXI [get_bd_intf_pins DFX_Mng/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M01_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M02_AXI [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M02_AXI] [get_bd_intf_pins DFX_Ctrl_B/s_axi_reg]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M03_AXI [get_bd_intf_pins axi_dfx_reset/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M03_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M04_AXI [get_bd_intf_pins axi_dfx_decup/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M04_AXI]
@@ -450,58 +460,59 @@ rm7 BS {0 {ID 0 ADDR 0 SIZE 0 CLEAR 0}} SHUTDOWN_REQUIRED hw RESET_REQUIRED low}
 
   
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
-    connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadInit [get_bd_pins DFX_Ctrl_A/slaveMgsLoadInit] [get_bd_pins Dfx_Streamer_${i}/loadInit_pool]
-    connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadReset [get_bd_pins DFX_Ctrl_A/slaveMgsLoadReset] [get_bd_pins Dfx_Streamer_${i}/loadReset_pool]
-    connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreInit [get_bd_pins DFX_Ctrl_A/slaveMgsStoreInit] [get_bd_pins Dfx_Streamer_${i}/storeInit_pool]
-    connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreReset [get_bd_pins DFX_Ctrl_A/slaveMgsStoreReset] [get_bd_pins Dfx_Streamer_${i}/storeReset_pool]
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadInit [get_bd_pins DFX_Mng/slaveMgsLoadInit] [get_bd_pins Dfx_Streamer_${i}/loadInit_pool]
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadReset [get_bd_pins DFX_Mng/slaveMgsLoadReset] [get_bd_pins Dfx_Streamer_${i}/loadReset_pool]
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreInit [get_bd_pins DFX_Mng/slaveMgsStoreInit] [get_bd_pins Dfx_Streamer_${i}/storeInit_pool]
+    connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreReset [get_bd_pins DFX_Mng/slaveMgsStoreReset] [get_bd_pins Dfx_Streamer_${i}/storeReset_pool]
     connect_bd_net -net util_vector_logic_0_Res [get_bd_pins util_vector_logic_0/Res] [get_bd_pins dma_hier/decouple] [get_bd_pins Dfx_Streamer_${i}/decup]
+    connect_bd_net -net Dfx_Streamer_${i}_finStore [get_bd_pins Dfx_Streamer_${i}/finStore] [get_bd_pins fin_store_concat_0/In${i}]
   }
   
   
   connect_bd_net -net Dfx_Streamer_1_dbg_amt_load_bytes [get_bd_pins Dfx_Streamer_1/dbg_amt_load_bytes] [get_bd_ports dbg_amt_load_bytes_0]
   connect_bd_net -net Dfx_Streamer_1_dbg_amt_store_bytes [get_bd_pins Dfx_Streamer_1/dbg_amt_store_bytes] [get_bd_ports dbg_amt_store_bytes_0]
   connect_bd_net -net Dfx_Streamer_1_dbg_state [get_bd_pins Dfx_Streamer_1/dbg_state] [get_bd_ports dbg_state_0]
-  connect_bd_net -net Dfx_Streamer_1_finStore [get_bd_pins Dfx_Streamer_1/finStore] [get_bd_pins xlconcat_0/In1]
 
 
 
-  connect_bd_net -net DFX_Ctrl_A_hw_intr [get_bd_pins DFX_Ctrl_A/hw_intr] [get_bd_ports dfx_intr]
-  connect_bd_net -net DFX_Ctrl_A_slaveReprog [get_bd_pins DFX_Ctrl_A/slaveReprog] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_hw_triggers]
+
+  connect_bd_net -net DFX_Mng_hw_intr [get_bd_pins DFX_Mng/hw_intr] [get_bd_ports dfx_intr]
+  connect_bd_net -net DFX_Mng_slaveReprog [get_bd_pins DFX_Mng/slaveReprog] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_hw_triggers]
   connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_decouple [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_decouple] [get_bd_pins util_vector_logic_0/Op1]
   connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_reset [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_reset] [get_bd_pins reset_join/Op1]
 
   connect_bd_net -net axi_dfx_decup_gpio_io_o [get_bd_pins axi_dfx_decup/gpio_io_o] [get_bd_pins util_vector_logic_0/Op2]
   connect_bd_net -net axi_dfx_reset_gpio_io_o [get_bd_pins axi_dfx_reset/gpio_io_o] [get_bd_pins reset_join/Op2]
   connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins dma_hier/s2mm_introut] [get_bd_pins fin_store_concat_0/In0]
-  connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ACLK] [get_bd_pins DFX_Ctrl_B/clk] [get_bd_pins DFX_Ctrl_B/icap_clk] [get_bd_pins axi_dfx_reset/s_axi_aclk] [get_bd_pins axi_dfx_decup/s_axi_aclk] [get_bd_pins DFX_Ctrl_A/clk] [get_bd_pins icapWrap_0/CLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ACLK] [get_bd_pins dma_hier/clk]
-  connect_bd_net -net reset_0_1 [get_bd_ports nreset] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ARESETN] [get_bd_pins DFX_Ctrl_B/reset] [get_bd_pins DFX_Ctrl_B/icap_reset] [get_bd_pins axi_dfx_reset/s_axi_aresetn] [get_bd_pins axi_dfx_decup/s_axi_aresetn] [get_bd_pins DFX_Ctrl_A/reset] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ARESETN] [get_bd_pins dma_hier/nreset]
-  connect_bd_net -net reset_join_Res [get_bd_pins reset_join/Res] [get_bd_ports pr_reset] [get_bd_pins DFX_Ctrl_A/nslaveReset]
+  connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ACLK] [get_bd_pins DFX_Ctrl_B/clk] [get_bd_pins DFX_Ctrl_B/icap_clk] [get_bd_pins axi_dfx_reset/s_axi_aclk] [get_bd_pins axi_dfx_decup/s_axi_aclk] [get_bd_pins DFX_Mng/clk] [get_bd_pins icapWrap_0/CLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ACLK] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ACLK] [get_bd_pins dma_hier/clk]
+  connect_bd_net -net reset_0_1 [get_bd_ports nreset] [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M00_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/S01_ARESETN] [get_bd_pins DFX_Ctrl_B/reset] [get_bd_pins DFX_Ctrl_B/icap_reset] [get_bd_pins axi_dfx_reset/s_axi_aresetn] [get_bd_pins axi_dfx_decup/s_axi_aresetn] [get_bd_pins DFX_Mng/reset] [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ARESETN] [get_bd_pins dma_hier/nreset]
+  connect_bd_net -net reset_join_Res [get_bd_pins reset_join/Res] [get_bd_ports pr_reset] [get_bd_pins DFX_Mng/nslaveReset]
   
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
-    connect_bd_net -net clk_streamer [get_bd_ports clk] [get_bd_pins Dfx_Streamer_${i}/clk]
-    connect_bd_net -net reset_streamer [get_bd_ports nreset] [get_bd_pins Dfx_Streamer_${i}/reset]
+    connect_bd_net -net clk_0_1   [get_bd_ports clk]    [get_bd_pins Dfx_Streamer_${i}/clk]
+    connect_bd_net -net reset_0_1 [get_bd_ports nreset] [get_bd_pins Dfx_Streamer_${i}/reset]
   }
 
-  connect_bd_net -net fin_store_concat_0_dout [get_bd_pins fin_store_concat_0/dout] [get_bd_pins DFX_Ctrl_A/mgsFinExec]
-  connect_bd_net -net xlconstant_0_dout [get_bd_pins xlconstant_0/dout] [get_bd_pins DFX_Ctrl_A/hw_ctrl_start] [get_bd_pins DFX_Ctrl_A/hw_intr_clear]
+  connect_bd_net -net fin_store_concat_0_dout [get_bd_pins fin_store_concat_0/dout] [get_bd_pins DFX_Mng/mgsFinExec]
+  connect_bd_net -net dummy_dfx_mng_hw_plug_dout [get_bd_pins dummy_dfx_mng_hw_plug/dout] [get_bd_pins DFX_Mng/hw_ctrl_start] [get_bd_pins DFX_Mng/hw_intr_clear]
   
   if {$remaining_width > 0} {
-    connect_bd_net -net xlconstant_1_dout [get_bd_pins dummy_fin_store/dout] [get_bd_pins fin_store_concat_0/In${[llength $interface_widths]}]
+    connect_bd_net -net dummy_fin_store_dout [get_bd_pins dummy_fin_store/dout] [get_bd_pins fin_store_concat_0/In${[llength $interface_widths]}]
   }
   
   
-  connect_bd_net -net xlconstant_2_dout [get_bd_pins xlconstant_2/dout] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_shutdown_ack]
+  connect_bd_net -net dfx_b_auto_ack_dout [get_bd_pins dfx_b_auto_ack/dout] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_shutdown_ack]
 
   # Create address segments
-  assign_bd_address -offset 0x00000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Ctrl_A/M_AXI] [get_bd_addr_segs DFX_Ctrl_A/S_AXI/reg0] -force
-  assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Ctrl_A/M_AXI] [get_bd_addr_segs DFX_Ctrl_B/s_axi_reg/Reg] -force
-  assign_bd_address -offset 0x00040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Ctrl_A/M_AXI] [get_bd_addr_segs axi_dfx_decup/S_AXI/Reg] -force
-  assign_bd_address -offset 0x00030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Ctrl_A/M_AXI] [get_bd_addr_segs axi_dfx_reset/S_AXI/Reg] -force
-  assign_bd_address -offset 0x00020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Ctrl_A/M_AXI] [get_bd_addr_segs dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
+  assign_bd_address -offset 0x00000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs DFX_Mng/S_AXI/reg0] -force
+  assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs DFX_Ctrl_B/s_axi_reg/Reg] -force
+  assign_bd_address -offset 0x00040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs axi_dfx_decup/S_AXI/Reg] -force
+  assign_bd_address -offset 0x00030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs axi_dfx_reset/S_AXI/Reg] -force
+  assign_bd_address -offset 0x00020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
   assign_bd_address -offset 0x00000000 -range 0x000100000000 -target_address_space [get_bd_addr_spaces DFX_Ctrl_B/Data] [get_bd_addr_segs M_AXI_BS/Reg] -force
   assign_bd_address -offset 0x00000000 -range 0x000100000000 -target_address_space [get_bd_addr_spaces dma_hier/axi_dma_0/Data_MM2S] [get_bd_addr_segs M_AXI_DMA_IN/Reg] -force
   assign_bd_address -offset 0x00000000 -range 0x000100000000 -target_address_space [get_bd_addr_spaces dma_hier/axi_dma_0/Data_S2MM] [get_bd_addr_segs M_AXI_DMA_OUT/Reg] -force
-  assign_bd_address -offset 0x00000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs DFX_Ctrl_A/S_AXI/reg0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs DFX_Mng/S_AXI/reg0] -force
   assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs DFX_Ctrl_B/s_axi_reg/Reg] -force
   assign_bd_address -offset 0x00040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs axi_dfx_decup/S_AXI/Reg] -force
   assign_bd_address -offset 0x00030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs axi_dfx_reset/S_AXI/Reg] -force
