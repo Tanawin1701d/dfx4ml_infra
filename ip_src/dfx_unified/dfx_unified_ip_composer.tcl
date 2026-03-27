@@ -3,7 +3,7 @@
 # Set project parameters
 set project_name "kv260_dfx_project"
 set project_dir "./kv260_dfx_project"
-set bd_name "design_1"
+set bd_name "dfx_unified"
 set part "xck26-sfvc784-2LV-c"
 set board_part "xilinx.com:kv260_som:part0:1.4"
 
@@ -42,3 +42,24 @@ make_wrapper -files [get_files ${project_dir}/${project_name}.srcs/sources_1/bd/
 add_files -norecurse ${project_dir}/${project_name}.gen/sources_1/bd/${bd_name}/hdl/${bd_name}_wrapper.v
 
 puts "Project $project_name created successfully with KV260 board support."
+
+
+ipx::package_project -root_dir [file join $project_root ip_repo dfx_unified] -vendor user.org -library user -taxonomy /UserIP -import_files -set_current false -force
+
+ipx::unload_core [file join $project_root ip_repo dfx_unified component.xml]
+ipx::edit_ip_in_project -upgrade true -name tmp_edit_project -directory [file join $project_root ip_repo dfx_unified ] [file join $project_root ip_repo dfx_unified component.xml]
+
+set_property name dfx_unified [ipx::current_core]
+set_property display_name dfx_unified_v1_0 [ipx::current_core]
+set_property description dfx_unified_v1_0 [ipx::current_core]
+
+set_property ipi_drc {ignore_freq_hz false} [ipx::current_core]
+set_property sdx_kernel true [ipx::current_core]
+set_property sdx_kernel_type rtl [ipx::current_core]
+set_property vitis_drc {ctrl_protocol ap_ctrl_none} [ipx::current_core]
+
+ipx::save_core [ipx::current_core]
+file delete -force [file join $project_root ip_repo unified_xo dfx_unified.xo]
+package_xo  -xo_path [file join $project_root ip_repo unified_xo dfx_unified.xo] -kernel_name dfx_unified -ip_directory [file join $project_root ip_repo dfx_unified] -ctrl_protocol ap_ctrl_none
+
+close_project
