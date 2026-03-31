@@ -17,16 +17,21 @@ set_property  ip_repo_paths  [list [file join $project_root ip_repo]] [current_p
 update_ip_catalog
 
 # Source the design script
-source [file join [file dirname [info script]] dfx_unified.tcl]
+source [file join [file dirname [info script]] dfx_region.tcl]
 
 # Define arguments for create_root_design
 # These values are example parameters; adjust them according to your specific needs.
+set parentCell ""
 set clk_frq 99999001 ;
 set rm_index_width 2 ;
-set num_dfx_streamer 8 ; # dma included
-set interface_widths [list 32 32 32 32 32 32 32 32] ;# Must be power of two
-set applied_interface_widths [list 32 32 32 32 32 32 32 32] ;# Must be <= interface_widths
-set storage_index_widths [list 10 10 10 10 10 10 10 10] ;
+set num_dfx_streamer 2 ; # dma included
+set interface_widths [list 32 32 ] ;# Must be power of two
+set input_maps [list 0 -1 ]
+set output_maps [list -1 0 ]
+set ip_src ""
 
 # Call create_dfx_unified_bd
-create_dfx_unified_bd $parentCell $clk_frq $rm_index_width $num_dfx_streamer $interface_widths $applied_interface_widths $storage_index_widths
+create_dfx_region_bd $parentCell "dfx_pr_0" $clk_frq \
+                     $num_dfx_streamer $interface_widths \
+                     $input_maps $output_maps \
+                     $ip_src
