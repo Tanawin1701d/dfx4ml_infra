@@ -29,3 +29,5 @@ ip_upgrade.log
 
 linker_*
 ip_src/viva_ip_exec
+
+*test_prj

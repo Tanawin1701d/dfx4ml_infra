@@ -110,9 +110,11 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
   variable script_folder
   variable design_name
 
-  if { $parentCell eq "" } {
-     set parentCell [get_bd_cells /]
-  }
+#  if { $parentCell eq "" } {
+#     set parentCell [get_bd_cells /]
+#  }
+
+  create_bd_design "dfx_unified"
   
   # Check rm_index_width is not zero
   if { $rm_index_width == 0 } {
@@ -583,7 +585,7 @@ set_property -dict [list \
   
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
     connect_bd_net -net clk_0_1   [get_bd_ports clk]    [get_bd_pins Dfx_Streamer_${i}/clk]
-    connect_bd_net -net reset_0_1 [get_bd_ports nreset] [get_bd_pins Dfx_Streamer_${i}/reset]
+    connect_bd_net -net reset_0_1 [get_bd_ports nreset] [get_bd_pins Dfx_Streamer_${i}/nreset]
   }
 
   connect_bd_net -net fin_store_concat_0_dout [get_bd_pins fin_store_concat_0/dout] [get_bd_pins DFX_Mng/mgsFinExec]
@@ -613,5 +615,7 @@ set_property -dict [list \
 
   validate_bd_design
   save_bd_design
+
+  close_bd_design dfx_unified
 }
 
