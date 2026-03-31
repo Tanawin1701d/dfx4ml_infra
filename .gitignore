@@ -26,3 +26,6 @@ ip_upgrade.log
 # .git/
 
 /export/hw/
+
+linker_*
+ip_src/viva_ip_exec

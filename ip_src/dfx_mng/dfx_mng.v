@@ -27,7 +27,7 @@ module DFX_Mng #(
 ) (
 
 input wire clk,
-input  wire reset,
+input  wire nreset,
 
 // ==========================================
 // AXI-LITE (connect with processor) ========
@@ -246,7 +246,7 @@ m_axi_read #(
     .GLOB_DATA_WIDTH(GLOB_DATA_WIDTH)
 ) axiCmdRead(
     .clk(clk),
-    .reset(reset),
+    .reset(nreset),
     .M_AXI_ARADDR(M_AXI_ARADDR),
     .M_AXI_ARVALID(M_AXI_ARVALID),
     .M_AXI_ARREADY(M_AXI_ARREADY),
@@ -273,7 +273,7 @@ m_axi_write #(
 ) axiCmdWrite (
 
     .clk(clk),
-    .reset(reset),
+    .reset(nreset),
 
     .M_AXI_AWADDR(M_AXI_AWADDR),
     .M_AXI_AWVALID(M_AXI_AWVALID),
@@ -333,7 +333,7 @@ s_axi_read #(
     .BANK0_ROUNDTRIP_WIDTH(BANK0_ROUNDTRIP_WIDTH)
 ) ps_axi_reader(
     .clk(clk),
-    .reset(reset),
+    .reset(nreset),
 
     // Read Address Channel
     .S_AXI_ARADDR(S_AXI_ARADDR),
@@ -396,7 +396,7 @@ s_axi_write #(
     .BANK0_ROUNDTRIP_WIDTH(BANK0_ROUNDTRIP_WIDTH)
 ) ps_axi_writer(
     .clk(clk),
-    .reset(reset),
+    .reset(nreset),
 
     // AXI Lite Write Address Channel
     .S_AXI_AWADDR(S_AXI_AWADDR),
@@ -480,7 +480,7 @@ DFX_Mng_Core #(
     .DMA_EXEC_TASK_CNT(DMA_EXEC_TASK_CNT)
 ) dfx_mng_core_0(
     .clk(clk),
-    .reset(reset),
+    .reset(nreset),
 
     // setter from outsider
     .ext_bank1_inp_index                (ext_bank1_inp_index),

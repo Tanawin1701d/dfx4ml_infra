@@ -62,4 +62,4 @@ ipx::save_core [ipx::current_core]
 file delete -force [file join $project_root ip_repo unified_xo dfx_unified.xo]
 package_xo  -xo_path [file join $project_root ip_repo unified_xo dfx_unified.xo] -kernel_name dfx_unified -ip_directory [file join $project_root ip_repo dfx_unified] -ctrl_protocol ap_ctrl_none
 
-close_project
+#close_project

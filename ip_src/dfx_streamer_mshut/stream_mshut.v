@@ -12,7 +12,7 @@ module Stream_Master_Dummy #
     output  wire                      M_AXI_TLAST,
 
     input   wire clk,
-    input   wire reset
+    input   wire nreset
 );
 
 assign M_AXI_TDATA   = 0; // Dummy implementation, always output zero

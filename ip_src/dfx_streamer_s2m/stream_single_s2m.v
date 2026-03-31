@@ -1,5 +1,5 @@
 
-module DummyStreamS2m #
+module Stream_Single_S2M #
 (
     parameter integer DATA_WIDTH        = 32
 )

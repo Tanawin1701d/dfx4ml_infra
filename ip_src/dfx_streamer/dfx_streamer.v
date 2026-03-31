@@ -10,7 +10,7 @@ module Dfx_Streamer #
 )
 (
     input wire                        clk,
-    input wire                        reset,
+    input wire                        nreset,
     input wire                        decup,
 
     // AXIS Slave Interface   store in terface
@@ -102,7 +102,7 @@ assign dbg_amt_load_bytes  = amt_load_bytes;
 /////////////////////////////////////
 always @(posedge clk) begin
 
-    if (~reset) begin
+    if (~nreset) begin
         state           <= STATUS_IDLE;
         amt_store_bytes <= 0;
         amt_load_bytes  <= 0;

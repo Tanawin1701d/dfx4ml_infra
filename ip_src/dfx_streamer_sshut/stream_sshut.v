@@ -13,7 +13,7 @@ module Stream_Slave_Dummy #
     input  wire                      S_AXI_TLAST,
 
     input   wire clk,
-    input   wire reset
+    input   wire nreset
 );
 
 assign S_AXI_TREADY  = SINK_MODE; // Dummy implementation, always not ready

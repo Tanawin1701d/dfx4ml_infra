@@ -105,7 +105,7 @@ TUSER {PRESENT 0 WIDTH 0} TLAST {PRESENT 1 WIDTH 1} TID {PRESENT 0 WIDTH 0} TDES
 
 # Procedure to create entire design; Provide argument to make
 # procedure reusable. If parentCell is "", will use root.
-proc create_root_design { parentCell clk_frq rm_index_width num_dfx_streamer interface_widths applied_interface_widths storage_index_widths} {
+proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer interface_widths applied_interface_widths storage_index_widths} {
 
   variable script_folder
   variable design_name
@@ -170,8 +170,7 @@ proc create_root_design { parentCell clk_frq rm_index_width num_dfx_streamer int
         catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "storage_index_widths\[$i\] = <$sw> must be greater than 0!"}
         return
      }
-     
-     
+
   }
 
   # Get object for parentCell
@@ -570,7 +569,7 @@ set_property -dict [list \
     [get_bd_pins DFX_Ctrl_B/icap_reset] \
     [get_bd_pins axi_dfx_reset/s_axi_aresetn] \
     [get_bd_pins axi_dfx_decup/s_axi_aresetn] \
-    [get_bd_pins DFX_Mng/reset] \
+    [get_bd_pins DFX_Mng/nreset] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M01_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] \
