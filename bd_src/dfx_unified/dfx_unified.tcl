@@ -327,12 +327,6 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
      ] $M_AXIS_DS_PORT
   }
   
-  set M_AXIS_PR_RESET [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 M_AXIS_PR_RESET ]
-    set_property -dict [ list \
-     CONFIG.FREQ_HZ "$clk_frq" \
-     ] $M_AXIS_PR_RESET
-
-
   # Create ports
   set clk [ create_bd_port -dir I -type clk -freq_hz $clk_frq clk ]
   set_property -dict [ list \
@@ -340,6 +334,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
  ] $clk
   set nreset [ create_bd_port -dir I -type rst nreset ]
   set dfx_intr [ create_bd_port -dir O -type intr dfx_intr ]
+  set dfx_nreset [ create_bd_port -dir O -type rst dfx_nreset ]
   set dbg_amt_load_bytes_0 [ create_bd_port -dir O -from 10 -to 0 dbg_amt_load_bytes_0 ]
   set dbg_amt_store_bytes_0 [ create_bd_port -dir O -from 10 -to 0 dbg_amt_store_bytes_0 ]
   set dbg_state_0 [ create_bd_port -dir O -from 3 -to 0 dbg_state_0 ]
@@ -486,9 +481,6 @@ set_property -dict [list \
   # Create instance: dma_hier
   create_hier_cell_dma_hier [current_bd_instance .] dma_hier
 
-  # Create instance: Pr_Reset_Master_0, and set properties
-    set Pr_Reset_Master_0 [ create_bd_cell -type ip -vlnv user.org:user:Pr_Reset_Master:1.0 Pr_Reset_Master_0 ]
-
   # Create interface connections
   connect_bd_intf_net -intf_net DFX_Ctrl_0_M_AXI [get_bd_intf_pins DFX_Mng/M_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/S00_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M00_AXI [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M00_AXI] [get_bd_intf_pins dma_hier/S_AXI_LITE]
@@ -512,7 +504,6 @@ set_property -dict [list \
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_MM2S [get_bd_intf_ports M_AXI_DMA_IN] [get_bd_intf_pins dma_hier/M_AXI_DMA_IN]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_S2MM [get_bd_intf_ports M_AXI_DMA_OUT] [get_bd_intf_pins dma_hier/M_AXI_DMA_OUT]
   connect_bd_intf_net -intf_net dfx_decoupler_1_rp_intf_0 [get_bd_intf_ports M_AXIS_DS0] [get_bd_intf_pins dma_hier/M_AXIS_DS0]
-  connect_bd_intf_net -intf_net Pr_Reset_Master_0_M_AXI [get_bd_intf_ports M_AXIS_PR_RESET] [get_bd_intf_pins Pr_Reset_Master_0/M_AXIS]
 
 
   # Create port connections
@@ -559,8 +550,7 @@ set_property -dict [list \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ACLK] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ACLK] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ACLK] \
-    [get_bd_pins dma_hier/clk] \
-    [get_bd_pins Pr_Reset_Master_0/clk]
+    [get_bd_pins dma_hier/clk]
   connect_bd_net -net reset_0_1 \
     [get_bd_ports nreset] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ARESETN] \
@@ -576,11 +566,9 @@ set_property -dict [list \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ARESETN] \
-    [get_bd_pins dma_hier/nreset] \
-    [get_bd_pins Pr_Reset_Master_0/nreset]
+    [get_bd_pins dma_hier/nreset]
   connect_bd_net -net reset_join_Res [get_bd_pins reset_join/Res] \
-    [get_bd_pins DFX_Mng/nslaveReset] \
-    [get_bd_pins Pr_Reset_Master_0/pr_nreset]
+    [get_bd_pins DFX_Mng/nslaveReset] [get_bd_ports dfx_nreset]
 
   
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
