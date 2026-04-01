@@ -271,36 +271,36 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
   }
 
   set S_AXI_CTRL [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_CTRL ]
-  set_property -dict [ list \
-   CONFIG.ADDR_WIDTH {32} \
-   CONFIG.ARUSER_WIDTH {0} \
-   CONFIG.AWUSER_WIDTH {0} \
-   CONFIG.BUSER_WIDTH {0} \
-   CONFIG.DATA_WIDTH {32} \
-   CONFIG.FREQ_HZ "$clk_frq" \
-   CONFIG.HAS_BRESP {1} \
-   CONFIG.HAS_BURST {1} \
-   CONFIG.HAS_CACHE {1} \
-   CONFIG.HAS_LOCK {1} \
-   CONFIG.HAS_PROT {1} \
-   CONFIG.HAS_QOS {1} \
-   CONFIG.HAS_REGION {0} \
-   CONFIG.HAS_RRESP {1} \
-   CONFIG.HAS_WSTRB {1} \
-   CONFIG.ID_WIDTH {1} \
-   CONFIG.MAX_BURST_LENGTH {256} \
-   CONFIG.NUM_READ_OUTSTANDING {2} \
-   CONFIG.NUM_READ_THREADS {1} \
-   CONFIG.NUM_WRITE_OUTSTANDING {2} \
-   CONFIG.NUM_WRITE_THREADS {1} \
-   CONFIG.PROTOCOL {AXI4} \
-   CONFIG.READ_WRITE_MODE {READ_WRITE} \
-   CONFIG.RUSER_BITS_PER_BYTE {0} \
-   CONFIG.RUSER_WIDTH {0} \
-   CONFIG.SUPPORTS_NARROW_BURST {1} \
-   CONFIG.WUSER_BITS_PER_BYTE {0} \
-   CONFIG.WUSER_WIDTH {0} \
-   ] $S_AXI_CTRL
+#  set_property -dict [ list \
+#   CONFIG.ADDR_WIDTH {32} \
+#   CONFIG.ARUSER_WIDTH {0} \
+#   CONFIG.AWUSER_WIDTH {0} \
+#   CONFIG.BUSER_WIDTH {0} \
+#   CONFIG.DATA_WIDTH {32} \
+#   CONFIG.FREQ_HZ "$clk_frq" \
+#   CONFIG.HAS_BRESP {1} \
+#   CONFIG.HAS_BURST {1} \
+#   CONFIG.HAS_CACHE {1} \
+#   CONFIG.HAS_LOCK {1} \
+#   CONFIG.HAS_PROT {1} \
+#   CONFIG.HAS_QOS {1} \
+#   CONFIG.HAS_REGION {0} \
+#   CONFIG.HAS_RRESP {1} \
+#   CONFIG.HAS_WSTRB {1} \
+#   CONFIG.ID_WIDTH {1} \
+#   CONFIG.MAX_BURST_LENGTH {256} \
+#   CONFIG.NUM_READ_OUTSTANDING {2} \
+#   CONFIG.NUM_READ_THREADS {1} \
+#   CONFIG.NUM_WRITE_OUTSTANDING {2} \
+#   CONFIG.NUM_WRITE_THREADS {1} \
+#   CONFIG.PROTOCOL {AXI4} \
+#   CONFIG.READ_WRITE_MODE {READ_WRITE} \
+#   CONFIG.RUSER_BITS_PER_BYTE {0} \
+#   CONFIG.RUSER_WIDTH {0} \
+#   CONFIG.SUPPORTS_NARROW_BURST {1} \
+#   CONFIG.WUSER_BITS_PER_BYTE {0} \
+#   CONFIG.WUSER_WIDTH {0} \
+#   ] $S_AXI_CTRL
 
   set M_AXI_BS [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M_AXI_BS ]
   set_property -dict [ list \
