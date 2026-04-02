@@ -41,10 +41,12 @@ set project_path [file join $project_root test_prj]
 set board "kv260"
 set req_gen_ip 0
 set num_core 4
+set user_repo_path ""
 
 
 build $project_path  \
       $board \
+      $user_repo_path \
       $req_gen_ip \
       $num_core \
       $clk_frq \
