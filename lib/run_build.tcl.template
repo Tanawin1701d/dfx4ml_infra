@@ -3,6 +3,7 @@ set build_folder_path "{build_folder_path}"
 source "{build_tcl_path}"
 
 set build_folder_path "{build_folder_path}"
+set dfx4ml_root "{dfx4ml_root}"
 set board "{board}"
 set user_repo_path "{user_repo_path}"
 set req_gen_ip {req_gen_ip}
@@ -22,6 +23,7 @@ set ip_map_list {ip_map_list}
 set test_mode {test_mode}
 
 build $build_folder_path \
+      $dfx4ml_root \
       $board \
       $user_repo_path \
       $req_gen_ip \

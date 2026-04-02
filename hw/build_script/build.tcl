@@ -98,6 +98,7 @@ proc syn_and_impl { num_core num_actual_rm } {
 
 
 proc build {build_tcl_path \
+            dfx4ml_root \
             board \
             user_repo_path \
             req_gen_ip \
@@ -117,13 +118,10 @@ proc build {build_tcl_path \
 
     set parentCell ""
 
-    set dfx4ml_root [file normalize [file join [file dirname [info script]] ../../]]
-
-
     if {$board == "kv260"} {
         puts "prepare model for kv260 generation"
-        source [file join $dfx4ml_root build_script kv260 board_build.tcl]
-        set constraint_path [file join $dfx4ml_root build_script kv260 constraint.xdc]
+        source [file join $dfx4ml_root hw build_script kv260 board_build.tcl]
+        set constraint_path [file join $dfx4ml_root hw build_script kv260 constraint.xdc]
         puts "kv260 xdc file is at $constraint_path"
         build_kv260_prj $build_tcl_path
         import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path

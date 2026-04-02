@@ -31,3 +31,6 @@ linker_*
 ip_src/viva_ip_exec
 
 *test_prj
+
+build_prj/
+export

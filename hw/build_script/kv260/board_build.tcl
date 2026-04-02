@@ -5,8 +5,10 @@ proc build_kv260_prj {{build_dir "build"}} {
     # Set the board part for KV260
     set board_part "xilinx.com:kv260_som:part0:1.4"
 
+    set project_path [file join $build_dir link_prj]
+
     # Create and build the Vivado project
-    create_project -force project_1 $build_dir -part xck26-sfvc784-2LV-c
+    create_project -force project_1 $project_path -part xck26-sfvc784-2LV-c
     set_property board_part $board_part [current_project]
 
     puts "Building Vivado project for KV260 in directory: $build_dir"
