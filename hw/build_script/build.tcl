@@ -1,13 +1,13 @@
-proc import_dep { dfx4ml_root req_gen_ip test_mode user_repo_path} {
+proc import_dep { build_tcl_path dfx4ml_root req_gen_ip test_mode user_repo_path} {
 
     # Add IP repository
-    source [file join $dfx4ml_root ip_src compose_ip.tcl]
+    source [file join $dfx4ml_root hw ip_src compose_ip.tcl]
 
     if {$req_gen_ip == 1} {
-        compose_all_ips $dfx4ml_root
+        compose_all_ips $build_tcl_path $dfx4ml_root
     }
 
-    set repo_paths [list [file join $dfx4ml_root ip_repo]]
+    set repo_paths [list [file join $build_tcl_path ip_repo]]
     if {$test_mode != 1} {
         lappend repo_paths $user_repo_path
     }
@@ -16,9 +16,9 @@ proc import_dep { dfx4ml_root req_gen_ip test_mode user_repo_path} {
     update_ip_catalog
 
     # Source the design script
-    source [file join $dfx4ml_root bd_src dfx_region dfx_region.tcl]
-    source [file join $dfx4ml_root bd_src dfx_unified dfx_unified.tcl]
-    source [file join $dfx4ml_root bd_src dfx4ml dfx4ml.tcl]
+    source [file join $dfx4ml_root hw bd_src dfx_region dfx_region.tcl]
+    source [file join $dfx4ml_root hw bd_src dfx_unified dfx_unified.tcl]
+    source [file join $dfx4ml_root hw bd_src dfx4ml dfx4ml.tcl]
 }
 
 proc prepare_model4syn { num_core num_actual_rm xdc_path } {
@@ -97,7 +97,7 @@ proc syn_and_impl { num_core num_actual_rm } {
 
 
 
-proc build {project_path \
+proc build {build_tcl_path \
             board \
             user_repo_path \
             req_gen_ip \
@@ -114,16 +114,10 @@ proc build {project_path \
             ip_map_list \
             test_mode \
             } {
-            
-
-    
-
 
     set parentCell ""
 
-    set my_debug [file join [file dirname [info script]]]
-    puts "the path is $my_debug"
-    set dfx4ml_root [file normalize [file join [file dirname [info script]] ../]]
+    set dfx4ml_root [file normalize [file join [file dirname [info script]] ../../]]
 
 
     if {$board == "kv260"} {
@@ -131,8 +125,8 @@ proc build {project_path \
         source [file join $dfx4ml_root build_script kv260 board_build.tcl]
         set constraint_path [file join $dfx4ml_root build_script kv260 constraint.xdc]
         puts "kv260 xdc file is at $constraint_path"
-        build_kv260_prj $project_path
-        import_dep $dfx4ml_root $req_gen_ip $test_mode $user_repo_path
+        build_kv260_prj $build_tcl_path
+        import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path
         create_kv260_dfx4ml_design $parentCell $clk_frq $rm_index_width \
                                   $num_dfx_streamer $interface_widths $applied_interface_widths \
                                   $storage_index_widths $num_actual_rm $input_map_list \
@@ -147,11 +141,5 @@ proc build {project_path \
 
     puts "synthesis and implementation"
     syn_and_impl $num_core $num_actual_rm
-
-
-
-
-    
-    
 
 }

@@ -1,0 +1,39 @@
+# Auto-generated Tcl script from Python wrapper
+set build_folder_path "{build_folder_path}"
+source "{build_tcl_path}"
+
+set build_folder_path "{build_folder_path}"
+set board "{board}"
+set user_repo_path "{user_repo_path}"
+set req_gen_ip {req_gen_ip}
+set num_core {num_core}
+set clk_frq {clk_frq}
+set rm_index_width {rm_index_width}
+set num_dfx_streamer {num_dfx_streamer}
+
+set interface_widths {interface_widths}
+set applied_interface_widths {applied_interface_widths}
+set storage_index_widths {storage_index_widths}
+
+set num_actual_rm {num_actual_rm}
+set input_map_list {input_map_list}
+set output_map_list {output_map_list}
+set ip_map_list {ip_map_list}
+set test_mode {test_mode}
+
+build $build_folder_path \
+      $board \
+      $user_repo_path \
+      $req_gen_ip \
+      $num_core \
+      $clk_frq \
+      $rm_index_width \
+      $num_dfx_streamer \
+      $interface_widths \
+      $applied_interface_widths \
+      $storage_index_widths \
+      $num_actual_rm \
+      $input_map_list \
+      $output_map_list \
+      $ip_map_list \
+      $test_mode

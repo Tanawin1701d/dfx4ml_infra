@@ -157,13 +157,6 @@ proc create_dfx4ml_design { parentCell \
   # Create port connections
   connect_bd_net -net dfx_unified_0_dfx_nreset [get_bd_pins dfx_unified_0/dfx_nreset] [get_bd_pins dfx_pr_0_0/nreset]
 
-  # Create address segments
-  # assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/DFX_Ctrl_B/s_axi_reg/Reg] -force
-  # assign_bd_address -offset 0x00000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/DFX_Mng/S_AXI/reg0] -force
-  # assign_bd_address -offset 0x00040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/axi_dfx_decup/S_AXI/Reg] -force
-  # assign_bd_address -offset 0x00030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/axi_dfx_reset/S_AXI/Reg] -force
-  # assign_bd_address -offset 0x00020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
-
   save_bd_design
 
   close_bd_design dfx4ml

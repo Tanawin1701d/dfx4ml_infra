@@ -56,9 +56,9 @@ proc compose_ip { viva_prj_exec_path src_ip_folder_path des_ip_folder_path } {
 }
 
 
-proc compose_all_ips { dfx4ml_root } {
+proc compose_all_ips {build_tcl_path dfx4ml_root } {
 
-    set viva_exec "${dfx4ml_root}/ip_src/viva_ip_exec"
+    set viva_exec "${dfx4ml_root}/build_hw/ip_src/viva_ip_exec"
 
     set ip_modules {
         dfx_icap
@@ -73,8 +73,8 @@ proc compose_all_ips { dfx4ml_root } {
     }
 
     foreach module $ip_modules {
-        set src_path "${dfx4ml_root}/ip_src/${module}"
-        set des_path "${dfx4ml_root}/ip_repo/${module}"
+        set src_path "${dfx4ml_root}/hw/ip_src/${module}"
+        set des_path "${build_tcl_path}/ip_repo/${module}"
         puts "Composing IP: $module"
         compose_ip $viva_exec $src_path $des_path
     }
