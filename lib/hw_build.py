@@ -1,118 +1,103 @@
-import argparse
 import subprocess
 import os
-import json
 
-def list_to_tcl(lst):
-    """Converts a Python list to a Tcl list string."""
-    if isinstance(lst, list):
-        items = [list_to_tcl(i) for i in lst]
-        return "{" + " ".join(items) + "}"
-    return str(lst)
+class HwBuildHelper:
+    def __init__(self, build_folder_path       , board               , user_repo_path  ,
+                       req_gen_ip              , num_core            , clk_frq         ,
+                       rm_index_width          , num_dfx_streamer    , interface_widths,
+                       applied_interface_widths, storage_index_widths, num_actual_rm   ,           
+                       input_map_list          , output_map_list     , ip_map_list     ,
+                       test_mode               , vivado_path):
+        # example input argument :
+        # build_folder_path="./test_prj"
+        # board="kv260"
+        # user_repo_path=""
+        # req_gen_ip=0
+        # num_core=4
+        # clk_frq=99999001
+        # rm_index_width=2
+        # num_dfx_streamer=2
+        # interface_widths=None
+        # applied_interface_widths=None
+        # storage_index_widths=None
+        # num_actual_rm=2
+        # input_map_list=None
+        # output_map_list=None
+        # ip_map_list=None
+        # test_mode=1
+        # vivado_path="vivado"
+        self.build_folder_path        = os.path.abspath(build_folder_path)
+        self.board                    = board
+        self.user_repo_path           = user_repo_path
+        self.req_gen_ip               = req_gen_ip
+        self.num_core                 = num_core
+        self.clk_frq                  = clk_frq
+        self.rm_index_width           = rm_index_width
+        self.num_dfx_streamer         = num_dfx_streamer
+        self.interface_widths         = interface_widths if interface_widths is not None else [32, 32]
+        self.applied_interface_widths = applied_interface_widths if applied_interface_widths is not None else [32, 32]
+        self.storage_index_widths     = storage_index_widths if storage_index_widths is not None else [10, 10]
+        self.num_actual_rm            = num_actual_rm
+        self.input_map_list           = input_map_list if input_map_list is not None else [[0, -1], [-1, 0]]
+        self.output_map_list          = output_map_list if output_map_list is not None else [[-1, 0], [0, -1]]
+        self.ip_map_list              = ip_map_list if ip_map_list is not None else ["", ""]
+        self.test_mode                = test_mode
+        self.vivado_path              = vivado_path
 
-def invoke_vivado_build(args, interface_widths, applied_interface_widths, storage_index_widths, input_map_list, output_map_list, ip_map_list):
-    """Generates a temporary Tcl script and invokes Vivado to run the build."""
-    # Prepare Tcl script content
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
-    build_tcl_path = os.path.join(project_root, "build_script", "build.tcl")
-    
-    tcl_script = f"""
-# Auto-generated Tcl script from Python wrapper
-set project_root "{project_root}"
-source "{build_tcl_path}"
+    def _list_to_tcl(self, lst):
+        """Converts a Python list to a Tcl list string."""
+        if isinstance(lst, list):
+            items = [self._list_to_tcl(i) for i in lst]
+            return "{" + " ".join(items) + "}"
+        return str(lst)
 
-set project_path "{os.path.abspath(args.project_path)}"
-set board "{args.board}"
-set user_repo_path "{args.user_repo_path}"
-set req_gen_ip {args.req_gen_ip}
-set num_core {args.num_core}
-set clk_frq {args.clk_frq}
-set rm_index_width {args.rm_index_width}
-set num_dfx_streamer {args.num_dfx_streamer}
+    def run_build(self):
+        """Reads a Tcl template, fills it with parameters, and invokes Vivado to run the build."""
+        # Define paths
+        lib_dir = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(lib_dir, "run_build.tcl.template")
+        project_root = os.path.abspath(os.path.join(lib_dir, ".."))
+        build_tcl_path = os.path.join(project_root, "hw", "build_script", "build.tcl")
 
-set interface_widths {list_to_tcl(interface_widths)}
-set applied_interface_widths {list_to_tcl(applied_interface_widths)}
-set storage_index_widths {list_to_tcl(storage_index_widths)}
+        # Read template
+        if not os.path.exists(template_path):
+            raise FileNotFoundError(f"Template not found at {template_path}")
+            
+        with open(template_path, "r") as f:
+            template_content = f.read()
 
-set num_actual_rm {args.num_actual_rm}
-set input_map_list {list_to_tcl(input_map_list)}
-set output_map_list {list_to_tcl(output_map_list)}
-set ip_map_list {list_to_tcl(ip_map_list)}
-set test_mode {args.test_mode}
+        # Prepare substitutions
+        tcl_script = template_content.format(
+            build_folder_path=self.build_folder_path,
+            build_tcl_path=build_tcl_path,
+            project_path=self.project_path,
+            board=self.board,
+            user_repo_path=self.user_repo_path,
+            req_gen_ip=self.req_gen_ip,
+            num_core=self.num_core,
+            clk_frq=self.clk_frq,
+            rm_index_width=self.rm_index_width,
+            num_dfx_streamer=self.num_dfx_streamer,
+            interface_widths=self._list_to_tcl(self.interface_widths),
+            applied_interface_widths=self._list_to_tcl(self.applied_interface_widths),
+            storage_index_widths=self._list_to_tcl(self.storage_index_widths),
+            num_actual_rm=self.num_actual_rm,
+            input_map_list=self._list_to_tcl(self.input_map_list),
+            output_map_list=self._list_to_tcl(self.output_map_list),
+            ip_map_list=self._list_to_tcl(self.ip_map_list),
+            test_mode=self.test_mode
+        )
 
-build $project_path \\
-      $board \\
-      $user_repo_path \\
-      $req_gen_ip \\
-      $num_core \\
-      $clk_frq \\
-      $rm_index_width \\
-      $num_dfx_streamer \\
-      $interface_widths \\
-      $applied_interface_widths \\
-      $storage_index_widths \\
-      $num_actual_rm \\
-      $input_map_list \\
-      $output_map_list \\
-      $ip_map_list \\
-      $test_mode
-"""
+        temp_tcl = "run_build.tcl"
+        with open(temp_tcl, "w") as f:
+            f.write(tcl_script)
 
-    temp_tcl = "run_build.tcl"
-    with open(temp_tcl, "w") as f:
-        f.write(tcl_script)
-
-    print(f"Running Vivado with {temp_tcl}...")
-    try:
-        subprocess.run([args.vivado_path, "-mode", "batch", "-source", temp_tcl], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Vivado execution failed with error: {e}")
-    finally:
-        # Optionally remove the temporary file
-        # os.remove(temp_tcl)
-        pass
-
-def main():
-    parser = argparse.ArgumentParser(description="Invoke Vivado build script with parameters.")
-    
-    # Project Parameters
-    parser.add_argument("--project_path", type=str, default="./test_prj", help="Path to the project directory")
-    parser.add_argument("--board", type=str, default="kv260", help="Board name (e.g., kv260)")
-    parser.add_argument("--user_repo_path", type=str, default="", help="Path to user IP repository")
-    parser.add_argument("--req_gen_ip", type=int, default=0, help="Request IP generation (0 or 1)")
-    parser.add_argument("--num_core", type=int, default=4, help="Number of CPU cores for synthesis/implementation")
-    
-    # Design Parameters
-    parser.add_argument("--clk_frq", type=int, default=99999001, help="Clock frequency")
-    parser.add_argument("--rm_index_width", type=int, default=2, help="RM index width")
-    parser.add_argument("--num_dfx_streamer", type=int, default=2, help="Number of DFX streamers")
-    
-    # List Parameters (expected as JSON strings or comma-separated)
-    parser.add_argument("--interface_widths", type=str, default="[32, 32]", help="Interface widths (JSON list)")
-    parser.add_argument("--applied_interface_widths", type=str, default="[32, 32]", help="Applied interface widths (JSON list)")
-    parser.add_argument("--storage_index_widths", type=str, default="[10, 10]", help="Storage index widths (JSON list)")
-    
-    # RM and Map Parameters
-    parser.add_argument("--num_actual_rm", type=int, default=2, help="Number of actual RMs")
-    parser.add_argument("--input_map_list", type=str, default="[[0, -1], [-1, 0]]", help="Input map list (JSON nested list)")
-    parser.add_argument("--output_map_list", type=str, default="[[-1, 0], [0, -1]]", help="Output map list (JSON nested list)")
-    parser.add_argument("--ip_map_list", type=str, default='["", ""]', help="IP map list (JSON list)")
-    
-    parser.add_argument("--test_mode", type=int, default=1, help="Test mode (0 or 1)")
-    
-    parser.add_argument("--vivado_path", type=str, default="vivado", help="Path to vivado executable")
-
-    args = parser.parse_args()
-
-    # Parse JSON list arguments
-    interface_widths = json.loads(args.interface_widths)
-    applied_interface_widths = json.loads(args.applied_interface_widths)
-    storage_index_widths = json.loads(args.storage_index_widths)
-    input_map_list = json.loads(args.input_map_list)
-    output_map_list = json.loads(args.output_map_list)
-    ip_map_list = json.loads(args.ip_map_list)
-
-    invoke_vivado_build(args, interface_widths, applied_interface_widths, storage_index_widths, input_map_list, output_map_list, ip_map_list)
-
-if __name__ == "__main__":
-    main()
+        print(f"Running Vivado with {temp_tcl}...")
+        try:
+            subprocess.run([self.vivado_path, "-mode", "batch", "-source", temp_tcl], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Vivado execution failed with error: {e}")
+        finally:
+            # Optionally remove the temporary file
+            # os.remove(temp_tcl)
+            pass
