@@ -51,10 +51,20 @@ proc create_sub_block_design {parentCell \
         set output_maps [lindex $output_map_list $i]
         set ip_src      [lindex $ip_map_list $i]
 
-        create_dfx_region_bd $parentCell "dfx_pr_${i}" $clk_frq \
-                             $num_dfx_streamer $interface_widths \
-                             $input_maps $output_maps \
-                             $ip_src
+        if {$test_mode == 1} {
+            puts "create dfx_region for testing"
+            create_dfx_region_bd $parentCell "dfx_pr_${i}" $clk_frq \
+                                 $num_dfx_streamer $interface_widths \
+                                 $input_maps $output_maps \
+                                 $ip_src
+        } else {
+            puts "create dfx_region for testing"
+            create_dfx_region_user_bd $parentCell "dfx_pr_${i}" $clk_frq \
+                                 $num_dfx_streamer $interface_widths \
+                                 $input_maps $output_maps \
+                                 $ip_src
+
+        }
     }
 
     create_dfx_unified_bd $parentCell $clk_frq $rm_index_width \
@@ -62,10 +72,6 @@ proc create_sub_block_design {parentCell \
                               $applied_interface_widths $storage_index_widths
 
 }
-
-
-
-
 
 
 proc create_dfx4ml_design { parentCell \

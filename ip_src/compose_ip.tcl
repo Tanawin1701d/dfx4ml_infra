@@ -56,8 +56,9 @@ proc compose_ip { viva_prj_exec_path src_ip_folder_path des_ip_folder_path } {
 }
 
 
-proc compose_all_ips { base_path } {
-    set viva_exec "${base_path}/ip_src/viva_ip_exec"
+proc compose_all_ips { dfx4ml_root } {
+
+    set viva_exec "${dfx4ml_root}/ip_src/viva_ip_exec"
 
     set ip_modules {
         dfx_icap
@@ -72,11 +73,9 @@ proc compose_all_ips { base_path } {
     }
 
     foreach module $ip_modules {
-        set src_path "${base_path}/ip_src/${module}"
-        set des_path "${base_path}/ip_repo/${module}"
+        set src_path "${dfx4ml_root}/ip_src/${module}"
+        set des_path "${dfx4ml_root}/ip_repo/${module}"
         puts "Composing IP: $module"
         compose_ip $viva_exec $src_path $des_path
     }
 }
-
-compose_all_ips "/media/tanawin/tanawin1701e/project8/dfx4ml/dfx4ml_code"

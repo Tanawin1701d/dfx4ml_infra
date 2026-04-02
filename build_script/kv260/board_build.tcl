@@ -1,9 +1,9 @@
-proc build_prj {{build_dir "build"}} {
+proc build_kv260_prj {{build_dir "build"}} {
     # Create build directory if it doesn't exist
     file mkdir $build_dir
 
     # Set the board part for KV260
-    set board_part "xilinx.com:kv260_som:part0:1.1"
+    set board_part "xilinx.com:kv260_som:part0:1.4"
 
     # Create and build the Vivado project
     create_project -force project_1 $build_dir -part xck26-sfvc784-2LV-c

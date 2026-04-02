@@ -110,9 +110,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
   variable script_folder
   variable design_name
 
-#  if { $parentCell eq "" } {
-#     set parentCell [get_bd_cells /]
-#  }
+  if { $parentCell eq "" } {
+     set parentCell [get_bd_cells /]
+  }
 
   create_bd_design "dfx_unified"
   

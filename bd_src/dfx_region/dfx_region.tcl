@@ -2,7 +2,16 @@
 # DESIGN PROCs
 ##################################################################
 
-proc create_dfx_region_bd { parentCell block_name clk_frq num_dfx_streamer interface_widths input_maps output_maps ip_name} {
+proc create_dfx_region_bd { \
+    parentCell \
+    block_name \
+    clk_frq \
+    num_dfx_streamer \
+    interface_widths \
+    input_maps \
+    output_maps \
+    ip_name \
+} {
 
 #  variable script_folder
 #  variable design_name
