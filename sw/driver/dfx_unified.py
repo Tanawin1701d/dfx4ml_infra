@@ -8,17 +8,17 @@ from .dfx_mng  import DFX_Mng
 from .dfx_dma  import DFX_Dma
 
 
-class DFX_unified_driver(DefaultIP):
+class DFX_Unified_Driver(DefaultIP):
     def __init__(self, description):
         # constructor
         super().__init__(description=description)
 
         # address offset for each subIP
-        self.DFX_MNG_OFFSET   = 0x0_0000
-        self.DFX_CTRL_OFFSET  = 0x1_0000
-        self.DMA_OFFSET       = 0x2_0000
-        self.PR_RESET_OFFSET  = 0x3_0000
-        self.PR_DECUP_OFFSET  = 0x4_0000
+        self.DFX_MNG_OFFSET   = 0x4_0000
+        self.DFX_CTRL_OFFSET  = 0x0_0000
+        self.DMA_OFFSET       = 0x3_0000
+        self.PR_RESET_OFFSET  = 0x2_0000
+        self.PR_DECUP_OFFSET  = 0x1_0000
 
 
         self.dfx_mng  = DFX_Mng (self, self.DFX_MNG_OFFSET )
