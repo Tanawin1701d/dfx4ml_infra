@@ -34,3 +34,17 @@ ip_src/viva_ip_exec
 
 build_prj/
 export
+
+# Tech report build artifacts
+doc/tech_report/main.pdf
+doc/tech_report/main.aux
+doc/tech_report/main.log
+doc/tech_report/main.out
+doc/tech_report/main.toc
+doc/tech_report/main.bbl
+doc/tech_report/main.blg
+doc/tech_report/main.fdb_latexmk
+doc/tech_report/main.fls
+doc/tech_report/main.synctex.gz
+
+
