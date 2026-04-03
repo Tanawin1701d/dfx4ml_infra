@@ -8,7 +8,7 @@ proc build_kv260_prj {{build_dir "build"}} {
     set project_path [file join $build_dir link_prj]
 
     # Create and build the Vivado project
-    create_project -force project_1 $project_path -part xck26-sfvc784-2LV-c
+    create_project -force link_prj $project_path -part xck26-sfvc784-2LV-c
     set_property board_part $board_part [current_project]
 
     puts "Building Vivado project for KV260 in directory: $build_dir"

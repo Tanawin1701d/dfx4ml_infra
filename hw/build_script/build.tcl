@@ -140,4 +140,6 @@ proc build {build_tcl_path \
     puts "synthesis and implementation"
     syn_and_impl $num_core $num_actual_rm
 
+    exit
+
 }

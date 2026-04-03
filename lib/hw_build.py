@@ -11,6 +11,7 @@ class HwBuildHelper:
     CHILD_IMPL_TEMPLATE_NAME = "child_{idx}_impl_dfx"
     PAR_BIN_TEMPLATE_NAME    = "dfx4ml_i_dfx_pr_0_0_dfx_pr_{idx}_inst_0_partial.bin"
     FULL_BIN_NAME            = "dfx4ml_wrapper.bin"
+    DFX_UNIFED_VLNV          = "xilinx.com:ip:dfx_unified:1.0"
 
     def __init__(self,
                  build_folder_path       ,
@@ -165,8 +166,42 @@ class HwBuildHelper:
             # os.remove(temp_tcl)
             pass
 
-    def package_export_files(self):
+    def augment_hwh_file(self, hwh_path):
+        import re
+        with open(hwh_path, "r") as f:
+            lines = f.readlines()
 
+        new_lines = []
+        for line in lines:
+            # Check if line contains INSTANCE="dfx_unified_0" and it is a MEMRANGE
+            if 'INSTANCE="dfx_unified_0"' in line and '<MEMRANGE' in line:
+                # 1. Modify the line with BASEVALUE="0xA0000000"
+                if 'BASEVALUE="0xA0000000"' in line:
+                    # Change HIGHVALUE="0xA000FFFF" to HIGHVALUE="0xA004FFFF"
+                    line = re.sub(r'HIGHVALUE="0xA000FFFF"', 'HIGHVALUE="0xA004FFFF"', line)
+                    # Change SLAVEBUSINTERFACE="s_axi_reg" to SLAVEBUSINTERFACE="S_AXI_CTRL"
+                    # Handle both cases if it is already changed or not, 
+                    # but specifically target what user requested.
+                    line = re.sub(r'SLAVEBUSINTERFACE="s_axi_reg"', 'SLAVEBUSINTERFACE="S_AXI_CTRL"', line)
+                    new_lines.append(line)
+                # 2. Delete lines with other specific BASEVALUEs
+                elif 'BASEVALUE="0xA0010000"' in line or \
+                     'BASEVALUE="0xA0020000"' in line or \
+                     'BASEVALUE="0xA0030000"' in line or \
+                     'BASEVALUE="0xA0040000"' in line:
+                    continue
+                else:
+                    new_lines.append(line)
+            elif 'FULLNAME="/dfx_unified_0"' in line and '<MODULE' in line:
+                line = re.sub(r'BDTYPE="BLOCK_CONTAINER"', f'VLNV="{self.DFX_UNIFED_VLNV}"', line)
+                new_lines.append(line)
+            else:
+                new_lines.append(line)
+
+        with open(hwh_path, "w") as f:
+            f.writelines(new_lines)
+
+    def package_export_files(self):
         # make export path
         if not os.path.exists(self.export_folder_path):
             os.makedirs(self.export_folder_path)
@@ -200,5 +235,7 @@ class HwBuildHelper:
         # retrieve hwh
         hwh_path = os.path.join(link_prj_folder_path, self.HWH_PATH_REL)
         new_hwh_name = "system.hwh"
-        shutil.copy(hwh_path, os.path.join(out_hw_folder_path, new_hwh_name))
+        new_hwh_path = os.path.join(out_hw_folder_path, new_hwh_name)
+        shutil.copy(hwh_path, new_hwh_path)
+        self.augment_hwh_file(new_hwh_path)
 
