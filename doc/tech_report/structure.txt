@@ -1,0 +1,26 @@
+.
+├── hw
+│   ├── bd_src
+│   │   ├── dfx4ml
+│   │   ├── dfx_region
+│   │   └── dfx_unified
+│   ├── build_script
+│   │   └── kv260
+│   └── ip_src
+│       ├── dfx_icap
+│       ├── dfx_mng
+│       ├── dfx_streamer
+│       ├── dfx_streamer_mreset
+│       ├── dfx_streamer_mshut
+│       ├── dfx_streamer_s2m
+│       ├── dfx_streamer_s2m_free
+│       ├── dfx_streamer_sreset
+│       ├── dfx_streamer_sshut
+│       ├── fourSp
+├── lib
+│   └── __pycache__
+├── linker
+└── sw
+    └── driver
+
+33 directories

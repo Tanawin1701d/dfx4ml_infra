@@ -1,8 +1,13 @@
 \documentclass{cernatsnote}
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage{placeins}
+\usepackage{verbatim}
+\usepackage{fancyvrb}
+\usepackage{xcolor}
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{framecolor}{RGB}{180,180,180}
 
-\title{CERN ATS Note title}
+\title{DFX4ML-ARCH}
 \author{
 	Author Name \; \\		
 	CERN, CH-1211 Geneva, Switzerland
@@ -14,8 +19,7 @@
 \maketitle
 
 \begin{abstract}
-This document shows how to calculate the path-length of rectangular bending magnets in a beam line. The path-length depends on the pole-face angles, i.e. how the magnet is positioned in the line. The majority of bending magnets are installed with identical pole-face angles at the start and the end, but in certain cases the pole-face angles are different e.g. in the CERN PS BOOSTER BTP and BTY extraction lines, the BHZ10 magnet have a special positioning in order not to perturb the optics of any of the lines unfavorably.
- The path-length correspond to the s-parameter in MADX, and must be calculated precisely, in order to get a correct survey, which need to be correct to the 10 micron level.
+DFX4ML-ARCH presents an FPGA architecture designed to enable partial reconfiguration for machine learning workloads. The project incorporates a self-reconfiguration mechanism, allowing the FPGA fabric to partially reprogram itself. It targets AMD FPGAs equipped with the ICAP3 interface and leverages the PYNQ framework for system integration.
 \end{abstract}
 \\ \\ \\ 
 
@@ -26,7 +30,71 @@ This document shows how to calculate the path-length of rectangular bending magn
 
 \pagebreak
 
-\section{Introduction}
+\section{Project Overview}
+
+DFX4ML is the FPGA architecture aimming to execute FPGA's machine learning workload by exploiting partial reconfiguration to fit FPGA's resource to large machine learning model.
+The model will be divided into multiple peice and then sequentially set up on Reconfigurable region to execute the machine learning workload.
+
+This project is composed of sections:
+    \begin{enumerate}
+    \item \textbf{Hardware Architecture}:  it describe architecture idea, hardware implementation detail, reconfigurable parameter.
+    \item \textbf{Software Driver}: This driver mainly controls our hardware IP and Xilinx IP in the programable logic. In this version, we provide only the pynq driver.
+    \item \textbf{ML framework integration}: This section provides our formal approach to enable the DFX4ML-ARCH to exist Hardware Machine Learning Framework such as HLS4ML.
+    \end{enumerate}
+
+
+    \subsection{Project Structure}
+
+
+    \VerbatimInput[
+  fontsize=\small,
+  fontfamily=tt,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{framecolor},
+  fillcolor=\color{codebg},
+  label=\fbox{\textbf{Project Structure}},
+  labelposition=topline
+]{structure_ascii.txt}
+ 
+
+
+
+
+
+\section{Hardware Architecture}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.8\textwidth]{images/overall_system.png}
+\caption{\label{fig:overviewArch} DFX4ML-ARCH overall architecture}
+\end{figure}
+
+Fig.\ref{fig:overviewArch} illustrates the overall hardware architecture of DFX4ML-ARCH. The hardware architecture is composed of 4 major part:
+
+\begin{enumerate}
+\item \textbf{Main Processor}. This project focuses on Xilinx SOC with PYNQ framework. The PYNQ framework supports users to manage memory allocation and initialization. Moreover, the processor is responsible for controlling Programable logic and communicating to the PMU processor.
+\item \textbf{PMU and CSU}. Plateform Management Unit (PMU) and Control Security Unit (CSU) is the Xilinx SOC's management system. The PMU is the dedicate processor used to manage system's routine task and secure the system at hardware level. In this project, we have to command the PMU to orchestrates the Programmable logic permission.
+\item \textbf{Programmable Logic}. To support partial reconfiguration, the DFX4ML-ARCH is divided into 2 region:
+  \begin{enumerate}
+    \item \textbf{Static Region}. The region that is always active and contains the control logic and temporal memory storage. We propose four main component:
+      \begin{enumerate}
+        \item \textbf{DFX Manager}: it manages all PL components: (1) command DFX Controller, (2) control DFX Streamer, (3) control DMA Controller, (4) profile thte system, (5) interrupt the processor, and (6) receive commands and meta-data from processor.
+        \item \textbf{DFX Controller}: This Xilinx IP recieve command from DFX Manager. When It is triggered, the system will load the partial bit stream file from main memory (DDR ram) and reprogram the partial region through ICAP 3 port.
+        \item \textbf{DFX Streamer(s)}: it is the storage based on BRAM (on-ship memory) used to hold the data temporarily while the patial region is reconfiguring.
+        \item \textbf{DMA Controller}: this Xilinx IP is used to transfer Data from DDR ram directly to partial region.
+      \end{enumerate}
+    \item \textbf{Reconfigurable Region (RP)}. This region is dedicated to machine learning workload. The input\/output only comes from the AXI-Stream.
+  \end{enumerate}
+
+\end{enumerate}
+
+
+
+ 
+
+
+
 This note will describe how to calculate the path length of a bending magnet. Throughout this note the bending magnet is defined according to the MADX sector magnet definition SBEND (See ref. \cite{MADX}). The reason is that a sector magnet definition can also model a rectangular magnet, so it is easier just to use the sector bending magnet definition. The sector magnet definition is characterized by it's arc length "$L$", it's bending angle "$\phi$" and it's pole-face angles "$e1$ and $e2$", (see Figure \ref{fig:StandardMagnetLayout}). \\
 \begin{figure}[ht]
 \centering

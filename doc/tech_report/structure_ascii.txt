@@ -1,0 +1,22 @@
+.
++-- hw                               # for hardware resource
+|   +-- bd_src                        # Vivado block design script
+|   |   +-- dfx4ml                     # static and pr connection script
+|   |   +-- dfx_region                 # par block design script
+|   |   +-- dfx_unified                # static region block design script
+|   +-- build_script                  # block design for specific board script
+|   |   +-- kv260
+|   +-- ip_src                        # verilog ip script
+|       +-- dfx_icap                 
+|       +-- dfx_mng
+|       +-- dfx_streamer
+|       +-- dfx_streamer_mreset
+|       +-- dfx_streamer_mshut
+|       +-- dfx_streamer_s2m
+|       +-- dfx_streamer_s2m_free
+|       +-- dfx_streamer_sreset
+|       +-- dfx_streamer_sshut
+|       +-- fourSp
++-- lib                              # python library for hw and sw generation
++-- sw                               # for software resource
+    +-- driver
