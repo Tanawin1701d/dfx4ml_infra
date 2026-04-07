@@ -1,11 +1,39 @@
+\PassOptionsToPackage{table}{xcolor}
 \documentclass{cernatsnote}
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage{placeins}
+\usepackage{float}
+\usepackage{rotating}
 \usepackage{verbatim}
 \usepackage{fancyvrb}
+\usepackage[T1]{fontenc}
 \usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
 \definecolor{codebg}{RGB}{245,245,245}
 \definecolor{framecolor}{RGB}{180,180,180}
+\definecolor{darkgreen}{RGB}{0,128,0}
+% Register map colors
+\definecolor{rwgreen}{RGB}{15,110,86}
+\definecolor{rwbg}{RGB}{225,245,238}
+\definecolor{roblue}{RGB}{24,95,165}
+\definecolor{robg}{RGB}{230,241,251}
+\definecolor{woamber}{RGB}{133,79,11}
+\definecolor{wobg}{RGB}{250,238,218}
+\definecolor{headerbg}{RGB}{241,239,232}
+\definecolor{sectionbg}{RGB}{230,230,230}
+\definecolor{monocolor}{RGB}{60,52,137}
+% Register map badge commands
+\newcommand{\badrw}{\colorbox{rwbg}{\textcolor{rwgreen}{\textbf{\small R/W}}}}
+\newcommand{\badro}{\colorbox{robg}{\textcolor{roblue}{\textbf{\small RO}}}}
+\newcommand{\badwo}{\colorbox{wobg}{\textcolor{woamber}{\textbf{\small WO}}}}
+\newcommand{\reg}[1]{\texttt{\textcolor{monocolor}{#1}}}
+\newcommand{\addr}[1]{\texttt{\small #1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcommand{\subrow}[1]{\rowcolor{sectionbg} \multicolumn{5}{l}{\small\textbf{\textsc{#1}}} \\}
 
 \title{DFX4ML-ARCH}
 \author{
@@ -92,142 +120,236 @@ Fig.\ref{fig:overviewArch} illustrates the overall hardware architecture of DFX4
 
 
  
+\subsection{DFX Manager}
 
-
-
-This note will describe how to calculate the path length of a bending magnet. Throughout this note the bending magnet is defined according to the MADX sector magnet definition SBEND (See ref. \cite{MADX}). The reason is that a sector magnet definition can also model a rectangular magnet, so it is easier just to use the sector bending magnet definition. The sector magnet definition is characterized by it's arc length "$L$", it's bending angle "$\phi$" and it's pole-face angles "$e1$ and $e2$", (see Figure \ref{fig:StandardMagnetLayout}). \\
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.8\textwidth]{images/StandardMagnetLayout.png}
-\caption{\label{fig:StandardMagnetLayout} Standard magnet layout for a sector bending magnet}
-\end{figure}
-
-Looking at the definition of a sector magnet in MADX:
-\begin{align*} 
-label: &SBEND, L=real, ANGLE=real, TILT=real, \\
-&K0=real, K1=real, K2=real, K1S=real, \\
-&E1=real, E2=real,\\
-&FINT=real, FINTX=real, HGAP=real, H1=real, H2=real, THICK=logical;
-\end{align*}
-
-In the above formula "L" is the arc length, "ANGLE" is the bending angle "$\phi$" and "E1" \& "E2" are the pole face angles.
-
-\pagebreak
-
-\noindent
-\textit{NB! Please note that for Fig.\ref{fig:StandardMagnetLayout}, the definition of a positive bending angle as well as the pole face angles depends on the charge of the particle that moves through the bending magnet. If a positively charged particle is bent to the right, then the bending angle is positive. If a negatively charged particle is bent to the right, then the bending is negative.} \\ \\
-
-The arc length $L$ is extremely important for survey calculations and is equal to the increase in the s variable from the entry to the exit of the magnet. The entry and exit points of the magnet is called ENTRE and SORTIE, which are the names defined in the survey database (See ref. \cite{GEODE})
-
-For survey calculations, we use four different types of magnet length. These four different magnet lengths are used by other groups (see Figure \ref{fig:3Length}):
+DFX Manager is the IP used to orchestrates entire Programmable Logic function. Fig. \ref{fig:dfx_mng_arch} illustrates the overall components in the manager.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.9\textwidth]{images/3Length.png}
-\caption{\label{fig:3Length} Definition of three different length for a bending magnet. \color{blue}The rectangular blue box is the bending magnet itself  \color{red}The Red circular line from point E to point S is the arc length. \color{brown} The straight brown line from point E to point S is the magnetic length. arc length. \color{green} The two angled green straight lines from point E to point S is the length via the deflection point.}
+\includegraphics[width=0.8\textwidth]{images/dfx_mng_arch.png}
+\caption{\label{fig:dfx_mng_arch} DFX Manager}
 \end{figure}
+
+
+The DFX Manager is composed with 5 major components:
 
 \begin{enumerate}
-\item \textbf{The physical length}. This is length given in layout drawings. It is only used for survey calculations but never for optics calculations. But, as the survey group also accepts the magnetic length as a basis for survey calculations, then in the magnetic length is always used for all types of calculation and the physical length is basically never used.
-\item \textbf{The magnetic length}. This is used by the MADX program for optics calculations, but can also be accepted as a basis for survey calculations. The magnetic length, as a concept, is equivalent to the physical length. The magnetic length is calculated from magnet measurements, and the formula for the magnetic length is: $L_{Mag}=\frac {\int_{ }^{ } B dl}{B_{Max}}$, where $B_{Max}$ is the maximum B field in the center of the magnet.
-\item \textbf{The arc length}. This is used by the MADX program. It is the length of the beam trajectory and is the length given in the SBEND command. It is also called the path length.
-\item \textbf{The straight line length between the ENTRY and SORTIE points}. This was in the past used by the GEODE survey program. However, recently GEODE has converted to use the arc length, but there are still instances where the ENTRY/SORTIE length is still used. The survey program could in certain instances base this length on either the physical length or the magnetic length.
+  \item PS connnector: It communicates with the main processor (PS) through AXI-LITE slave protocol. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/s\_axi\_\{read,write\}.v}}
+  \item DFX Streamer Connector: The connector is directly passed the signal from the DFX Manager Core through direct control signal to trigger load/store operation, or even receive the data holding status from the streamers.
+  \item DMA Connector: The DFX Manager Core requires multiple step to set-up the DMA controller properly; therefore, the DMA connector is responsible to manage the sequence of AXI-LITE packet sending DMA IP. The code is at\newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/m\_axi\_\{read,write\}.v}}
+  \item DFX CTRL Connector: The connector is directly passed the signal from the DFX Manager Core through direct control signal to trigger the DFX CTRL IP to load to decouple and reconfigure the partial region zone. This connector also get the data back from the target IP to indicate that the reconfiguration is finished.
+  \item DFX Manager Core: it contains the internal register memory that used to control the flow of the system and provide the data for the slave IP. Moreover, Flow CTRL is responsible to orchestrates the slave IP to work in the correct order.
 \end{enumerate}
 
-\noindent \textit{NB! Please be very careful to check whether a physical length or a magnetic length is used. Check e.g. with the NORMA magnet database. See ref.\cite{NORMA} } 
+\subsubsection{DFX Manager Core}
 
-\section{How to position a straight vacuum chamber to maximize aperture for the beam}
-Looking at Figure \ref{fig:3Length}, we see a beam going from point E to point S, following the red circular line, and we imagine that it passes inside a straight vacuum pipe (this could be represented by the blue square rectangle). In order to maximize the aperture, then the middle of the vacuum chamber should be exactly between the maximum extended circular arc and the ES line. Seen from the center of circle with $ \rho$ as the bending radius, the middle of the vacuum chamber should then be the average between $ \rho $ and the ES line (= $ \rho *Cos(\frac {\alpha}{2} )$ ), i.e. equal to:
-$ \frac{\rho}{2} * (1 - Cos[\frac{\alpha}{2}])$ above the E-S line. \\
-
-This formula is independent of the how the layout of bending magnet is done (see the next section with the three layouts of a rectangular magnet). 
-
-\pagebreak
-
-\section{Three layouts for a rectangular magnet}
-
-\subsection{The standard magnet layout}
+\paragraph{\textbf{Register Architecture (internal register bank)}}
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.9\textwidth]{images/StandarMagnet_DeflectionPoint.png}
-\caption{\label{fig:StandarMagnet_DeflectionPoint} 
-         Calculation of path length for standard magnet layout.}
+\includegraphics[width=1.0\textwidth]{images/dfx_mng_addr_tran.png}
+\caption{\label{fig:dfx_mng_tran} DFX Manager Core's internal register address translation}
 \end{figure}
 
-\FloatBarrier
+We propose the register architecture that resides in the internal memory bank. Users can access these via memory map IO. The tcl building script set the default of the address at $0xA004\_0000$ with 64 KB address range.
 
-\begin{align*} 
-\begin{split}
- L_{arc} & =\rho \cdot \phi \\
- L_{Dfl} & =\frac{L}{Cos(\frac{\phi}{2})} = 2\cdot \rho \cdot Tan(\frac{\phi}{2}) = 2 \cdot L_{arc} \cdot \cfrac{Tan(\frac{\phi}{2})}{\phi} \\
-  L_{ES} & =L = \rho \cdot 2 \cdot Sin(\frac{\phi}{2})  \\ \\
- where \\
- L_{arc} & = path\ length\ i.e\ the\ length\ of \ the \ beam\ trajectory \\
- L_{Dfl} & = Length\ via\ deflection\ point\ \\
- \rho & = \frac{L}{2\cdot Sin(\frac{\phi}{2})} \\
-  & = bending\ radius\ of\ the\ rectangular\ bending\ magnet \\
-  \phi & = bending\ angle\ of\ the\ rectangular\ bending\ magnet \\
- L & = magnetic\  length\ of\ the\ rectangular\ bending\ magnet \\
-\end{split}
-\end{align*}
+With 64 KB range, The address alignment is categorized into 3 main section:
 
-\pagebreak
+\begin{enumerate}
+  \item \textbf{bankId} (bit 14-15): the system supports up to 4 banks. Each bank is a group of row that belongs to the same group of purpose.
+  \item \textbf{rowId} (bit 13-6): Each bank supports up to 256 rows. Row is the group of registers, however, the different row in the same bank have not to be the same schematic.
+  \item \textbf{column} (bit 5-2): Each row supports up to 16 register. Each register in the row has not to be the same register size. However, the register's size must not exceed 4 bytes (32 bit)
+\end{enumerate}
 
-\subsection{Rectangular bending magnet with zero pole phase angle at ENTRE}
+Fig. \ref{fig:dfx_mng_reg} illustrates the DFX Manager's intenal memory. the system is composed of two memory bank: Bank 0 is dedicated for the IP control, debugging system, overall running configuration, interrupt setting, flow control memory; Bank 1 is composed serveral same register pattern row used to store data and meta-data for reconfigurable module initialization, and slave static IP command.
+
+\begin{sidewaysfigure}
+\centering
+\includegraphics[width=\textheight]{images/dfx_mng_reg.png}
+\caption{\label{fig:dfx_mng_reg} DFX Manager Core's internal register overview}
+\end{sidewaysfigure}
+
+ 
+
+ 
+% =============================================================================
+\paragraph{\textbf{Bank 0 — Global Control Registers}}
+
+This bank is mainly used control the flow control system and slave IP identifier. We provide 9 main dedicated register which is accesible from the processor (PS) by using AXI-lite protocol. In this current version, \reg{DFX\_CTRL\_ADDRESS} and \reg{ROUND\_TRIP} register is deprecated. The code is at $hw/ip\_src/dfx\_mng/dfx\_mng\_core.v$
+
+\vspace{1.0em}
+
+
+\textit{Base offset: \addr{0x0000}}
+
+\vspace{0.5em}
+
+\rowcolors{2}{white}{headerbg}
+\begin{longtable}{
+    L{1.6cm}   % Address 
+    L{3.2cm}   % Register
+    L{1.7cm}   % Width
+    C{1.4cm}   % Access
+    L{6.7cm}   % Description
+}
+\caption{Bank 0 — Global Control Registers}
+\label{tab:bank0_registers}\\
+\toprule
+\rowcolor{white}
+\textbf{Address} & \textbf{Register} & \textbf{Width} & \textbf{Access} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\caption[]{Bank 0 — Global Control Registers (continued)}\\
+\toprule
+\rowcolor{white}
+\textbf{Address} & \textbf{Register} & \textbf{Width} & \textbf{Access} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot 
+
+\addr{0x0000} & \reg{CTRL\_REG} & 4 bit & \badwo &
+  Control register.\newline
+  \textbf{0}~=~CLEAR\newline
+  \textbf{1}~=~SHUTDOWN\newline
+  \textbf{2}~=~START UP \\
+
+\addr{0x0004} & \reg{STATUS\_REG} & 4 bit & \badro &
+  System status flags/ flow state machine:\newline
+  \reg{STATUS\_SHUTDOWN}\newline
+  \reg{STATUS\_REPROC}\newline
+  \reg{STATUS\_W4SLAVERESET}\newline
+  \reg{STATUS\_W4SLAVEOP}\newline
+  \reg{STATUS\_CLEAR\_MGS}\newline
+  \reg{STATUS\_INITIALIZE\_MGS}\newline
+  \reg{STATUS\_INITIALIZE\_DMA}\newline
+  \reg{STATUS\_SET\_DMA\_LOAD}\newline
+  \reg{STATUS\_SET\_DMA\_STORE}\newline 
+  \reg{STATUS\_TRIGGERING}\newline
+  \reg{STATUS\_WAIT4FIN} \\
+
+\addr{0x0008} & \reg{MAIN\_COUNTER} & $\lceil\log_2(sw)\rceil$ \newline bit & \badro &
+  Main loop counter. Width is $\lceil\log_2(sw)\rceil$ bits. \\
+
+\addr{0x000C} & \reg{END\_COUNTER} & $\lceil\log_2(sw)\rceil$ \newline bit & \badrw & 
+  End-of-loop counter. Defines the terminal count value for the main counter. \\
+
+\addr{0x0010} & \reg{DMA\_ADDRESS} & 32 bit & \badrw &
+  Base DMA address register (32-bit). \\
+
+\addr{0x0014} & \reg{DFX\_CTRL} \newline \reg{\_ADDRESS} & 32 bit & \badrw &
+  DFX control base address (32-bit). \\
+
+\addr{0x0018} & \reg{INTR\_ENA} & 1 bit & \badrw &
+  Interrupt enable. Set to \textbf{1} to enable notification on finish execution. \\
+
+\addr{0x001C} & \reg{INTR} & 1 bit & \badro &
+  Interrupt status. Indicates system has finished in the current round (read/WOC).
+  Set to \textbf{1} when finished. \\
+
+\addr{0x0020} & \reg{ROUND\_TRIP} & 16 bit & \badrw &
+  Round-trip invocation counter. Counts the number of times the IP has been invoked. \\
+
+\end{longtable}
+
+\vspace{1em}
+
+% =============================================================================
+\paragraph{\textbf{Bank 1 — Reconfigurable Module Slot Registers}}
+
+This bank is dedicated for reconfigurable module's data and meta-data; therefore, this bank is composed of multiple register row with the same pattern. Each row is supposed to contain the neccessary data/meta-data for single reconfigurable module (RM). The row index is also considered as the workload execution sequence.In this current version, the register \reg{SLOT\_STATUS} is deprecated. the code is at $hw/ip\_src/dfx\_mng/\{slot, slotTable\}.v$
+
+
+\textit{Base offset: \addr{0x4000 + 0x40*rm\_i}}
+
+\vspace{0.5em}
+
+\rowcolors{2}{white}{headerbg}
+\begin{longtable}{
+    L{1.6cm}   % Slot Offset
+    L{3.4cm}   % Register
+    L{1.8cm}   % Width
+    C{1.4cm}   % Access
+    L{6.8cm}   % Description
+}
+\toprule
+\rowcolor{white}
+\textbf{Slot Offset} & \textbf{Register} & \textbf{Width} & \textbf{Access} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\toprule
+\rowcolor{white}
+\textbf{Slot Offset} & \textbf{Register} & \textbf{Width} & \textbf{Access} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+
+% ── DMA Source ────────────────────────────────────────────────────────────────
+\subrow{DMA Transfer — Source}
+
+\addr{+0x00} & \reg{SRC\_ADDRESS} & 32 bit & \badrw &
+  Source memory address. Address in system memory from which data will be pushed to the DMA engine. \\
+
+\addr{+0x04} & \reg{SRC\_SIZE} & 26 bit & \badrw &
+  Source transfer size in bytes. Specifies the number of bytes to push from source memory to DMA. \\
+
+% ── DMA Destination ───────────────────────────────────────────────────────────
+\subrow{DMA Transfer — Destination}
+
+\addr{+0x08} & \reg{DES\_ADDRESS} & 32 bit & \badrw &
+  Destination memory address. Address in system memory where the DMA engine writes the output data. \\
+
+\addr{+0x0C} & \reg{DES\_SIZE} & 26 bit & \badrw &
+  Destination transfer size in bytes. Specifies the number of bytes the DMA engine writes to destination memory. \\
+
+% ── Status & Profiling ────────────────────────────────────────────────────────
+\subrow{Slot Status \& Profiling}
+
+\addr{+0x10} & \reg{SLOT\_STATUS} & 32 bit & \badrw &
+Bit~0: load state (0~=~unload, 1~=~loaded). Bit~1: profiler overflow flag
+(0~=~overflow, 1~=~no overflow). \\
+
+\addr{+0x14} & \reg{PROFILE\_COUNTER} & 32 bit & \badrw &
+  Profiling cycle counter. Counts partial region reconfigure's usage cycles for this RM.\\
+
+% ── Stream Masks ──────────────────────────────────────────────────────────────
+\subrow{Stream Masks}
+
+\addr{+0x18} & \reg{LOAD\_MASK} & 8 bit & \badrw &
+  Each bit value at each index $i$ in this register refers to the demand of the data from streamer number $i$. However, the first bit (LSB bit) is reserved for DMA. 1 is require; 0 is otherwise\\
+
+\addr{+0x1C} & \reg{STORE\_MASK} & 8 bit & \badrw &
+  Each bit value at each index $i$ in this register refers to the request to store data to streamer number $i$. However, the first bit (LSB bit) is reserved for DMA. 1 is require; 0 is otherwise \\
+
+
+\addr{+0x20} & \reg{STORE\_INTR\_MASK} & 8 bit & \badro &
+  It buffers the finish status of the DFX Streamer and DMA IP in the same pattern with \reg{STORE\_MASK}. This register is used to indicate wheather this RM is finished or not\\
+
+\end{longtable}
+
+\vspace{1em}
+
+
+\vspace{0.5em}
+
+\paragraph{\textbf{Access Permission Legend}}
+
+\begin{tabular}{lll}
+  \badrw & Read / Write & Register can be both read and written by the host. \\[4pt]
+  \badro & Read Only    & Register is read-only; writes are ignored. \\[4pt]
+  \badwo & Write Only   & Register is write-only; reads return undefined values. \\
+\end{tabular}
+
+
+\paragraph{\textbf{Flow Control (state machine)}}
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.7\textwidth]{images/BendingMagnet_Aligned_Entre.png}
-\caption{\label{fig:BendingMagnet_Aligned_Entre} 
-         Calculation of path length for magnet aligned with ENTRE.}
+\includegraphics[width=1.0\textwidth]{images/dfx_mng_state_diagram.png}
+\caption{\label{fig:dfx_mng_state} DFX Manager flow control (state diagram)}
 \end{figure}
-\FloatBarrier
 
-\begin{align*} 
-\begin{split}
- L_{arc} & =\rho \cdot \phi \\
- L_{Dfl} & = 2\cdot \rho \cdot Tan(\frac{\phi}{2}) = \frac{L}{\ {Cos(\frac{\phi}{2})}^2}  \\
-  L_{ES} & = \rho \cdot 2 \cdot Sin(\frac{\phi}{2})  \\ \\
- where \\
- L_{arc} & = path\ length\ i.e\ the\ length\ of \ the \ beam\ trajectory \\
- L_{Dfl} & = Length\ via\ deflection\ point\ \\
- \rho & = \frac{L}{Sin(\phi)} \\
-  & = bending\ radius\ of\ the\ rectangular\ bending\ magnet \\
-  \phi & = bending\ angle\ of\ the\ rectangular\ bending\ magnet \\
- L & = magnetic\  length\ of\ the\ rectangular\ bending\ magnet \\
-\end{split}
-\end{align*}
-
-\pagebreak
-
-\subsection{Rectangular bending magnet arbitrary pole phase angles}
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.7\textwidth]{images/BendingMagnet_Arbitrary_Angles.png}
-\caption{\label{fig:BendingMagnet_Arbitrary_Angles} 
-Calculation of path length for magnet with arbitrary polephase angles. In the above Figure \ref{fig:BendingMagnet_Arbitrary_Angles} the poleface angle at the ENTRY equal -$\phi1$ ($E1=-\phi1$), while the poleface angle at SORTIE equals $\phi2$ ($E2=\phi2$). From geometric considerations it can be seen that the sum of the poleface angles $E1+E2=\phi$  }
-\end{figure}
-\FloatBarrier
-
-\begin{align*} 
-\begin{split}
- L_{arc} & =\rho \cdot \phi \\
- L_{Dfl} & = 2\cdot \rho \cdot Tan(\frac{\phi}{2})   \\
-  L_{ES} & = \rho \cdot 2 \cdot Sin(\frac{\phi}{2})  \\ \\
- where \\
- L_{arc} & = path\ length\ i.e\ the\ length\ of \ the \ beam\ trajectory \\
- L_{Dfl} & = Length\ via\ deflection\ point\ \\
- \rho & = \frac{L}{Sin(E1)+Sin(E2)} \\
-  & = bending\ radius\ of\ the\ rectangular\ bending\ magnet \\
-  \phi & = bending\ angle\ of\ the\ rectangular\ bending\ magnet \\
- L & = magnetic\  length\ of\ the\ rectangular\ bending\ magnet \\
-\end{split}
-\end{align*}
-
-\subsection{Some concluding comments about survey}
-Because it is very costly to do drawings, it has been decided to base all surveys on drawings. However, since the drawings calculate the length of a bending magnet as the length of the deflection point, while MADX calculates the length via the arc length, one will have to modify all positions of the elements downstream a bending magnet - basically subtracting the difference between the length via the deflection point and the arc length from all these elements. One will therefore not find identical values of the positions in the drawings and the MADX file, even though the the two sources describe the exact same information.
 
 \bibliography{references}
 \bibliographystyle{plain}
