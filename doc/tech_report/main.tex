@@ -37,7 +37,7 @@
 
 \title{DFX4ML-ARCH}
 \author{
-	Author Name \; \\		
+	tanawin \\
 	CERN, CH-1211 Geneva, Switzerland
 }
 \email{author.email@cern.ch}
@@ -342,13 +342,32 @@ Bit~0: load state (0~=~unload, 1~=~loaded). Bit~1: profiler overflow flag
 \end{tabular}
 
 
+\vspace{1.5em}
+
+
 \paragraph{\textbf{Flow Control (state machine)}}
 
-\begin{figure}[ht]
+Flow Control orchestrates the slave IP step such as DFX Controller, DMA IP, DFX Streamer (formerly Magic Streamer) to execute intilization and operation command sequentially at cycle-accurate level. The code is at $hw/ip\_src/dfx\_mng/dfx\_mng\_core.v$.
+
+Fig. \ref{fig:dfx_mng_state} illustrates the high-level state machine inside the DFX Mng Core, and we can simply categorized the system command into 3 main parts:
+
+\begin{enumerate}
+  \item SHUTDOWN state: The DFX Manager will not issue any command and not follow any command from outside source except the command from processor. All internal registers can be read or write followed by the rule at previous section (Access Permission Legend). Except the \reg{CTRL\_REG}, if there are register accesses when the system is not in SHUTDOWN state, the system will send back the unpredictable value and our driver will discard it. We apply this restriction because we aim to optmize the hardware resouce usage.
+  \item DFX CTRL states: these states is depicted in DFX CTRL hanshake section (green block) and dedicates to send the commands to trigger DFX CTRL IP. The commands aims to reconfigure the partial region, and track/synchronize the status of the reconfiguring.
+  \item MGS and DMA states: these states is depicted in MGS \& DMA initialization (brown block) and deicates to send the commands to initialize and trigger the DMA IP and DFX Streamer (formerly magic streamer (MGS)). The commands aims to prepare/clear the internal meta-data memory of DFX Streamer, set-up the DMA IP meta-data that get from internal register bank 1, and wait for finish from reconfigurable module.
+\end{enumerate}
+
+\begin{figure}[H]
 \centering
 \includegraphics[width=1.0\textwidth]{images/dfx_mng_state_diagram.png}
 \caption{\label{fig:dfx_mng_state} DFX Manager flow control (state diagram)}
 \end{figure}
+
+
+
+\subsection{DFX Streamer(s)}
+
+DFX Streamer(s) is the temporal storage reside in the Programable logic's static region and it was designed to utilize the BRAM resource for the storage and minor flip flop for holding its tranfer meta-data.
 
 
 \bibliography{references}
