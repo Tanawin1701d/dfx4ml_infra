@@ -1,0 +1,32 @@
+from lib.hw_build import HwBuildHelper
+from lib.sw_build import SwBuildHelper
+
+# Instantiate with default parameters
+hw_builder = HwBuildHelper(
+    build_folder_path="./build_prj",
+    dfx_root_path=".",
+    board="kv260",
+    user_repo_path="",
+    req_gen_ip=1,
+    num_core=4,
+    clk_frq=99999001,           # Hz
+    rm_index_width=2,
+    num_dfx_streamer=2,
+    interface_widths=[32, 32],
+    applied_interface_widths=[32, 32],
+    storage_index_widths=[10, 10],
+    num_actual_rm=2,
+    input_map_list=[[0, -1], [-1, 0]],
+    output_map_list=[[-1, 0], [0, -1]],
+    ip_map_list=["", ""],
+    test_mode=1,
+    vivado_path="/tools/Xilinx/Vivado/2023.2/bin/vivado",
+    export_folder_path="./export"
+)
+
+# Run the build (invokes Vivado)
+hw_builder.run_build()
+hw_builder.package_export_files()
+
+sw_builder = SwBuildHelper(export_folder_path="./export")
+sw_builder.package_export_file()

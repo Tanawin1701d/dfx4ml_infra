@@ -6,6 +6,22 @@
 \usepackage{rotating}
 \usepackage{verbatim}
 \usepackage{fancyvrb}
+\usepackage{listings}
+\lstdefinestyle{python}{
+  language=Python,
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color[RGB]{0,0,200}\bfseries,
+  stringstyle=\color[RGB]{163,21,21},
+  commentstyle=\color[RGB]{0,128,0}\itshape,
+  numberstyle=\tiny\color{gray},
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{framecolor},
+  showstringspaces=false,
+  breaklines=true,
+  morekeywords={True,False,None},
+}
 \usepackage[T1]{fontenc}
 \usepackage{xcolor}
 \usepackage{colortbl}
@@ -367,7 +383,157 @@ Fig. \ref{fig:dfx_mng_state} illustrates the high-level state machine inside the
 
 \subsection{DFX Streamer(s)}
 
-DFX Streamer(s) is the temporal storage reside in the Programable logic's static region and it was designed to utilize the BRAM resource for the storage and minor flip flop for holding its tranfer meta-data.
+DFX Streamer(s) is the temporal storage reside in the Programable logic's static region and it was designed to utilize the BRAM resource for the storage and minor flip flop for holding its tranfer meta-data. the code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer/dfx\_streamer.v}}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{images/dfx_streamer.png}
+\caption{\label{fig:dfx_streamer} DFX Streamer Architecture}
+\end{figure}
+
+Fig. \ref{fig:dfx_streamer} illustrates the overal architecture of the DFX Streamer, the \textbf{meta-data blocks} (blue boxes) stay inside the static region using flip flop to track amount of load/ store and RM status (INTERRUPT HOLDER). Meanwhile the \textbf{MAIN MEMORY} (purple block) also resides in the static region, however it uses BRAM memory to store the temporal data.
+
+In contrast, the Stream Transceiver and Stream Receiver' connection port are open to partial region with \textbf{AXI-STREAM} interface. In current version, AXI\_STREAM's \textbf{tkeep}, and \textbf{tlast} signal are \textbf{mandatory}. If they is not set-up, the system will get stuck.
+
+\subsection{DFX\_CTRL}
+
+DFX\_CTRL is the Xilinx's DFX IP used to retrive the bin stream file from DDR Memory and reconfigure the partial reconfigurable region by using the ICAP3 port. To achieve this process, we need to configure the IP's internal memory to match our feature.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{images/dfx_ctrl_register.png}
+\caption{\label{fig:dfx_streamer} DFX Controller Architecture}
+\end{figure}
+
+Fig. \ref{fig:dfx_streamer} illustrates the internal memory of the DFX Ctrl IP. It is composed of 4 memory bank: 
+
+\begin{enumerate}
+  \item Bank 0 is general register enabling the software the control IP and check IP status.
+  \item Bank 1 is the RM Mapping, each slot in this bank is the pointer to a slot in Bank 2.
+  \item Bank 2 is the RM information. The control field is the setting of the start-up/shutdown down procedure, and our driver set this criteria as follow:
+      \begin{enumerate}
+        \item Reset Duration: 1 cycle
+        \item Reset Type: active low
+        \item Startup Required: No
+        \item Shutdown Required: No
+      \end{enumerate}
+      The BS Index field contains the index of the target slot in bank 3
+  \item Bank 3 contains the bitstream infomation: 
+      \begin{enumerate}
+        \item Address: the address of bitstream file in DDR Memory
+        \item Size: the size of the bitstream file in bytes
+        \item ID: bit stream Identifier
+      \end{enumerate}
+\end{enumerate}
+
+
+
+\subsection{Other relevent IPs}
+
+In DFX4ML, there are other 3 IPs which support system creation:
+  \begin{enumerate}
+    \item icapWrap is the module used to be an interface for DFX Controller to self-reconfigure. \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_icap/dfx\_streamer.v}}
+    \item Stream\_Master\_Dummy is the module used to be the dummy plug in partial region AXI-stream master side. it is built to prevent un-predictable signal when the target reconfigurable module does not require some interface ports. \newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer\_mshut/streamer\_mshut.v}}
+    \item Stream\_Slave\_Dummy is like the Stream\_Master\_Dummy but AXI\_slave side.\newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer\_sshut/streamer\_sshut.v}}
+  \end{enumerate}
+
+
+\section{Driver Architecture}
+
+
+\paragraph{\textbf{Memory Address}}
+
+Our building script set a default base address to \addr{0xA000\_0000} for DFX Unified IP which includes DFX Mng IP, DFX Ctrl IP, DMA IP, PR Reset, and PR DECUP.
+
+\begin{table}[h]
+    \centering
+    \caption{DFX Unified IP Address Map (Base: \addr{0xA000\_0000})}
+    \label{tab:dfx_address_map}
+    \begin{tabular}{llll}
+        \toprule
+        \textbf{IP} & \textbf{Offset} & \textbf{Absolute Address} & \textbf{Address Range} \\
+        \midrule
+        DFX Ctrl  & \addr{0x0\_0000} & \addr{0xA000\_0000} & \addr{0xA000\_0000} -- \addr{0xA000\_FFFF} \\
+        PR DECUP  & \addr{0x1\_0000} & \addr{0xA001\_0000} & \addr{0xA001\_0000} -- \addr{0xA001\_FFFF} \\
+        PR Reset  & \addr{0x2\_0000} & \addr{0xA002\_0000} & \addr{0xA002\_0000} -- \addr{0xA002\_FFFF} \\
+        DMA       & \addr{0x3\_0000} & \addr{0xA003\_0000} & \addr{0xA003\_0000} -- \addr{0xA003\_FFFF} \\
+        DFX Mng   & \addr{0x4\_0000} & \addr{0xA004\_0000} & \addr{0xA004\_0000} -- \addr{0xA004\_FFFF} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{\textbf{Driver Component}}
+
+This section illustrates the PYNQ driver overview used to command the DFX4ML-ARCH hardware.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{images/software_diagram.png}
+\caption{\label{fig:software_overview} DFX4ML-ARCH Driver Overview}
+\end{figure}
+
+
+\textbf{DFX\_Unified\_Driver}: This class controls the DFX Unified IP's Operations. As described in the Hardware Architecture section, The DFX Unified IP is composed of 4 sub IPs: DFX Manager, DFX Controller, DFX DMA, and DFX Streamer(s). 
+
+Therefore, \textbf{The Unified Driver} is composed of 4 sub-drivers (blue boxes): DFX Manager Driver to control the Reconfigurable Module's flow; DFX Controller Driver to manage the partial bitstream; DMA driver to manage the memory data transfer but it is used only for debug purpose only; DFX Manual is used to manually decouple and reset the partial region but it is usesd only for debug purpose.
+
+the code is at \newline
+\textcolor{darkgreen}{\texttt{sw/driver/dfx\_unified.py}}\newline
+\textcolor{darkgreen}{\texttt{sw/driver/dfx\_mng.py}}\newline
+\textcolor{darkgreen}{\texttt{sw/driver/dfx\_ctrl.py}}\newline
+\textcolor{darkgreen}{\texttt{sw/driver/dfx\_dma.py}}\newline
+\textcolor{darkgreen}{\texttt{sw/driver/dfx\_man.py}}\newline
+
+
+\textbf{Cap} is the helper function enabling designer to commnuicate with PMU processor and reconfigure the \reg{pcap\_ctrl} register. After changing this register to 1 the FPGA will enable the partial reconfiguration via ICAP3 port. In contrast if the register is set to 0, the FPGA will allow the FPGA reconfiguration only from processor (PS).
+
+\textbf{Mem Alloc} is the helper function facilitate users to allocate and copy data.
+
+
+\pagebreak
+\section{Build Script and ML Framework Integration}
+
+We provide the python interface that supports users to generate full + partial bitstream file ($.bin$), hardware hand-off file ($.hwh$), and DFX Ctrl configuration file.
+
+The following example demonstrates how to invoke the build helpers to compile the hardware design and package the export files:
+
+\begin{lstlisting}[style=python, caption={Python Build Interface}]
+from lib.hw_build import HwBuildHelper
+from lib.sw_build import SwBuildHelper
+
+# Hardware Build
+hw_builder = HwBuildHelper(
+    build_folder_path       = "./build_prj",
+    dfx_root_path           = ".",
+    board                   = "kv260",
+    user_repo_path          = "",
+    req_gen_ip              = 1,
+    num_core                = 4,
+    clk_frq                 = 99999001, # Hz
+    rm_index_width          = 2, 
+    num_dfx_streamer        = 2,
+    interface_widths        = [32, 32], 
+    applied_interface_widths= [32, 32],
+    storage_index_widths    = [10, 10],
+    num_actual_rm           = 2,
+    input_map_list          = [[0, -1], [-1, 0]],
+    output_map_list         = [[-1, 0], [0, -1]],
+    ip_map_list             = ["", ""],
+    test_mode               = 1,
+    vivado_path             = "<vivado path>",
+    export_folder_path      = "./export"
+)
+hw_builder.run_build()
+hw_builder.package_export_files()
+# Software Build
+sw_builder = SwBuildHelper(export_folder_path="./export")
+sw_builder.package_export_file()
+\end{lstlisting}
+
+
+
+
+
 
 
 \bibliography{references}
