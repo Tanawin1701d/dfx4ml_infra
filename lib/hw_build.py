@@ -18,6 +18,7 @@ class HwBuildHelper:
                  dfx_root_path           ,
                  board                   ,
                  user_repo_path          ,
+
                  req_gen_ip              ,
                  num_core                ,
                  clk_frq                 ,

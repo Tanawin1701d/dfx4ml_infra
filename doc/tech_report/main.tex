@@ -22,6 +22,20 @@
   breaklines=true,
   morekeywords={True,False,None},
 }
+\lstdefinestyle{tcl}{
+  language=tcl,
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color[RGB]{0,0,200}\bfseries,
+  stringstyle=\color[RGB]{163,21,21},
+  commentstyle=\color[RGB]{0,128,0}\itshape,
+  numberstyle=\tiny\color{gray},
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{framecolor},
+  showstringspaces=false,
+  breaklines=true,
+}
 \usepackage[T1]{fontenc}
 \usepackage{xcolor}
 \usepackage{colortbl}
@@ -100,6 +114,9 @@ This project is composed of sections:
   label=\fbox{\textbf{Project Structure}},
   labelposition=topline
 ]{structure_ascii.txt}
+
+
+
  
 
 
@@ -491,13 +508,14 @@ the code is at \newline
 
 
 \pagebreak
-\section{Build Script and ML Framework Integration}
+\section{Build Procedure}
 
-We provide the python interface that supports users to generate full + partial bitstream file ($.bin$), hardware hand-off file ($.hwh$), and DFX Ctrl configuration file.
 
-The following example demonstrates how to invoke the build helpers to compile the hardware design and package the export files:
+\subsection{Quick Started}
 
-\begin{lstlisting}[style=python, caption={Python Build Interface}]
+We provide the python interface that supports users to generate full + partial bitstream file ($.bin$), hardware hand-off file ($.hwh$), DFX Ctrl configuration file, and Pynq driver files.
+
+\begin{lstlisting}[style=python, caption={Python Build Interface}, numbers=left, label={lst:python_build}]
 from lib.hw_build import HwBuildHelper
 from lib.sw_build import SwBuildHelper
 
@@ -530,11 +548,159 @@ sw_builder = SwBuildHelper(export_folder_path="./export")
 sw_builder.package_export_file()
 \end{lstlisting}
 
+The following example (List. ~\ref{lst:python_build}) demonstrates how to start building the DFX-ARCH system. the file is at \textcolor{darkgreen}{\texttt{quick\_start.ipynb}}. User can use this file as starting point! Line 1 and 2 invoke the Hardware Building Helper and Software Building Helper respectively; Line 5 to 27 enables users to build the hardware related output (.bin, .hwh, DFX Ctrl Configuration); and Line 29 - 30 exports the PYNQ driver files.
+
+Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelper}.
+
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{|l|p{11cm}|} 
+\caption{HwBuildHelper Parameters}
+\label{tab:hw_build_params} \\
+\hline
+\textbf{Parameter} & \textbf{Description} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Parameter} & \textbf{Description} \\
+\hline
+\endhead
+\hline
+\endfoot
+\texttt{build\_folder\_path} & Path to directory that users want the vivado project, and other temporary working task. The folder will be create if the path does not exist \\
+\hline
+\texttt{dfx\_root\_path} & Root path of the DFX-ARCH source repository, used to locate IP cores, constraint files, and etc. \\
+\hline
+\texttt{board} & Target FPGA board identifier (e.g., \texttt{kv260}). \\
+\hline
+\texttt{user\_repo\_path} & Path to the user-supplied IP repository which typcally have the partial region's kernel. This path will be refered only when parameter $test_mode=1$ \\
+\hline
+\texttt{req\_gen\_ip} & Flag (\texttt{1}/\texttt{0}) indicating whether verilog IP generation is required. the IP are Icap interface, DFX Manager, DFX Streamer, and DFX Streamer Shut Plug. If you run at a first time, delete/modify $build_folder_path$, YOU MUST SET THIS FLAG TO 1, otherwise this flag is optional \\
+\hline
+\texttt{num\_core} & Number of parallel synthesis/implementation jobs to run in Vivado. \\
+\hline
+\texttt{clk\_frq} & Requested clock frequency in Hz for the FPGA (e.g., \texttt{99999001} $\approx$ 100 MHz). \\
+\hline
+\texttt{rm\_index\_width} & Bit-width of the reconfigurable module (RM) index used to create amount of rows in DFX Mng bank 1 and DFX Ctrl Slot. (eng., \texttt{rm\_index\_width=3   -> 2 << 3 = 8 slot allocated}. However, the actual number of reconfigurable module is not equal to this value it is equal to $num\_actual\_rm$ )\\ 
+\hline
+\texttt{num\_dfx\_streamer} & Number of DFX Streamer instances instantiated in the static region. \\
+\hline
+\texttt{interface\_widths} & List of data-bus widths (bits) for each DFX Streamer interface. It is supposed to be power of 2 start from 8\\
+\hline
+\texttt{applied\_interface\_widths} & List of effective data widths actually driven on each streamer interface; may differ from \texttt{interface\_widths} when partial-width transfers require lesser. \\
+\hline
+\texttt{storage\_index\_widths} & List of address index widths (bits) for the internal buffer of each DFX Streamer, determining its storage depth ($2^{w}$ entries). \\
+\hline
+\texttt{num\_actual\_rm} & Number of reconfigurable modules that will be loaded at runtime. \\
+\hline
+\texttt{input\_map\_list} & Per-kernel input routing table. Outer index = kernel ID; each entry is a list indexed by streamer ID, where the value is the kernel input port ID connected to that streamer (\texttt{-1} means the streamer is not connected to this kernel). \\
+\hline
+\texttt{output\_map\_list} & Per-kernel output routing table. Outer index = kernel ID; each entry is a list indexed by streamer ID, where the value is the kernel output port ID connected to that streamer (\texttt{-1} means the streamer is not connected to this kernel). \\
+\hline
+\texttt{ip\_map\_list} & Per-kernel IP core identifier strings. An empty string indicates that no additional IP is mapped to that kernel slot. \\
+\hline
+\texttt{test\_mode} & Flag (\texttt{1}/\texttt{0}) enabling test mode, which inserts loopback logic for hardware verification without a loaded RM. This code will be used only when $test\_mode=0$  \\ 
+\hline
+\texttt{vivado\_path} & Absolute path to the Vivado installation directory (e.g., \texttt{"/tools/Xilinx/Vivado/2023.2/bin/vivado"}). \\
+\hline
+\texttt{export\_folder\_path} & Destination directory for the packaged output files (\texttt{.bin}, \texttt{.hwh}, configuration files, and PYNQ drivers). The folder will be create if the path does not exist\\
+\hline
+\end{longtable}
+ 
 
 
+ \subsection{ML Framwork Integration}
+
+ DFX4ML-ARCH provides the official solution for enabling Hardware Machine Learning framework to integrate their own sub-kernel into each Reconfigurable Module (RM).
+
+To integrate the module, users must complete the following steps:
+\begin{enumerate}
+    \item Provide the path to the user IP repository via \texttt{user\_repo\_path}. The folder at that path must contain the Vivado-exported IP folder, which in turn must include \texttt{src} and \texttt{xgui} sub-folders.
+    \item Provide the path to the TCL file that instructs the build script how to build the Reconfigurable Module via \texttt{user\_build\_tcl} (Listing~\ref{lst:python_build}).
+    \item Set \texttt{test\_mode} to \texttt{0} (Listing~\ref{lst:python_build}) to enable the actual kernel instead of the loopback test logic.
+    \item Provide the IP name list in $ip\_map\_list$ (Listing~\ref{lst:python_build}). The index is the Reconfigurable Module and the value is the IP name.
+\end{enumerate}
 
 
+\subsubsection{User Build Tcl}
 
+The user build TCL file must define the \texttt{create\_dfx\_region\_bd} procedure with the following signature:
+
+\begin{lstlisting}[style=tcl, caption={User Build TCL Procedure Signature}, label={lst:user_build_tcl}, numbers=left]
+proc create_dfx_region_bd { \
+    parentCell \
+    block_name \
+    clk_frq \
+    num_dfx_streamer \
+    interface_widths \
+    input_maps \
+    output_maps \
+    ip_name \
+} {
+    # User implementation here
+}
+\end{lstlisting} 
+
+Table~\ref{tab:tcl_params} describes each argument of the procedure.
+
+\begin{longtable}{|l|p{9cm}|}
+\caption{create\_dfx\_region\_bd Arguments}
+\label{tab:tcl_params} \\
+\hline
+\textbf{Argument} & \textbf{Description} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Argument} & \textbf{Description} \\
+\hline
+\endhead
+\hline
+\endfoot
+\texttt{parentCell} & This field is depricated. \\
+\hline
+\texttt{block\_name} & Name of the hierarchical block representing the Reconfigurable Module in the block design. \\
+\hline
+\texttt{clk\_frq} & Clock frequency in Hz passed from \texttt{HwBuildHelper}, used to configure IP timing constraints inside the region. \\
+\hline
+\texttt{num\_dfx\_streamer} & Number of DFX Streamer interfaces available, matching the value set in \texttt{HwBuildHelper}. \\
+\hline
+\texttt{interface\_widths} & List of data-bus widths (bits) for each streamer port, matching the value set in \texttt{HwBuildHelper}. \\
+\hline
+\texttt{input\_maps} & Input routing map for this kernel slot (one row from \texttt{input\_map\_list}), indicating which streamer IDs feed which kernel input ports. Matching the value is a first level member of in \texttt{HwBuildHelper} \\
+\hline
+\texttt{output\_maps} & Output routing map for this kernel slot (one row from \texttt{output\_map\_list}), indicating which streamer IDs receive which kernel output ports. Matching the value is a first level member of in \texttt{HwBuildHelper} \\
+\hline
+\texttt{ip\_name} & IP core name string for this kernel slot, matching the corresponding entry in \texttt{ip\_map\_list}. Matching the value is a first level member of in \texttt{HwBuildHelper}\\
+\hline
+\end{longtable}
+
+
+The field $input\_maps$, $output\_maps$, and $ip\_name$ will be retrieve from the same index from the master list given from (Lst. \ref{lst:python_build})
+
+Users have to put the RM implementation which includes 
+
+\begin{enumerate}
+  \item create Block Design
+  \item add ML IP module
+  \item add connect the IO (clk, nreset (active low), AXI-Stream interface(s))
+  \item validate block design 
+  \item close Block Design
+\end{enumerate}
+
+Users may use \textcolor{darkgreen}{\texttt{hw/bd\_src/dfx\_region/dfx\_region.tcl}} as a reference.
+
+
+\subsection{Board Specific Script}
+
+In hardware formation of this current version, Only Kv260 board can be fully synthesis and implementation. If the $board$ parameter is set to $custom$, the hardware formation will stop at DFX block design with DFX Unified and Partial connection, the PS and Connection will be missing.
+
+To define new board, users have to build/modify two file
+  \begin{enumerate}
+    \item board\_file\: users have to create the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/<your board name>/board\_build.tcl}} \newline The purpose of this file is to give a processor block, inter-connect block, interrupt system, and other relevent IP in the Vivado block design. Users can use \newline \textcolor{darkgreen}{\texttt{hw/build\_script/kv260/board\_build.tcl}} or use GUI in bord $custom$ as an reference.
+    \item constraint\_file\: users have to create the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/<your board name>/constraint.xdc}} The purpose of this file is to give the boundary of partial reconfigurable region and its resources. Users can use \newline\textcolor{darkgreen}{\texttt{hw/build\_script/kv260/constraint.xdc}}
+    \item build\_script\: users have to modify the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/build.tcl}} to invoke the block design creation procedure. Users may use kv260 option as a reference.
+  \end{enumerate}
+
+DFX4ML-ARCH's author would be appreciated if users do pull request for specific board file.
 
 \bibliography{references}
 \bibliographystyle{plain}
