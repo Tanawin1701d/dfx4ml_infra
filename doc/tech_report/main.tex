@@ -67,7 +67,7 @@
 
 \title{DFX4ML-ARCH}
 \author{
-	tanawin \\
+	Omitted for blind review \\
 	CERN, CH-1211 Geneva, Switzerland
 }
 \email{author.email@cern.ch}
@@ -93,6 +93,14 @@ DFX4ML-ARCH presents an FPGA architecture designed to enable partial reconfigura
 DFX4ML is the FPGA architecture aimming to execute FPGA's machine learning workload by exploiting partial reconfiguration to fit FPGA's resource to large machine learning model.
 The model will be divided into multiple peice and then sequentially set up on Reconfigurable region to execute the machine learning workload.
 
+In current version, the hardware and driver are built and tested under following specification:
+
+\begin{enumerate}
+  \item FPGA model is tested On Zync UltraScale+ (kria260) 
+  \item Hardware Model is composed on Vivado 2023.2
+  \item The target FPGA was running Ubuntu 22.04 with PYNQ framework
+\end{enumerate}
+
 This project is composed of sections:
     \begin{enumerate}
     \item \textbf{Hardware Architecture}:  it describe architecture idea, hardware implementation detail, reconfigurable parameter.
@@ -115,17 +123,20 @@ This project is composed of sections:
   labelposition=topline
 ]{structure_ascii.txt}
 
+\subsection{Naming Convention}
 
+DFX4ML-ARCH adopts the following naming conventions across its Python and Verilog codebase.
 
- 
+\begin{itemize}
+    \item \textbf{Python classes and Verilog module names} use \textit{Pascal\_Snake\_Case} \newline (e.g., \texttt{Hw\_Build\_Helper}, \texttt{Dfx\_Streamer}).
+    \item \textbf{Python variables and methods} use \textit{snake\_case} (e.g., \texttt{build\_folder\_path}, \newline \texttt{run\_build()}).
+\end{itemize}
 
-
-
-
+Note that this convention is not strictly enforced throughout the entire codebase. Some legacy modules were written before this rule was established and may not fully conform. A refactoring pass to align these modules is planned for a future minor version.
 
 \section{Hardware Architecture}
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.8\textwidth]{images/overall_system.png}
 \caption{\label{fig:overviewArch} DFX4ML-ARCH overall architecture}
@@ -419,10 +430,10 @@ DFX\_CTRL is the Xilinx's DFX IP used to retrive the bin stream file from DDR Me
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.65\textwidth]{images/dfx_ctrl_register.png}
-\caption{\label{fig:dfx_streamer} DFX Controller Architecture}
+\caption{\label{fig:dfx_streamer} DFX Controller Architecture (copied from \cite{amd_dfx_controller_2026})}
 \end{figure}
 
-Fig. \ref{fig:dfx_streamer} illustrates the internal memory of the DFX Ctrl IP. It is composed of 4 memory bank: 
+Fig. \ref{fig:dfx_streamer} \cite{amd_dfx_controller_2026} illustrates the internal memory of the DFX Ctrl IP. It is composed of 4 memory bank: 
 
 \begin{enumerate}
   \item Bank 0 is general register enabling the software the control IP and check IP status.
