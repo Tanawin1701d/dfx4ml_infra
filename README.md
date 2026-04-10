@@ -1,6 +1,7 @@
 # DFX4ML-ARCH
 
-An FPGA architecture enabling partial reconfiguration for machine learning workloads. The system divides large ML models into segments and sequentially loads each into a reconfigurable region on the FPGA, allowing models that exceed the device's static capacity to run in full.
+
+DFX4ML-ARCH is an FPGA architecture where the FPGA's ML modules autonomously swap its own ML accelerator kernels during execution. Without any CPU involvement in the reconfiguration process, the FPGA loads and replaces partial bitstreams on-chip, enabling large ML models — too big to fit the device at once — to run in full by executing segment by segment across a self-managed reconfigurable region.
 
 **Tested on:** Zynq UltraScale+ (KV260) · Vivado 2023.2 · Ubuntu 22.04 + PYNQ
 
@@ -14,14 +15,11 @@ An FPGA architecture enabling partial reconfiguration for machine learning workl
   - [Requirements](#requirements)
   - [Build and Export](#build-and-export)
   - [HwBuildHelper Parameters](#hwbuildhelper-parameters)
-- [Running on the Board](#running-on-the-board)
 - [Contributor Guide](#contributor-guide)
   - [Naming Conventions](#naming-conventions)
   - [Integrating Your ML Kernel](#integrating-your-ml-kernel)
-  - [User Build TCL Contract](#user-build-tcl-contract)
   - [Adding Board Support](#adding-board-support)
-  - [Hardware IP Overview](#hardware-ip-overview)
-  - [Driver Overview](#driver-overview)
+  - [Hardware IP and Driver Overview](#hardware-ip-and-driver-overview)
 
 ---
 
@@ -37,7 +35,7 @@ DFX4ML-ARCH splits the FPGA fabric into two regions:
 <img src="doc/tech_report/images/overall_system.png" alt="DFX4ML-ARCH Overall Architecture" width="600"/>
 
 
-The **DFX Manager** orchestrates the whole flow: it commands the DFX Controller to load a partial bitstream from DDR into the RP via ICAP3, pre-loads/stores data using the DFX Streamers (on-chip BRAM buffers), and moves bulk data through the DMA Controller. This enables a sequential execution pipeline where each ML model segment runs in the RP before the next partial bitstream is loaded.
+The **DFX Manager** orchestrates the whole flow autonomously: it commands the DFX Controller to load a partial bitstream from DDR into the RP via ICAP3, pre-loads/stores data using the DFX Streamers (on-chip BRAM buffers), and moves bulk data through the DMA Controller — all without host CPU intervention. This self-reconfiguration loop enables a sequential execution pipeline where each ML model segment runs in the RP, then the FPGA reprograms itself for the next segment, until the full model completes.
 
 ---
 
