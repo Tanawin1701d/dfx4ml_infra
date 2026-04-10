@@ -12,7 +12,7 @@
   basicstyle=\small\ttfamily,
   keywordstyle=\color[RGB]{0,0,200}\bfseries,
   stringstyle=\color[RGB]{163,21,21},
-  commentstyle=\color[RGB]{0,128,0}\itshape,
+  commentstyle=\color[RGB]{0,128,0}\itshape, 
   numberstyle=\tiny\color{gray},
   backgroundcolor=\color{codebg},
   frame=single,
@@ -79,7 +79,16 @@
 \begin{abstract}
 DFX4ML-ARCH presents an FPGA architecture designed to enable partial reconfiguration for machine learning workloads. The project incorporates a self-reconfiguration mechanism, allowing the FPGA fabric to partially reprogram itself. It targets AMD FPGAs equipped with the ICAP3 interface and leverages the PYNQ framework for system integration.
 \end{abstract}
-\\ \\ \\ 
+\\ \\ \\
+
+\begin{small}
+\noindent\textbf{Disclaimer:} The technical content, architecture designs, implementation decisions, and all intellectual contributions in this report are entirely the work of the authors. Generative AI tools were used solely for grammar correction and readability enhancement of the written text. No AI-generated technical content, code, or design decisions are included.
+
+\medskip
+\noindent\textbf{Template:} This document uses the CERN ATS Note \LaTeX{} template, available at \url{https://www.overleaf.com/latex/templates/cern-ats-note/yzjmgkrvtsqg}.
+\end{small}
+
+\bigskip
 
 \begingroup
 \color{black}
@@ -90,22 +99,22 @@ DFX4ML-ARCH presents an FPGA architecture designed to enable partial reconfigura
 
 \section{Project Overview}
 
-DFX4ML is the FPGA architecture aimming to execute FPGA's machine learning workload by exploiting partial reconfiguration to fit FPGA's resource to large machine learning model.
-The model will be divided into multiple peice and then sequentially set up on Reconfigurable region to execute the machine learning workload.
+DFX4ML is an FPGA architecture aiming to execute machine learning workloads on the FPGA by exploiting partial reconfiguration to fit the FPGA's resources to large machine learning models.
+The model will be divided into multiple pieces and then sequentially set up on the reconfigurable region to execute the machine learning workload.
 
 In current version, the hardware and driver are built and tested under following specification:
 
 \begin{enumerate}
-  \item FPGA model is tested On Zync UltraScale+ (kria260) 
-  \item Hardware Model is composed on Vivado 2023.2
-  \item The target FPGA was running Ubuntu 22.04 with PYNQ framework
+  \item FPGA model is tested on Zynq UltraScale+ (kria260)
+  \item Hardware model is composed in Vivado 2023.2
+  \item The target FPGA is running Ubuntu 22.04 with the PYNQ framework
 \end{enumerate}
 
 This project is composed of sections:
     \begin{enumerate}
-    \item \textbf{Hardware Architecture}:  it describe architecture idea, hardware implementation detail, reconfigurable parameter.
-    \item \textbf{Software Driver}: This driver mainly controls our hardware IP and Xilinx IP in the programable logic. In this version, we provide only the pynq driver.
-    \item \textbf{ML framework integration}: This section provides our formal approach to enable the DFX4ML-ARCH to exist Hardware Machine Learning Framework such as HLS4ML.
+    \item \textbf{Hardware Architecture}: it describes the architecture idea, hardware implementation details, and reconfigurable parameters.
+    \item \textbf{Software Driver}: This driver mainly controls our hardware IP and Xilinx IP in the programmable logic. In this version, we provide only the PYNQ driver.
+    \item \textbf{Build Procedure}: This section provides our formal approach to enable DFX4ML-ARCH to integrate with existing Hardware Machine Learning Frameworks and to specific FPGA board.
     \end{enumerate}
 
 
@@ -142,19 +151,19 @@ Note that this convention is not strictly enforced throughout the entire codebas
 \caption{\label{fig:overviewArch} DFX4ML-ARCH overall architecture}
 \end{figure}
 
-Fig.\ref{fig:overviewArch} illustrates the overall hardware architecture of DFX4ML-ARCH. The hardware architecture is composed of 4 major part:
+Fig.\ref{fig:overviewArch} illustrates the overall hardware architecture of DFX4ML-ARCH. The hardware architecture is composed of 4 major parts:
 
 \begin{enumerate}
-\item \textbf{Main Processor}. This project focuses on Xilinx SOC with PYNQ framework. The PYNQ framework supports users to manage memory allocation and initialization. Moreover, the processor is responsible for controlling Programable logic and communicating to the PMU processor.
-\item \textbf{PMU and CSU}. Plateform Management Unit (PMU) and Control Security Unit (CSU) is the Xilinx SOC's management system. The PMU is the dedicate processor used to manage system's routine task and secure the system at hardware level. In this project, we have to command the PMU to orchestrates the Programmable logic permission.
+\item \textbf{Main Processor}. This project focuses on the Xilinx SoC with the PYNQ framework. The PYNQ framework allows users to manage memory allocation and initialization. Moreover, the processor is responsible for controlling Programmable Logic and communicating with the PMU processor.
+\item \textbf{PMU and CSU}. The Platform Management Unit (PMU) and Control Security Unit (CSU) are the Xilinx SoC's management systems. The PMU is a dedicated processor used to manage the system's routine tasks and secure the system at the hardware level. In this project, we have to command the PMU to orchestrate the Programmable Logic permissions.
 \item \textbf{Programmable Logic}. To support partial reconfiguration, the DFX4ML-ARCH is divided into 2 region:
   \begin{enumerate}
-    \item \textbf{Static Region}. The region that is always active and contains the control logic and temporal memory storage. We propose four main component:
+    \item \textbf{Static Region}. The region that is always active and contains the control logic and temporary memory storage. We propose four main components:
       \begin{enumerate}
-        \item \textbf{DFX Manager}: it manages all PL components: (1) command DFX Controller, (2) control DFX Streamer, (3) control DMA Controller, (4) profile thte system, (5) interrupt the processor, and (6) receive commands and meta-data from processor.
-        \item \textbf{DFX Controller}: This Xilinx IP recieve command from DFX Manager. When It is triggered, the system will load the partial bit stream file from main memory (DDR ram) and reprogram the partial region through ICAP 3 port.
-        \item \textbf{DFX Streamer(s)}: it is the storage based on BRAM (on-ship memory) used to hold the data temporarily while the patial region is reconfiguring.
-        \item \textbf{DMA Controller}: this Xilinx IP is used to transfer Data from DDR ram directly to partial region.
+        \item \textbf{DFX Manager}: it manages all PL components: (1) commands the DFX Controller, (2) controls the DFX Streamer, (3) controls the DMA Controller, (4) profiles the system, (5) interrupts the processor, and (6) receives commands and metadata from the processor.
+        \item \textbf{DFX Controller}: This Xilinx IP receives commands from the DFX Manager. When it is triggered, the system loads the partial bitstream file from main memory (DDR RAM) and reprograms the partial region through the ICAP3 port.
+        \item \textbf{DFX Streamer(s)}: it is the storage based on BRAM (on-chip memory) used to hold data temporarily while the partial region is reconfiguring.
+        \item \textbf{DMA Controller}: this Xilinx IP is used to transfer data from DDR RAM directly to the partial region.
       \end{enumerate}
     \item \textbf{Reconfigurable Region (RP)}. This region is dedicated to machine learning workload. The input\/output only comes from the AXI-Stream.
   \end{enumerate}
@@ -166,7 +175,7 @@ Fig.\ref{fig:overviewArch} illustrates the overall hardware architecture of DFX4
  
 \subsection{DFX Manager}
 
-DFX Manager is the IP used to orchestrates entire Programmable Logic function. Fig. \ref{fig:dfx_mng_arch} illustrates the overall components in the manager.
+DFX Manager is the IP used to orchestrate the entire Programmable Logic function. Fig.~\ref{fig:dfx_mng_arch} illustrates the overall components in the manager.
 
 \begin{figure}[ht]
 \centering
@@ -175,14 +184,14 @@ DFX Manager is the IP used to orchestrates entire Programmable Logic function. F
 \end{figure}
 
 
-The DFX Manager is composed with 5 major components:
+The DFX Manager is composed of 5 major components:
 
 \begin{enumerate}
-  \item PS connnector: It communicates with the main processor (PS) through AXI-LITE slave protocol. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/s\_axi\_\{read,write\}.v}}
-  \item DFX Streamer Connector: The connector is directly passed the signal from the DFX Manager Core through direct control signal to trigger load/store operation, or even receive the data holding status from the streamers.
-  \item DMA Connector: The DFX Manager Core requires multiple step to set-up the DMA controller properly; therefore, the DMA connector is responsible to manage the sequence of AXI-LITE packet sending DMA IP. The code is at\newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/m\_axi\_\{read,write\}.v}}
-  \item DFX CTRL Connector: The connector is directly passed the signal from the DFX Manager Core through direct control signal to trigger the DFX CTRL IP to load to decouple and reconfigure the partial region zone. This connector also get the data back from the target IP to indicate that the reconfiguration is finished.
-  \item DFX Manager Core: it contains the internal register memory that used to control the flow of the system and provide the data for the slave IP. Moreover, Flow CTRL is responsible to orchestrates the slave IP to work in the correct order.
+  \item PS Connector: It communicates with the main processor (PS) through the AXI-LITE slave protocol. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/s\_axi\_\{read,write\}.v}}
+  \item DFX Streamer Connector: The connector directly passes signals from the DFX Manager Core through control signals to trigger load/store operations, and also receives the data-holding status from the streamers.
+  \item DMA Connector: The DFX Manager Core requires multiple steps to set up the DMA controller properly; therefore, the DMA connector is responsible for managing the sequence of AXI-LITE packets sent to the DMA IP. The code is at\newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/m\_axi\_\{read,write\}.v}}
+  \item DFX CTRL Connector: The connector directly passes signals from the DFX Manager Core through control signals to trigger the DFX CTRL IP to decouple and reconfigure the partial region. This connector also receives data back from the target IP to indicate that the reconfiguration is finished.
+  \item DFX Manager Core: it contains the internal register memory used to control the flow of the system and provide data for the slave IPs. Moreover, Flow CTRL is responsible for orchestrating the slave IPs to work in the correct order.
 \end{enumerate}
 
 \subsubsection{DFX Manager Core}
@@ -195,17 +204,17 @@ The DFX Manager is composed with 5 major components:
 \caption{\label{fig:dfx_mng_tran} DFX Manager Core's internal register address translation}
 \end{figure}
 
-We propose the register architecture that resides in the internal memory bank. Users can access these via memory map IO. The tcl building script set the default of the address at $0xA004\_0000$ with 64 KB address range.
+We propose the register architecture that resides in the internal memory bank. Users can access these via memory-mapped I/O. The TCL build script sets the default address at $0xA000\_0000$ with a 64~KB address range.
 
-With 64 KB range, The address alignment is categorized into 3 main section:
+With a 64~KB range, the address space is categorized into 3 main sections:
 
 \begin{enumerate}
-  \item \textbf{bankId} (bit 14-15): the system supports up to 4 banks. Each bank is a group of row that belongs to the same group of purpose.
-  \item \textbf{rowId} (bit 13-6): Each bank supports up to 256 rows. Row is the group of registers, however, the different row in the same bank have not to be the same schematic.
-  \item \textbf{column} (bit 5-2): Each row supports up to 16 register. Each register in the row has not to be the same register size. However, the register's size must not exceed 4 bytes (32 bit)
+  \item \textbf{bankId} (bits 14--15): the system supports up to 4 banks. Each bank is a group of rows that belong to the same functional group.
+  \item \textbf{rowId} (bits 13--6): each bank supports up to 256 rows. A row is a group of registers; however, different rows in the same bank do not have to follow the same schema.
+  \item \textbf{column} (bits 5--2): each row supports up to 16 registers. Each register in the row does not have to be the same size. However, the register size must not exceed 4 bytes (32 bits).
 \end{enumerate}
 
-Fig. \ref{fig:dfx_mng_reg} illustrates the DFX Manager's intenal memory. the system is composed of two memory bank: Bank 0 is dedicated for the IP control, debugging system, overall running configuration, interrupt setting, flow control memory; Bank 1 is composed serveral same register pattern row used to store data and meta-data for reconfigurable module initialization, and slave static IP command.
+Fig.~\ref{fig:dfx_mng_reg} illustrates the DFX Manager's internal memory. The system is composed of two memory banks: Bank 0 is dedicated to IP control, the debugging system, overall running configuration, interrupt settings, and flow control memory; Bank 1 is composed of several rows sharing the same register pattern, used to store data and metadata for reconfigurable module initialization and slave static IP commands.
 
 \begin{sidewaysfigure}
 \centering
@@ -219,7 +228,7 @@ Fig. \ref{fig:dfx_mng_reg} illustrates the DFX Manager's intenal memory. the sys
 % =============================================================================
 \paragraph{\textbf{Bank 0 — Global Control Registers}}
 
-This bank is mainly used control the flow control system and slave IP identifier. We provide 9 main dedicated register which is accesible from the processor (PS) by using AXI-lite protocol. In this current version, \reg{DFX\_CTRL\_ADDRESS} and \reg{ROUND\_TRIP} register is deprecated. The code is at $hw/ip\_src/dfx\_mng/dfx\_mng\_core.v$
+This bank is mainly used to control the flow control system and slave IP identifiers. We provide 9 main dedicated registers, which are accessible from the processor (PS) via the AXI-LITE protocol. In this current version, the \reg{DFX\_CTRL\_ADDRESS} and \reg{ROUND\_TRIP} registers are deprecated. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/dfx\_mng\_core.v}}
 
 \vspace{1.0em}
 
@@ -301,7 +310,7 @@ This bank is mainly used control the flow control system and slave IP identifier
 % =============================================================================
 \paragraph{\textbf{Bank 1 — Reconfigurable Module Slot Registers}}
 
-This bank is dedicated for reconfigurable module's data and meta-data; therefore, this bank is composed of multiple register row with the same pattern. Each row is supposed to contain the neccessary data/meta-data for single reconfigurable module (RM). The row index is also considered as the workload execution sequence.In this current version, the register \reg{SLOT\_STATUS} is deprecated. the code is at $hw/ip\_src/dfx\_mng/\{slot, slotTable\}.v$
+This bank is dedicated to reconfigurable module data and metadata; therefore, it is composed of multiple register rows with the same pattern. Each row is supposed to contain the necessary data and metadata for a single reconfigurable module (RM). The row index is also considered the workload execution sequence. In this current version, the register \reg{SLOT\_STATUS} is deprecated. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/\{slot,slotTable\}.v}}
 
 
 \textit{Base offset: \addr{0x4000 + 0x40*rm\_i}}
@@ -361,14 +370,14 @@ Bit~0: load state (0~=~unload, 1~=~loaded). Bit~1: profiler overflow flag
 \subrow{Stream Masks}
 
 \addr{+0x18} & \reg{LOAD\_MASK} & 8 bit & \badrw &
-  Each bit value at each index $i$ in this register refers to the demand of the data from streamer number $i$. However, the first bit (LSB bit) is reserved for DMA. 1 is require; 0 is otherwise\\
+  Each bit at index $i$ in this register indicates the data demand from streamer $i$. The first bit (LSB) is reserved for DMA. 1 means required; 0 means otherwise.\\
 
 \addr{+0x1C} & \reg{STORE\_MASK} & 8 bit & \badrw &
-  Each bit value at each index $i$ in this register refers to the request to store data to streamer number $i$. However, the first bit (LSB bit) is reserved for DMA. 1 is require; 0 is otherwise \\
+  Each bit at index $i$ in this register indicates a request to store data to streamer $i$. The first bit (LSB) is reserved for DMA. 1 means required; 0 means otherwise. \\
 
 
 \addr{+0x20} & \reg{STORE\_INTR\_MASK} & 8 bit & \badro &
-  It buffers the finish status of the DFX Streamer and DMA IP in the same pattern with \reg{STORE\_MASK}. This register is used to indicate wheather this RM is finished or not\\
+  Holds the completion status of the DFX Streamer and DMA IP following the same bit pattern as \reg{STORE\_MASK}. This register is used to indicate whether this RM has finished.\\
 
 \end{longtable}
 
@@ -391,14 +400,14 @@ Bit~0: load state (0~=~unload, 1~=~loaded). Bit~1: profiler overflow flag
 
 \paragraph{\textbf{Flow Control (state machine)}}
 
-Flow Control orchestrates the slave IP step such as DFX Controller, DMA IP, DFX Streamer (formerly Magic Streamer) to execute intilization and operation command sequentially at cycle-accurate level. The code is at $hw/ip\_src/dfx\_mng/dfx\_mng\_core.v$.
+Flow Control orchestrates the slave IP steps, such as DFX Controller, DMA IP, and DFX Streamer (formerly Magic Streamer), to execute initialization and operation commands sequentially at the cycle-accurate level. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/dfx\_mng\_core.v}}.
 
-Fig. \ref{fig:dfx_mng_state} illustrates the high-level state machine inside the DFX Mng Core, and we can simply categorized the system command into 3 main parts:
+Fig.~\ref{fig:dfx_mng_state} illustrates the high-level state machine inside the DFX Manager Core, and we can categorize the system commands into 3 main parts:
 
 \begin{enumerate}
-  \item SHUTDOWN state: The DFX Manager will not issue any command and not follow any command from outside source except the command from processor. All internal registers can be read or write followed by the rule at previous section (Access Permission Legend). Except the \reg{CTRL\_REG}, if there are register accesses when the system is not in SHUTDOWN state, the system will send back the unpredictable value and our driver will discard it. We apply this restriction because we aim to optmize the hardware resouce usage.
-  \item DFX CTRL states: these states is depicted in DFX CTRL hanshake section (green block) and dedicates to send the commands to trigger DFX CTRL IP. The commands aims to reconfigure the partial region, and track/synchronize the status of the reconfiguring.
-  \item MGS and DMA states: these states is depicted in MGS \& DMA initialization (brown block) and deicates to send the commands to initialize and trigger the DMA IP and DFX Streamer (formerly magic streamer (MGS)). The commands aims to prepare/clear the internal meta-data memory of DFX Streamer, set-up the DMA IP meta-data that get from internal register bank 1, and wait for finish from reconfigurable module.
+  \item SHUTDOWN state: The DFX Manager will not issue any commands and will not follow any commands from an external source, except commands from the processor. All internal registers can be read or written following the rules in the previous section (Access Permission Legend). Except for \reg{CTRL\_REG}, if there are register accesses when the system is not in SHUTDOWN state, the system will return unpredictable values and our driver will discard them. We apply this restriction because we aim to optimize hardware resource usage.
+  \item DFX CTRL states: these states are depicted in the DFX CTRL handshake section (green block) and are dedicated to sending commands to trigger the DFX CTRL IP. The commands aim to reconfigure the partial region and track/synchronize the reconfiguration status.
+  \item MGS and DMA states: these states are depicted in the MGS \& DMA initialization (brown block) and are dedicated to sending commands to initialize and trigger the DMA IP and DFX Streamer (formerly Magic Streamer (MGS)). The commands aim to prepare or clear the internal metadata memory of the DFX Streamer, set up the DMA IP metadata obtained from internal register bank 1, and wait for the reconfigurable module to finish.
 \end{enumerate}
 
 \begin{figure}[H]
@@ -411,7 +420,7 @@ Fig. \ref{fig:dfx_mng_state} illustrates the high-level state machine inside the
 
 \subsection{DFX Streamer(s)}
 
-DFX Streamer(s) is the temporal storage reside in the Programable logic's static region and it was designed to utilize the BRAM resource for the storage and minor flip flop for holding its tranfer meta-data. the code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer/dfx\_streamer.v}}
+DFX Streamer(s) is the temporary storage residing in the Programmable Logic static region and was designed to utilize BRAM resources for storage and a small number of flip-flops to hold its transfer metadata. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer/dfx\_streamer.v}}
 
 \begin{figure}[H]
 \centering
@@ -419,13 +428,13 @@ DFX Streamer(s) is the temporal storage reside in the Programable logic's static
 \caption{\label{fig:dfx_streamer} DFX Streamer Architecture}
 \end{figure}
 
-Fig. \ref{fig:dfx_streamer} illustrates the overal architecture of the DFX Streamer, the \textbf{meta-data blocks} (blue boxes) stay inside the static region using flip flop to track amount of load/ store and RM status (INTERRUPT HOLDER). Meanwhile the \textbf{MAIN MEMORY} (purple block) also resides in the static region, however it uses BRAM memory to store the temporal data.
+Fig.~\ref{fig:dfx_streamer} illustrates the overall architecture of the DFX Streamer. The \textbf{meta-data blocks} (blue boxes) reside in the static region, using flip-flops to track the amount of load/store operations and RM status (INTERRUPT HOLDER). Meanwhile, the \textbf{MAIN MEMORY} (purple block) also resides in the static region, but uses BRAM to store the temporary data.
 
-In contrast, the Stream Transceiver and Stream Receiver' connection port are open to partial region with \textbf{AXI-STREAM} interface. In current version, AXI\_STREAM's \textbf{tkeep}, and \textbf{tlast} signal are \textbf{mandatory}. If they is not set-up, the system will get stuck.
+In contrast, the Stream Transceiver and Stream Receiver connection ports are open to the partial region via the \textbf{AXI-STREAM} interface. In the current version, the AXI-STREAM \textbf{tkeep} and \textbf{tlast} signals are \textbf{mandatory}. If they are not set up, the system will get stuck.
 
 \subsection{DFX\_CTRL}
 
-DFX\_CTRL is the Xilinx's DFX IP used to retrive the bin stream file from DDR Memory and reconfigure the partial reconfigurable region by using the ICAP3 port. To achieve this process, we need to configure the IP's internal memory to match our feature.
+DFX\_CTRL is the Xilinx DFX IP used to retrieve the bitstream file from DDR memory and reconfigure the partial reconfigurable region using the ICAP3 port. To achieve this, we need to configure the IP's internal memory to match our requirements.
 
 \begin{figure}[H]
 \centering
@@ -433,36 +442,36 @@ DFX\_CTRL is the Xilinx's DFX IP used to retrive the bin stream file from DDR Me
 \caption{\label{fig:dfx_streamer} DFX Controller Architecture (copied from \cite{amd_dfx_controller_2026})}
 \end{figure}
 
-Fig. \ref{fig:dfx_streamer} \cite{amd_dfx_controller_2026} illustrates the internal memory of the DFX Ctrl IP. It is composed of 4 memory bank: 
+Fig.~\ref{fig:dfx_streamer} \cite{amd_dfx_controller_2026} illustrates the internal memory of the DFX CTRL IP. It is composed of 4 memory banks:
 
 \begin{enumerate}
-  \item Bank 0 is general register enabling the software the control IP and check IP status.
-  \item Bank 1 is the RM Mapping, each slot in this bank is the pointer to a slot in Bank 2.
-  \item Bank 2 is the RM information. The control field is the setting of the start-up/shutdown down procedure, and our driver set this criteria as follow:
+  \item Bank 0 contains general registers enabling software to control the IP and check its status.
+  \item Bank 1 is the RM Mapping; each slot in this bank is a pointer to a slot in Bank 2.
+  \item Bank 2 contains RM information. The control field is the setting of the start-up/shutdown procedure, and our driver sets these criteria as follows:
       \begin{enumerate}
         \item Reset Duration: 1 cycle
         \item Reset Type: active low
         \item Startup Required: No
         \item Shutdown Required: No
       \end{enumerate}
-      The BS Index field contains the index of the target slot in bank 3
-  \item Bank 3 contains the bitstream infomation: 
+      The BS Index field contains the index of the target slot in Bank 3.
+  \item Bank 3 contains the bitstream information:
       \begin{enumerate}
-        \item Address: the address of bitstream file in DDR Memory
+        \item Address: the address of the bitstream file in DDR memory
         \item Size: the size of the bitstream file in bytes
-        \item ID: bit stream Identifier
+        \item ID: bitstream identifier
       \end{enumerate}
 \end{enumerate}
 
 
 
-\subsection{Other relevent IPs}
+\subsection{Other Relevant IPs}
 
-In DFX4ML, there are other 3 IPs which support system creation:
+In DFX4ML, there are 3 other IPs that support system creation:
   \begin{enumerate}
-    \item icapWrap is the module used to be an interface for DFX Controller to self-reconfigure. \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_icap/dfx\_streamer.v}}
-    \item Stream\_Master\_Dummy is the module used to be the dummy plug in partial region AXI-stream master side. it is built to prevent un-predictable signal when the target reconfigurable module does not require some interface ports. \newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer\_mshut/streamer\_mshut.v}}
-    \item Stream\_Slave\_Dummy is like the Stream\_Master\_Dummy but AXI\_slave side.\newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer\_sshut/streamer\_sshut.v}}
+    \item icapWrap is the module that serves as an interface for the DFX Controller to self-reconfigure. \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_icap/dfx\_streamer.v}}
+    \item Stream\_Master\_Dummy is the module used as a dummy plug on the partial region AXI-Stream master side. It is built to prevent unpredictable signals when the target reconfigurable module does not require certain interface ports. \newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer\_mshut/streamer\_mshut.v}}
+    \item Stream\_Slave\_Dummy is similar to Stream\_Master\_Dummy but for the AXI-Stream slave side.\newline\textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_streamer\_sshut/streamer\_sshut.v}}
   \end{enumerate}
 
 
@@ -471,7 +480,7 @@ In DFX4ML, there are other 3 IPs which support system creation:
 
 \paragraph{\textbf{Memory Address}}
 
-Our building script set a default base address to \addr{0xA000\_0000} for DFX Unified IP which includes DFX Mng IP, DFX Ctrl IP, DMA IP, PR Reset, and PR DECUP.
+Our build script sets a default base address of \addr{0xA000\_0000} for the DFX Unified IP, which includes DFX Mng IP, DFX Ctrl IP, DMA IP, PR Reset, and PR DECUP.
 
 \begin{table}[h]
     \centering
@@ -501,9 +510,9 @@ This section illustrates the PYNQ driver overview used to command the DFX4ML-ARC
 \end{figure}
 
 
-\textbf{DFX\_Unified\_Driver}: This class controls the DFX Unified IP's Operations. As described in the Hardware Architecture section, The DFX Unified IP is composed of 4 sub IPs: DFX Manager, DFX Controller, DFX DMA, and DFX Streamer(s). 
+\textbf{DFX\_Unified\_Driver}: This class controls the DFX Unified IP's operations. As described in the Hardware Architecture section, the DFX Unified IP is composed of 4 sub-IPs: DFX Manager, DFX Controller, DFX DMA, and DFX Streamer(s).
 
-Therefore, \textbf{The Unified Driver} is composed of 4 sub-drivers (blue boxes): DFX Manager Driver to control the Reconfigurable Module's flow; DFX Controller Driver to manage the partial bitstream; DMA driver to manage the memory data transfer but it is used only for debug purpose only; DFX Manual is used to manually decouple and reset the partial region but it is usesd only for debug purpose.
+Therefore, \textbf{The Unified Driver} is composed of 4 sub-drivers (blue boxes): DFX Manager Driver to control the Reconfigurable Module's flow; DFX Controller Driver to manage the partial bitstream; DMA Driver to manage the memory data transfer, used for debugging purposes only; and DFX Manual, used to manually decouple and reset the partial region, also for debugging purposes only.
 
 the code is at \newline
 \textcolor{darkgreen}{\texttt{sw/driver/dfx\_unified.py}}\newline
@@ -513,18 +522,18 @@ the code is at \newline
 \textcolor{darkgreen}{\texttt{sw/driver/dfx\_man.py}}\newline
 
 
-\textbf{Cap} is the helper function enabling designer to commnuicate with PMU processor and reconfigure the \reg{pcap\_ctrl} register. After changing this register to 1 the FPGA will enable the partial reconfiguration via ICAP3 port. In contrast if the register is set to 0, the FPGA will allow the FPGA reconfiguration only from processor (PS).
+\textbf{Cap} is the helper function enabling designers to communicate with the PMU processor and reconfigure the \reg{pcap\_ctrl} register. After changing this register to 1, the FPGA will enable partial reconfiguration via the ICAP3 port. In contrast, if the register is set to 0, the FPGA will allow reconfiguration only from the processor (PS).
 
-\textbf{Mem Alloc} is the helper function facilitate users to allocate and copy data.
+\textbf{Mem Alloc} is a helper function that facilitates users in allocating and copying data.
 
 
 \pagebreak
 \section{Build Procedure}
 
 
-\subsection{Quick Started}
+\subsection{Quick Start}
 
-We provide the python interface that supports users to generate full + partial bitstream file ($.bin$), hardware hand-off file ($.hwh$), DFX Ctrl configuration file, and Pynq driver files.
+We provide a Python interface that allows users to generate full and partial bitstream files ($.bin$), hardware handoff files ($.hwh$), DFX Ctrl configuration files, and PYNQ driver files.
 
 \begin{lstlisting}[style=python, caption={Python Build Interface}, numbers=left, label={lst:python_build}]
 from lib.hw_build import HwBuildHelper
@@ -559,7 +568,7 @@ sw_builder = SwBuildHelper(export_folder_path="./export")
 sw_builder.package_export_file()
 \end{lstlisting}
 
-The following example (List. ~\ref{lst:python_build}) demonstrates how to start building the DFX-ARCH system. the file is at \textcolor{darkgreen}{\texttt{quick\_start.ipynb}}. User can use this file as starting point! Line 1 and 2 invoke the Hardware Building Helper and Software Building Helper respectively; Line 5 to 27 enables users to build the hardware related output (.bin, .hwh, DFX Ctrl Configuration); and Line 29 - 30 exports the PYNQ driver files.
+The following example (Listing~\ref{lst:python_build}) demonstrates how to start building the DFX4ML-ARCH system. The file is at \textcolor{darkgreen}{\texttt{quick\_start.ipynb}}. Users can use this file as a starting point. Lines 1--2 invoke the Hardware Build Helper and Software Build Helper respectively; Lines 5--27 allow users to build the hardware-related outputs (.bin, .hwh, DFX Ctrl configuration); and Lines 29--30 export the PYNQ driver files.
 
 Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelper}.
 
@@ -577,25 +586,25 @@ Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelpe
 \endhead
 \hline
 \endfoot
-\texttt{build\_folder\_path} & Path to directory that users want the vivado project, and other temporary working task. The folder will be create if the path does not exist \\
+\texttt{build\_folder\_path} & Path to the directory where users want the Vivado project and other temporary working files. The folder will be created if the path does not exist. \\
 \hline
-\texttt{dfx\_root\_path} & Root path of the DFX-ARCH source repository, used to locate IP cores, constraint files, and etc. \\
+\texttt{dfx\_root\_path} & Root path of the DFX4ML-ARCH source repository, used to locate IP cores, constraint files, etc. \\
 \hline
 \texttt{board} & Target FPGA board identifier (e.g., \texttt{kv260}). \\
 \hline
-\texttt{user\_repo\_path} & Path to the user-supplied IP repository which typcally have the partial region's kernel. This path will be refered only when parameter $test_mode=1$ \\
+\texttt{user\_repo\_path} & Path to the user-supplied IP repository, which typically contains the partial region's kernel. This path will be referenced only when parameter $test\_mode=0$. \\
 \hline
-\texttt{req\_gen\_ip} & Flag (\texttt{1}/\texttt{0}) indicating whether verilog IP generation is required. the IP are Icap interface, DFX Manager, DFX Streamer, and DFX Streamer Shut Plug. If you run at a first time, delete/modify $build_folder_path$, YOU MUST SET THIS FLAG TO 1, otherwise this flag is optional \\
+\texttt{req\_gen\_ip} & Flag (\texttt{1}/\texttt{0}) indicating whether Verilog IP generation is required. The IPs are: ICAP interface, DFX Manager, DFX Streamer, and DFX Streamer Shut Plug. If you are running for the first time or have deleted/modified $build\_folder\_path$, YOU MUST SET THIS FLAG TO 1; otherwise this flag is optional. \\
 \hline
 \texttt{num\_core} & Number of parallel synthesis/implementation jobs to run in Vivado. \\
 \hline
 \texttt{clk\_frq} & Requested clock frequency in Hz for the FPGA (e.g., \texttt{99999001} $\approx$ 100 MHz). \\
 \hline
-\texttt{rm\_index\_width} & Bit-width of the reconfigurable module (RM) index used to create amount of rows in DFX Mng bank 1 and DFX Ctrl Slot. (eng., \texttt{rm\_index\_width=3   -> 2 << 3 = 8 slot allocated}. However, the actual number of reconfigurable module is not equal to this value it is equal to $num\_actual\_rm$ )\\ 
+\texttt{rm\_index\_width} & Bit-width of the reconfigurable module (RM) index, used to determine the number of rows in DFX Mng Bank 1 and DFX Ctrl slots. (e.g., \texttt{rm\_index\_width=3 -> 2 << 3 = 8 slots allocated}. However, the actual number of reconfigurable modules is not equal to this value; it is equal to $num\_actual\_rm$.) \\
 \hline
 \texttt{num\_dfx\_streamer} & Number of DFX Streamer instances instantiated in the static region. \\
 \hline
-\texttt{interface\_widths} & List of data-bus widths (bits) for each DFX Streamer interface. It is supposed to be power of 2 start from 8\\
+\texttt{interface\_widths} & List of data-bus widths (bits) for each DFX Streamer interface. Values must be powers of 2, starting from 8. \\
 \hline
 \texttt{applied\_interface\_widths} & List of effective data widths actually driven on each streamer interface; may differ from \texttt{interface\_widths} when partial-width transfers require lesser. \\
 \hline
@@ -609,26 +618,26 @@ Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelpe
 \hline
 \texttt{ip\_map\_list} & Per-kernel IP core identifier strings. An empty string indicates that no additional IP is mapped to that kernel slot. \\
 \hline
-\texttt{test\_mode} & Flag (\texttt{1}/\texttt{0}) enabling test mode, which inserts loopback logic for hardware verification without a loaded RM. This code will be used only when $test\_mode=0$  \\ 
+\texttt{test\_mode} & Flag (\texttt{1}/\texttt{0}) enabling test mode, which inserts loopback logic for hardware verification without a loaded RM. The actual user kernel will be used only when $test\_mode=0$. \\
 \hline
 \texttt{vivado\_path} & Absolute path to the Vivado installation directory (e.g., \texttt{"/tools/Xilinx/Vivado/2023.2/bin/vivado"}). \\
 \hline
-\texttt{export\_folder\_path} & Destination directory for the packaged output files (\texttt{.bin}, \texttt{.hwh}, configuration files, and PYNQ drivers). The folder will be create if the path does not exist\\
+\texttt{export\_folder\_path} & Destination directory for the packaged output files (\texttt{.bin}, \texttt{.hwh}, configuration files, and PYNQ drivers). The folder will be created if the path does not exist. \\
 \hline
 \end{longtable}
  
 
 
- \subsection{ML Framwork Integration}
+\subsection{ML Framework Integration}
 
- DFX4ML-ARCH provides the official solution for enabling Hardware Machine Learning framework to integrate their own sub-kernel into each Reconfigurable Module (RM).
+DFX4ML-ARCH provides the official solution for enabling Hardware Machine Learning frameworks to integrate their own sub-kernels into each Reconfigurable Module (RM).
 
 To integrate the module, users must complete the following steps:
 \begin{enumerate}
     \item Provide the path to the user IP repository via \texttt{user\_repo\_path}. The folder at that path must contain the Vivado-exported IP folder, which in turn must include \texttt{src} and \texttt{xgui} sub-folders.
     \item Provide the path to the TCL file that instructs the build script how to build the Reconfigurable Module via \texttt{user\_build\_tcl} (Listing~\ref{lst:python_build}).
     \item Set \texttt{test\_mode} to \texttt{0} (Listing~\ref{lst:python_build}) to enable the actual kernel instead of the loopback test logic.
-    \item Provide the IP name list in $ip\_map\_list$ (Listing~\ref{lst:python_build}). The index is the Reconfigurable Module and the value is the IP name.
+    \item Provide the IP name list in $ip\_map\_list$ (Listing~\ref{lst:python_build}). The index corresponds to the Reconfigurable Module and the value is the IP name.
 \end{enumerate}
 
 
@@ -653,7 +662,7 @@ proc create_dfx_region_bd { \
 
 Table~\ref{tab:tcl_params} describes each argument of the procedure.
 
-\begin{longtable}{|l|p{9cm}|}
+\begin{longtable}{|l|p{11cm}|}
 \caption{create\_dfx\_region\_bd Arguments}
 \label{tab:tcl_params} \\
 \hline
@@ -666,7 +675,7 @@ Table~\ref{tab:tcl_params} describes each argument of the procedure.
 \endhead
 \hline
 \endfoot
-\texttt{parentCell} & This field is depricated. \\
+\texttt{parentCell} & This field is deprecated. \\
 \hline
 \texttt{block\_name} & Name of the hierarchical block representing the Reconfigurable Module in the block design. \\
 \hline
@@ -676,42 +685,42 @@ Table~\ref{tab:tcl_params} describes each argument of the procedure.
 \hline
 \texttt{interface\_widths} & List of data-bus widths (bits) for each streamer port, matching the value set in \texttt{HwBuildHelper}. \\
 \hline
-\texttt{input\_maps} & Input routing map for this kernel slot (one row from \texttt{input\_map\_list}), indicating which streamer IDs feed which kernel input ports. Matching the value is a first level member of in \texttt{HwBuildHelper} \\
+\texttt{input\_maps} & Input routing map for this kernel slot (one row from \texttt{input\_map\_list}), indicating which streamer IDs feed which kernel input ports. The value corresponds to a first-level member of \texttt{HwBuildHelper}. \\
 \hline
-\texttt{output\_maps} & Output routing map for this kernel slot (one row from \texttt{output\_map\_list}), indicating which streamer IDs receive which kernel output ports. Matching the value is a first level member of in \texttt{HwBuildHelper} \\
+\texttt{output\_maps} & Output routing map for this kernel slot (one row from \texttt{output\_map\_list}), indicating which streamer IDs receive which kernel output ports. The value corresponds to a first-level member of \texttt{HwBuildHelper}. \\
 \hline
-\texttt{ip\_name} & IP core name string for this kernel slot, matching the corresponding entry in \texttt{ip\_map\_list}. Matching the value is a first level member of in \texttt{HwBuildHelper}\\
+\texttt{ip\_name} & IP core name string for this kernel slot, matching the corresponding entry in \texttt{ip\_map\_list}. The value corresponds to a first-level member of \texttt{HwBuildHelper}. \\
 \hline
 \end{longtable}
 
 
-The field $input\_maps$, $output\_maps$, and $ip\_name$ will be retrieve from the same index from the master list given from (Lst. \ref{lst:python_build})
+The fields $input\_maps$, $output\_maps$, and $ip\_name$ will be retrieved from the same index of the master list provided in (Listing~\ref{lst:python_build}).
 
-Users have to put the RM implementation which includes 
+Users must provide the RM implementation, which includes:
 
 \begin{enumerate}
-  \item create Block Design
-  \item add ML IP module
-  \item add connect the IO (clk, nreset (active low), AXI-Stream interface(s))
-  \item validate block design 
-  \item close Block Design
+  \item Create Block Design
+  \item Add ML IP module
+  \item Connect the I/O (clk, nreset (active low), AXI-Stream interface(s))
+  \item Validate Block Design
+  \item Close Block Design
 \end{enumerate}
 
 Users may use \textcolor{darkgreen}{\texttt{hw/bd\_src/dfx\_region/dfx\_region.tcl}} as a reference.
 
 
-\subsection{Board Specific Script}
+\subsection{Board-Specific Script}
 
-In hardware formation of this current version, Only Kv260 board can be fully synthesis and implementation. If the $board$ parameter is set to $custom$, the hardware formation will stop at DFX block design with DFX Unified and Partial connection, the PS and Connection will be missing.
+In the current version, only the KV260 board can be fully synthesized and implemented. If the $board$ parameter is set to $custom$, the hardware build will stop at the DFX block design with DFX Unified and partial connections; the PS and interconnect will be missing.
 
-To define new board, users have to build/modify two file
+To define a new board, users must create or modify the following files:
   \begin{enumerate}
-    \item board\_file\: users have to create the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/<your board name>/board\_build.tcl}} \newline The purpose of this file is to give a processor block, inter-connect block, interrupt system, and other relevent IP in the Vivado block design. Users can use \newline \textcolor{darkgreen}{\texttt{hw/build\_script/kv260/board\_build.tcl}} or use GUI in bord $custom$ as an reference.
-    \item constraint\_file\: users have to create the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/<your board name>/constraint.xdc}} The purpose of this file is to give the boundary of partial reconfigurable region and its resources. Users can use \newline\textcolor{darkgreen}{\texttt{hw/build\_script/kv260/constraint.xdc}}
-    \item build\_script\: users have to modify the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/build.tcl}} to invoke the block design creation procedure. Users may use kv260 option as a reference.
+    \item \texttt{board\_file}: users must create the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/<your board name>/board\_build.tcl}} \newline The purpose of this file is to provide a processor block, interconnect block, interrupt system, and other relevant IPs in the Vivado block design. Users can use \newline\textcolor{darkgreen}{\texttt{hw/build\_script/kv260/board\_build.tcl}} or the GUI in board $custom$ as a reference.
+    \item \texttt{constraint\_file}: users must create the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/<your board name>/constraint.xdc}} The purpose of this file is to define the boundaries of the partial reconfigurable region and its resources. Users can use \newline\textcolor{darkgreen}{\texttt{hw/build\_script/kv260/constraint.xdc}} as a reference.
+    \item \texttt{build\_script}: users must modify the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/build.tcl}} to invoke the block design creation procedure. Users may use the kv260 option as a reference.
   \end{enumerate}
 
-DFX4ML-ARCH's author would be appreciated if users do pull request for specific board file.
+The DFX4ML-ARCH authors would appreciate pull requests for board-specific files.
 
 \bibliography{references}
 \bibliographystyle{plain}

@@ -199,7 +199,7 @@
 
 \def\keywords#1{\gdef\@keywords{#1}}          % see \@maketitle
 
-\gdef\@keywords{{\tt Bending Magnet, path length, pole face angle, beam trajectory, survey, GEODE}}
+\gdef\@keywords{{\tt FPGA, Partial Reconfiguration, Dynamic Function Exchange, PYNQ, Xilinx}}
 
 
 
