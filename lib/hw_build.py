@@ -7,6 +7,8 @@ class HwBuildHelper:
 
     VIVADO_PRJ_FOLDER_NAME   = "link_prj"
     HWH_PATH_REL             = f"{VIVADO_PRJ_FOLDER_NAME}.gen/sources_1/bd/dfx4ml/hw_handoff/dfx4ml.hwh"
+    DFX_CTRL_CON_PATH_REL    = (f"{VIVADO_PRJ_FOLDER_NAME}.gen/sources_1/bd/dfx4ml/bd/dfx_unified_inst_0/ip/"
+                                f"dfx_unified_inst_0_DFX_Ctrl_B_0/documentation/configuration_information.txt")
     IMPLEMENTATION_NAME      = "impl_dfx"
     CHILD_IMPL_TEMPLATE_NAME = "child_{idx}_impl_dfx"
     PAR_BIN_TEMPLATE_NAME    = "dfx4ml_i_dfx_pr_0_0_dfx_pr_{idx}_inst_0_partial.bin"
@@ -18,7 +20,7 @@ class HwBuildHelper:
                  dfx_root_path           ,
                  board                   ,
                  user_repo_path          ,
-
+                 user_rm_build_tcl_path  ,
                  req_gen_ip              ,
                  num_core                ,
                  clk_frq                 ,
@@ -39,6 +41,7 @@ class HwBuildHelper:
         # dfx_root_path="."
         # board="kv260"
         # user_repo_path=""
+        # user_rm_build_tcl_path=""
         # req_gen_ip=0
         # num_core=4
         # clk_frq=99999001
@@ -58,6 +61,7 @@ class HwBuildHelper:
         self.dfx_root_path            = os.path.abspath(dfx_root_path)
         self.board                    = board
         self.user_repo_path           = user_repo_path
+        self.user_rm_build_tcl_path   = user_rm_build_tcl_path
         self.req_gen_ip               = req_gen_ip
         self.num_core                 = num_core
         self.clk_frq                  = clk_frq
@@ -117,9 +121,9 @@ class HwBuildHelper:
             os.makedirs(self.build_folder_path)
 
         # Define paths
-        lib_dir = os.path.dirname(os.path.abspath(__file__))
-        template_path = os.path.join(lib_dir, "run_build.tcl.template")
-        project_root = os.path.abspath(os.path.join(lib_dir, ".."))
+        lib_dir        = os.path.dirname(os.path.abspath(__file__))
+        template_path  = os.path.join(lib_dir, "run_build.tcl.template")
+        project_root   = os.path.abspath(os.path.join(lib_dir, ".."))
         build_tcl_path = os.path.join(project_root, "hw", "build_script", "build.tcl")
 
         # Read template
@@ -133,24 +137,25 @@ class HwBuildHelper:
 
         # Prepare substitutions
         tcl_script = template_content.format(
-            build_folder_path        =self.build_folder_path,
-            dfx4ml_root              =self.dfx_root_path,
-            build_tcl_path           =build_tcl_path,
-            board                    =self.board,
-            user_repo_path           =self.user_repo_path,
-            req_gen_ip               =self.req_gen_ip,
-            num_core                 =self.num_core,
-            clk_frq                  =self.clk_frq,
-            rm_index_width           =self.rm_index_width,
-            num_dfx_streamer         =self.num_dfx_streamer,
-            interface_widths         =self._list_to_tcl(self.interface_widths),
-            applied_interface_widths =self._list_to_tcl(self.applied_interface_widths),
-            storage_index_widths     =self._list_to_tcl(self.storage_index_widths),
-            num_actual_rm            =self.num_actual_rm,
-            input_map_list           =self._list_to_tcl(self.input_map_list),
-            output_map_list          =self._list_to_tcl(self.output_map_list),
-            ip_map_list              =self._list_to_tcl(self.ip_map_list),
-            test_mode                =self.test_mode
+            build_folder_path        = self.build_folder_path,
+            dfx4ml_root              = self.dfx_root_path,
+            build_tcl_path           = build_tcl_path,
+            board                    = self.board,
+            user_repo_path           = self.user_repo_path,
+            user_rm_build_tcl_path   = self.user_rm_build_tcl_path,
+            req_gen_ip               = self.req_gen_ip,
+            num_core                 = self.num_core,
+            clk_frq                  = self.clk_frq,
+            rm_index_width           = self.rm_index_width,
+            num_dfx_streamer         = self.num_dfx_streamer,
+            interface_widths         = self._list_to_tcl(self.interface_widths),
+            applied_interface_widths = self._list_to_tcl(self.applied_interface_widths),
+            storage_index_widths     = self._list_to_tcl(self.storage_index_widths),
+            num_actual_rm            = self.num_actual_rm,
+            input_map_list           = self._list_to_tcl(self.input_map_list),
+            output_map_list          = self._list_to_tcl(self.output_map_list),
+            ip_map_list              = self._list_to_tcl(self.ip_map_list),
+            test_mode                = self.test_mode
         )
 
         temp_tcl = os.path.join(self.build_folder_path, "run_build.tcl")
@@ -240,3 +245,8 @@ class HwBuildHelper:
         shutil.copy(hwh_path, new_hwh_path)
         self.augment_hwh_file(new_hwh_path)
 
+        # retrieve dfx ctrl con
+        dfx_ctrl_con_path = os.path.join(link_prj_folder_path, self.DFX_CTRL_CON_PATH_REL)
+        new_dfx_ctrl_con_name = "dfx_ctrl_con.txt"
+        new_dfx_ctrl_con_path = os.path.join(out_hw_folder_path, new_dfx_ctrl_con_name)
+        shutil.copy(dfx_ctrl_con_path, new_dfx_ctrl_con_path)

@@ -12,6 +12,11 @@ class SwBuildHelper:
         if not os.path.exists(self.export_folder_path):
             os.makedirs(self.export_folder_path)
 
+        # create data folder
+        data_folder = os.path.join(self.export_folder_path, "data")
+        if not os.path.exists(data_folder):
+            os.makedirs(data_folder)
+
         # base paths
         lib_dir      = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(lib_dir, ".."))
@@ -32,5 +37,7 @@ class SwBuildHelper:
 
         # Copy myTest.ipynb as test.ipynb
         shutil.copy(test_src, test_dst)
+        
+        
 
         

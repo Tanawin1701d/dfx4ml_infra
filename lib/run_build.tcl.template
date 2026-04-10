@@ -6,6 +6,7 @@ set build_folder_path "{build_folder_path}"
 set dfx4ml_root "{dfx4ml_root}"
 set board "{board}"
 set user_repo_path "{user_repo_path}"
+set user_rm_build_tcl_path "{user_rm_build_tcl_path}"
 set req_gen_ip {req_gen_ip}
 set num_core {num_core}
 set clk_frq {clk_frq}
@@ -26,6 +27,7 @@ build $build_folder_path \
       $dfx4ml_root \
       $board \
       $user_repo_path \
+      $user_rm_build_tcl_path \
       $req_gen_ip \
       $num_core \
       $clk_frq \

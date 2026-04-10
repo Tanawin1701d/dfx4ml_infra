@@ -1,4 +1,4 @@
-proc import_dep { build_tcl_path dfx4ml_root req_gen_ip test_mode user_repo_path} {
+proc import_dep { build_tcl_path dfx4ml_root req_gen_ip test_mode user_repo_path user_rm_build_tcl_path} {
 
     # Add IP repository
     source [file join $dfx4ml_root hw ip_src compose_ip.tcl]
@@ -9,6 +9,7 @@ proc import_dep { build_tcl_path dfx4ml_root req_gen_ip test_mode user_repo_path
 
     set repo_paths [list [file join $build_tcl_path ip_repo]]
     if {$test_mode != 1} {
+        source $user_rm_build_tcl_path
         lappend repo_paths $user_repo_path
     }
     set_property  ip_repo_paths  $repo_paths [current_project]
@@ -101,6 +102,7 @@ proc build {build_tcl_path \
             dfx4ml_root \
             board \
             user_repo_path \
+            user_rm_build_tcl_path \
             req_gen_ip \
             num_core \
             clk_frq \
@@ -124,7 +126,7 @@ proc build {build_tcl_path \
         set constraint_path [file join $dfx4ml_root hw build_script kv260 constraint.xdc]
         puts "kv260 xdc file is at $constraint_path"
         build_kv260_prj $build_tcl_path
-        import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path
+        import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path $user_rm_build_tcl_path
         create_kv260_dfx4ml_design $parentCell $clk_frq $rm_index_width \
                                   $num_dfx_streamer $interface_widths $applied_interface_widths \
                                   $storage_index_widths $num_actual_rm $input_map_list \
