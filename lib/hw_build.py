@@ -199,7 +199,7 @@ class HwBuildHelper:
                 else:
                     new_lines.append(line)
             elif 'FULLNAME="/dfx_unified_0"' in line and '<MODULE' in line:
-                line = re.sub(r'BDTYPE="BLOCK_CONTAINER"', f'VLNV="{self.DFX_UNIFED_VLNV}"', line)
+                line = '    <MODULE COREREVISION="1" FULLNAME="/dfx_unified_0" HWVERSION="1.0" INSTANCE="dfx_unified_0" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="dfx_unified" VLNV="user.org:user:dfx_unified:1.0">\n'
                 new_lines.append(line)
             else:
                 new_lines.append(line)

@@ -29,6 +29,14 @@ echo "Password: $([ -n "$PYNQ_PASSWORD" ] && echo "****" || echo "not provided (
 echo "Destination: $PYNQ_DEST_PATH"
 echo ""
 
+# Remove existing destination directory on PYNQ board
+echo -e "${YELLOW}Removing existing destination directory on PYNQ board...${NC}"
+if [ -n "$PYNQ_PASSWORD" ]; then
+    sshpass -p "${PYNQ_PASSWORD}" ssh ${PYNQ_USER}@${PYNQ_IP} "rm -rf ${PYNQ_DEST_PATH}"
+else
+    ssh ${PYNQ_USER}@${PYNQ_IP} "rm -rf ${PYNQ_DEST_PATH}"
+fi
+
 # Create destination directory on PYNQ board
 echo -e "${YELLOW}Creating destination directory on PYNQ board...${NC}"
 if [ -n "$PYNQ_PASSWORD" ]; then
