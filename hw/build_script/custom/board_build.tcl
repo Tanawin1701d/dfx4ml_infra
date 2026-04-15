@@ -1,4 +1,4 @@
-proc build_custom_prj {{build_dir "build"}} {
+proc build_no_syn_prj {{build_dir "build"}} {
     # Create build directory if it doesn't exist
     file mkdir $build_dir
 
@@ -16,7 +16,7 @@ proc build_custom_prj {{build_dir "build"}} {
 
 
 
-proc create_custom_dfx4ml_design { parentCell \
+proc create_no_syn_dfx4ml_design { parentCell \
                                   clk_frq \
                                   rm_index_width \
                                   num_dfx_streamer \

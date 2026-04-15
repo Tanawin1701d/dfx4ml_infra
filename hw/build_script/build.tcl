@@ -116,9 +116,12 @@ proc build {build_tcl_path \
             output_map_list \
             ip_map_list \
             test_mode \
+            board_build_tcl_path \
+            constraint_xdc_path \
             } {
 
     set parentCell ""
+    set run_syn 1
 
     if {$board == "kv260"} {
         puts "prepare model for kv260 generation"
@@ -131,16 +134,42 @@ proc build {build_tcl_path \
                                   $num_dfx_streamer $interface_widths $applied_interface_widths \
                                   $storage_index_widths $num_actual_rm $input_map_list \
                                   $output_map_list $ip_map_list $test_mode
+    } elseif {$board == "no_syn"} {
+        puts "prepare model for custom board (no synthesis) generation"
+        source [file join $dfx4ml_root hw build_script custom board_build.tcl]
+        build_no_syn_prj $build_tcl_path
+        import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path $user_rm_build_tcl_path
+        create_no_syn_dfx4ml_design $parentCell $clk_frq $rm_index_width \
+                                   $num_dfx_streamer $interface_widths $applied_interface_widths \
+                                   $storage_index_widths $num_actual_rm $input_map_list \
+                                   $output_map_list $ip_map_list $test_mode
+        set run_syn 0
+    } elseif {$board == "custom"} {
+        puts "prepare model for custom board generation"
+        if {$board_build_tcl_path == "" || $constraint_xdc_path == ""} {
+            error "board=custom requires board_build_tcl_path and constraint_xdc_path to be specified."
+        }
+        source $board_build_tcl_path
+        set constraint_path $constraint_xdc_path
+        puts "custom board_build_tcl: $board_build_tcl_path"
+        puts "custom constraint xdc: $constraint_path"
+        build_custom_prj $build_tcl_path
+        import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path $user_rm_build_tcl_path
+        create_custom_dfx4ml_design $parentCell $clk_frq $rm_index_width \
+                                   $num_dfx_streamer $interface_widths $applied_interface_widths \
+                                   $storage_index_widths $num_actual_rm $input_map_list \
+                                   $output_map_list $ip_map_list $test_mode
     } else {
-        error "Unsupported board: $board. Only 'kv260' is supported."
+        error "Unsupported board: $board. Supported values: kv260, no_syn, custom."
     }
 
+    if {$run_syn == 1} {
+        puts "prepare configuration"
+        prepare_model4syn $num_core $num_actual_rm $constraint_path
 
-    puts "prepare configuration"
-    prepare_model4syn $num_core $num_actual_rm $constraint_path
-
-    puts "synthesis and implementation"
-    syn_and_impl $num_core $num_actual_rm
+        puts "synthesis and implementation"
+        syn_and_impl $num_core $num_actual_rm
+    }
 
     exit
 

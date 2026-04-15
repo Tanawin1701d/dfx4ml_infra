@@ -22,6 +22,8 @@ set input_map_list {input_map_list}
 set output_map_list {output_map_list}
 set ip_map_list {ip_map_list}
 set test_mode {test_mode}
+set board_build_tcl_path "{board_build_tcl}"
+set constraint_xdc_path "{constraint_xdc}"
 
 build $build_folder_path \
       $dfx4ml_root \
@@ -40,4 +42,6 @@ build $build_folder_path \
       $input_map_list \
       $output_map_list \
       $ip_map_list \
-      $test_mode
+      $test_mode \
+      $board_build_tcl_path \
+      $constraint_xdc_path

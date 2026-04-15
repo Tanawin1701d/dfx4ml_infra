@@ -35,11 +35,13 @@ class HwBuildHelper:
                  ip_map_list             ,
                  test_mode               ,
                  vivado_path             ,
-                 export_folder_path) :
+                 export_folder_path      ,
+                 board_build_tcl         = "",
+                 constraint_xdc          = "") :
         # example input argument :
         # build_folder_path="./test_prj"
         # dfx_root_path="."
-        # board="kv260"
+        # board="kv260"           # supported: kv260, no_syn, custom
         # user_repo_path=""
         # user_rm_build_tcl_path=""
         # req_gen_ip=0
@@ -57,11 +59,23 @@ class HwBuildHelper:
         # test_mode=1
         # vivado_path="vivado"
         # export_folder_path="./export_folder_path"
-        self.build_folder_path        = os.path.abspath(build_folder_path)
-        self.dfx_root_path            = os.path.abspath(dfx_root_path)
+        # board_build_tcl=""      # required when board="custom": path to user's board_build.tcl
+        # constraint_xdc=""       # required when board="custom": path to user's constraint .xdc file
+        custom_params = {"board_build_tcl": board_build_tcl, "constraint_xdc": constraint_xdc}
+        if board == "custom":
+            missing = [k for k, v in custom_params.items() if not v]
+            if missing:
+                raise ValueError(f"{', '.join(missing)} must be specified when board='custom'")
+        else:
+            ignored = [k for k, v in custom_params.items() if v]
+            for k in ignored:
+                print(f"Warning: {k} is provided but will be ignored because board='{board}' (only used when board='custom')")
+        _abspath = lambda p: os.path.abspath(p) if p else p
+        self.build_folder_path        = _abspath(build_folder_path)
+        self.dfx_root_path            = _abspath(dfx_root_path)
         self.board                    = board
-        self.user_repo_path           = user_repo_path
-        self.user_rm_build_tcl_path   = user_rm_build_tcl_path
+        self.user_repo_path           = _abspath(user_repo_path)
+        self.user_rm_build_tcl_path   = _abspath(user_rm_build_tcl_path)
         self.req_gen_ip               = req_gen_ip
         self.num_core                 = num_core
         self.clk_frq                  = clk_frq
@@ -76,7 +90,9 @@ class HwBuildHelper:
         self.ip_map_list              = ip_map_list
         self.test_mode                = test_mode
         self.vivado_path              = vivado_path
-        self.export_folder_path       = export_folder_path
+        self.export_folder_path       = _abspath(export_folder_path)
+        self.board_build_tcl          = _abspath(board_build_tcl)
+        self.constraint_xdc           = _abspath(constraint_xdc)
 
         if self.num_actual_rm <= 0:
             raise ValueError("num_actual_rm must be positive")
@@ -155,7 +171,9 @@ class HwBuildHelper:
             input_map_list           = self._list_to_tcl(self.input_map_list),
             output_map_list          = self._list_to_tcl(self.output_map_list),
             ip_map_list              = self._list_to_tcl(self.ip_map_list),
-            test_mode                = self.test_mode
+            test_mode                = self.test_mode,
+            board_build_tcl          = self.board_build_tcl,
+            constraint_xdc           = self.constraint_xdc
         )
 
         temp_tcl = os.path.join(self.build_folder_path, "run_build.tcl")

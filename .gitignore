@@ -48,3 +48,5 @@ doc/tech_report/main.fls
 doc/tech_report/main.synctex.gz
 
 
+build_prj_*
+export_*
