@@ -1,13 +1,13 @@
 #!/bin/bash
 # Script to transfer export folder to PYNQ board (Ubuntu 22.04)
-# Usage: ./transfer_to_pynq.sh [export_folder_path] [pynq_ip] [pynq_user] [password]
+# Usage: ./transfer_to_pynq.sh [export_folder_path] [pynq_ip] [pynq_user] [password] [despath]
 
 # Default values
 EXPORT_FOLDER="${1:-../export}"
 PYNQ_IP="${2:-192.168.1.149}"
 PYNQ_USER="${3:-root}"
 PYNQ_PASSWORD="${4:-}"
-PYNQ_DEST_PATH="/root/jupyter_notebooks/dfx4ml"
+PYNQ_DEST_PATH=${5:-/root/jupyter_notebooks/dfx4ml}
 
 # Colors for output
 RED='\033[0;31m'
