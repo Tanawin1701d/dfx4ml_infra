@@ -47,6 +47,7 @@ class DFX_Mng:
         self.SLOT_LD_MASK     = (1,0,6)
         self.SLOT_ST_MASK     = (1,0,7)
         self.SLOT_STINTR_MASK = (1,0,8)
+        self.SLOT_PROF_EXEC   = (1,0,9)
 
 
 
@@ -91,25 +92,26 @@ class DFX_Mng:
         addr_src_sz    = self.gen_addr_for_slot(self.SLOT_SRC_SIZE, slot_idx)
         addr_des_addr  = self.gen_addr_for_slot(self.SLOT_DES_ADDR, slot_idx)
         addr_des_sz    = self.gen_addr_for_slot(self.SLOT_DES_SIZE, slot_idx)
-        addr_status   = self.gen_addr_for_slot(self.SLOT_STATUS, slot_idx)
-        addr_prof     = self.gen_addr_for_slot(self.SLOT_PROF, slot_idx)
+        addr_status    = self.gen_addr_for_slot(self.SLOT_STATUS, slot_idx)
+        addr_prof      = self.gen_addr_for_slot(self.SLOT_PROF, slot_idx)
         addr_ld_mask   = self.gen_addr_for_slot(self.SLOT_LD_MASK, slot_idx)
         addr_st_mask   = self.gen_addr_for_slot(self.SLOT_ST_MASK, slot_idx)
         addr_st_intr   = self.gen_addr_for_slot(self.SLOT_STINTR_MASK, slot_idx)
-
+        addr_prof_exec = self.gen_addr_for_slot(self.SLOT_PROF_EXEC, slot_idx)
 
         data_src_addr  = self.read(addr_src_addr)
         data_src_sz    = self.read(addr_src_sz)
         data_des_addr  = self.read(addr_des_addr)
         data_des_sz    = self.read(addr_des_sz)
-        data_status   = self.read(addr_status)
-        data_prof     = self.read(addr_prof)
+        data_status    = self.read(addr_status)
+        data_prof      = self.read(addr_prof)
         data_ld_mask   = self.read(addr_ld_mask)
         data_st_mask   = self.read(addr_st_mask)
         data_st_intr   = self.read(addr_st_intr)
+        data_prof_exec = self.read(addr_prof_exec)
 
         return data_src_addr, data_src_sz, data_des_addr, data_des_sz, data_status, data_prof, \
-        data_ld_mask, data_st_mask, data_st_intr
+        data_ld_mask, data_st_mask, data_st_intr, data_prof_exec
         
 
     # =============================================
@@ -143,21 +145,23 @@ class DFX_Mng:
         addr_src_sz    = self.gen_addr_for_slot(self.SLOT_SRC_SIZE, slot_idx)
         addr_des_addr  = self.gen_addr_for_slot(self.SLOT_DES_ADDR, slot_idx)
         addr_des_sz    = self.gen_addr_for_slot(self.SLOT_DES_SIZE, slot_idx)
-        addr_status   = self.gen_addr_for_slot(self.SLOT_STATUS, slot_idx)
-        addr_prof     = self.gen_addr_for_slot(self.SLOT_PROF, slot_idx)
+        addr_status    = self.gen_addr_for_slot(self.SLOT_STATUS, slot_idx)
+        addr_prof      = self.gen_addr_for_slot(self.SLOT_PROF, slot_idx)
         addr_ld_mask   = self.gen_addr_for_slot(self.SLOT_LD_MASK, slot_idx)
         addr_st_mask   = self.gen_addr_for_slot(self.SLOT_ST_MASK, slot_idx)
         addr_st_intr   = self.gen_addr_for_slot(self.SLOT_STINTR_MASK, slot_idx)
+        addr_prof_exec = self.gen_addr_for_slot(self.SLOT_PROF_EXEC, slot_idx)
 
-        self.write(addr_src_addr, data_list[0])
-        self.write(addr_src_sz  , data_list[1])
-        self.write(addr_des_addr, data_list[2])
-        self.write(addr_des_sz  , data_list[3])
-        self.write(addr_status , data_list[4])
-        self.write(addr_prof   , data_list[5])
-        self.write(addr_ld_mask , data_list[6])
-        self.write(addr_st_mask , data_list[7])
-        self.write(addr_st_intr , data_list[8])
+        self.write(addr_src_addr,  data_list[0])
+        self.write(addr_src_sz,    data_list[1])
+        self.write(addr_des_addr,  data_list[2])
+        self.write(addr_des_sz,    data_list[3])
+        self.write(addr_status,    data_list[4])
+        self.write(addr_prof,      data_list[5])
+        self.write(addr_ld_mask,   data_list[6])
+        self.write(addr_st_mask,   data_list[7])
+        self.write(addr_st_intr,   data_list[8])
+        self.write(addr_prof_exec, data_list[9])
 
     # =============================================
     # ===== command ===============================
@@ -228,16 +232,17 @@ class DFX_Mng:
             return
 
         for slot_idx in range (self.LIM_AMT_SLOT):
-            s_addr, s_size, d_addr, d_size, status, prof, data_ld_mask, data_st_mask, data_st_intr = self.get_slot(slot_idx)
+            s_addr, s_size, d_addr, d_size, status, prof, data_ld_mask, data_st_mask, data_st_intr, prof_exec = self.get_slot(slot_idx)
 
             print(f"------> slot {slot_idx} :")
-            print(f"        srcAddr   : {hex(s_addr)},  srcSize   : {hex(s_size)}")
-            print(f"        desAddr   : {hex(d_addr)},  desSize   : {hex(d_size)}")
-            print(f"        status    : {hex(status)}")
-            print(f"        profileCnt: {hex(prof)}")
-            print(f"        loadMask  : {bin(data_ld_mask)}")
-            print(f"        storeMask : {bin(data_st_mask)}")
-            print(f"        stIntrMask: {bin(data_st_intr)}")
+            print(f"        srcAddr      : {hex(s_addr)},  srcSize   : {hex(s_size)}")
+            print(f"        desAddr      : {hex(d_addr)},  desSize   : {hex(d_size)}")
+            print(f"        status       : {hex(status)}")
+            print(f"        profileCnt   : {hex(prof)}")
+            print(f"        profileExecCnt: {hex(prof_exec)}")
+            print(f"        loadMask     : {bin(data_ld_mask)}")
+            print(f"        storeMask    : {bin(data_st_mask)}")
+            print(f"        stIntrMask   : {bin(data_st_intr)}")
 
     def print_debug(self):
         self.print_main_status()

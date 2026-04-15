@@ -5,9 +5,10 @@ module SlotArr #(
     parameter SRC_SIZE_WIDTH = 26,
     parameter DST_ADDR_WIDTH = 32,
     parameter DST_SIZE_WIDTH = 26,
-    parameter STATUS_WIDTH   = 2,
-    parameter PROFILE_WIDTH  = 32,
-    parameter LD_MSK_WIDTH    =  8,
+    parameter STATUS_WIDTH        = 2,
+    parameter PROFILE_WIDTH       = 32,
+    parameter PROFILE_EXEC_WIDTH  = 32,
+    parameter LD_MSK_WIDTH        =  8,
     parameter ST_MSK_WIDTH    =  8
 )(
     input wire clk,
@@ -19,8 +20,9 @@ module SlotArr #(
     input wire [DST_ADDR_WIDTH-1:0] inp_des_addr,
     input wire [DST_SIZE_WIDTH-1:0] inp_des_size,
     input wire [STATUS_WIDTH  -1:0] inp_status,
-    input wire [PROFILE_WIDTH -1:0] inp_profile,
-    input wire [LD_MSK_WIDTH  -1:0] inp_ld_mask,
+    input wire [PROFILE_WIDTH      -1:0] inp_profile,
+    input wire [PROFILE_EXEC_WIDTH -1:0] inp_profile_exec,
+    input wire [LD_MSK_WIDTH       -1:0] inp_ld_mask,
     input wire [ST_MSK_WIDTH  -1:0] inp_st_mask,
     input wire [ST_MSK_WIDTH  -1:0] inp_st_intr_mask_ack,
     input wire [ST_MSK_WIDTH  -1:0] inp_st_intr_mask_abs,
@@ -31,6 +33,7 @@ module SlotArr #(
     input wire set_des_size,
     input wire set_status,
     input wire set_profile,
+    input wire set_profile_exec,
     input wire set_ld_mask,
     input wire set_st_mask,
     input wire set_st_intr_mask_ack,
@@ -43,8 +46,9 @@ module SlotArr #(
     output reg [DST_ADDR_WIDTH-1:0] out_des_addr,      // actually it is a wire
     output reg [DST_SIZE_WIDTH-1:0] out_des_size,      // actually it is a wire
     output reg [STATUS_WIDTH-1:0]   out_status  ,      // actually it is a wire
-    output reg [PROFILE_WIDTH-1:0]  out_profile,       // actually it is a wire
-    output reg [LD_MSK_WIDTH  -1:0] out_ld_mask,     // actually it is a wire
+    output reg [PROFILE_WIDTH      -1:0]  out_profile,       // actually it is a wire
+    output reg [PROFILE_EXEC_WIDTH -1:0]  out_profile_exec,  // actually it is a wire
+    output reg [LD_MSK_WIDTH       -1:0]  out_ld_mask,       // actually it is a wire
     output reg [ST_MSK_WIDTH  -1:0] out_st_mask,     // actually it is a wire
     output reg [ST_MSK_WIDTH  -1:0] out_st_intr_mask // actually it is a wire
 );
@@ -55,8 +59,9 @@ module SlotArr #(
     wire [DST_ADDR_WIDTH-1:0] out_des_addr_pool     [0: ((1 << INDEX_WIDTH)-1)];
     wire [DST_SIZE_WIDTH-1:0] out_des_size_pool     [0: ((1 << INDEX_WIDTH)-1)];
     wire [STATUS_WIDTH  -1:0] out_status_pool       [0: ((1 << INDEX_WIDTH)-1)];
-    wire [PROFILE_WIDTH -1:0] out_profile_pool      [0: ((1 << INDEX_WIDTH)-1)];
-    wire [LD_MSK_WIDTH  -1:0] out_ld_mask_pool      [0: ((1 << INDEX_WIDTH)-1)];
+    wire [PROFILE_WIDTH      -1:0] out_profile_pool      [0: ((1 << INDEX_WIDTH)-1)];
+    wire [PROFILE_EXEC_WIDTH -1:0] out_profile_exec_pool [0: ((1 << INDEX_WIDTH)-1)];
+    wire [LD_MSK_WIDTH       -1:0] out_ld_mask_pool      [0: ((1 << INDEX_WIDTH)-1)];
     wire [ST_MSK_WIDTH  -1:0] out_st_mask_pool      [0: ((1 << INDEX_WIDTH)-1)];
     wire [ST_MSK_WIDTH  -1:0] out_st_intr_mask_pool [0: ((1 << INDEX_WIDTH)-1)];
 
@@ -65,14 +70,15 @@ module SlotArr #(
     generate
         for (i = 0; i < (1 << INDEX_WIDTH); i = i + 1) begin : slot_gen
             Slot #(
-                .SRC_ADDR_WIDTH  (SRC_ADDR_WIDTH),
-                .SRC_SIZE_WIDTH  (SRC_SIZE_WIDTH),
-                .DST_ADDR_WIDTH  (DST_ADDR_WIDTH),
-                .DST_SIZE_WIDTH  (DST_SIZE_WIDTH),
-                .STATUS_WIDTH    (STATUS_WIDTH),
-                .PROFILE_WIDTH   (PROFILE_WIDTH),
-                .LD_MSK_WIDTH    (LD_MSK_WIDTH),
-                .ST_MSK_WIDTH    (ST_MSK_WIDTH),
+                .SRC_ADDR_WIDTH    (SRC_ADDR_WIDTH),
+                .SRC_SIZE_WIDTH    (SRC_SIZE_WIDTH),
+                .DST_ADDR_WIDTH    (DST_ADDR_WIDTH),
+                .DST_SIZE_WIDTH    (DST_SIZE_WIDTH),
+                .STATUS_WIDTH      (STATUS_WIDTH),
+                .PROFILE_WIDTH     (PROFILE_WIDTH),
+                .PROFILE_EXEC_WIDTH(PROFILE_EXEC_WIDTH),
+                .LD_MSK_WIDTH      (LD_MSK_WIDTH),
+                .ST_MSK_WIDTH      (ST_MSK_WIDTH),
 
                 .INPUT_IDX_WIDTH (INDEX_WIDTH),
                 .CUR_IDX         (i)
@@ -87,6 +93,7 @@ module SlotArr #(
                 .inp_des_size         (inp_des_size),
                 .inp_status           (inp_status),
                 .inp_profile          (inp_profile),
+                .inp_profile_exec     (inp_profile_exec),
                 .inp_ld_mask          (inp_ld_mask),
                 .inp_st_mask          (inp_st_mask),
                 .inp_st_intr_mask_ack (inp_st_intr_mask_ack),
@@ -98,6 +105,7 @@ module SlotArr #(
                 .set_des_size        (set_des_size),
                 .set_status          (set_status),
                 .set_profile         (set_profile),
+                .set_profile_exec    (set_profile_exec),
                 .set_ld_mask         (set_ld_mask),
                 .set_st_mask         (set_st_mask),
                 .set_st_intr_mask_ack(set_st_intr_mask_ack),
@@ -108,8 +116,9 @@ module SlotArr #(
                 .out_des_addr     (out_des_addr_pool[i]),
                 .out_des_size     (out_des_size_pool[i]),
                 .out_status       (out_status_pool  [i]),
-                .out_profile      (out_profile_pool [i]),
-                .out_ld_mask      (out_ld_mask_pool[i]),
+                .out_profile      (out_profile_pool     [i]),
+                .out_profile_exec (out_profile_exec_pool[i]),
+                .out_ld_mask      (out_ld_mask_pool     [i]),
                 .out_st_mask      (out_st_mask_pool[i]),
                 .out_st_intr_mask (out_st_intr_mask_pool[i])
             );
@@ -122,12 +131,13 @@ module SlotArr #(
 // Use a multiplexer to select the output from the appropriate slot based on the input index
 integer muxIdx;
 always @(*) begin
-    out_src_addr = 0;
-    out_src_size = 0;
-    out_des_addr = 0;
-    out_des_size = 0;
-    out_status   = 0;
-    out_profile  = 0;
+    out_src_addr     = 0;
+    out_src_size     = 0;
+    out_des_addr     = 0;
+    out_des_size     = 0;
+    out_status       = 0;
+    out_profile      = 0;
+    out_profile_exec = 0;
 
     for (muxIdx = 0; muxIdx < (1 << INDEX_WIDTH); muxIdx = muxIdx + 1) begin
         if (out_index == muxIdx) begin
@@ -136,9 +146,10 @@ always @(*) begin
             out_src_size     = out_src_size_pool[muxIdx];
             out_des_addr     = out_des_addr_pool[muxIdx];
             out_des_size     = out_des_size_pool[muxIdx];
-            out_status       = out_status_pool[muxIdx];
-            out_profile      = out_profile_pool[muxIdx];
-            out_ld_mask      = out_ld_mask_pool[muxIdx];
+            out_status        = out_status_pool       [muxIdx];
+            out_profile       = out_profile_pool      [muxIdx];
+            out_profile_exec  = out_profile_exec_pool [muxIdx];
+            out_ld_mask       = out_ld_mask_pool      [muxIdx];
             out_st_mask      = out_st_mask_pool[muxIdx];
             out_st_intr_mask = out_st_intr_mask_pool[muxIdx];
         end

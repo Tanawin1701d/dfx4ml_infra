@@ -10,9 +10,10 @@ module s_axi_write #(
     parameter BANK1_SRC_SIZE_WIDTH = 26,
     parameter BANK1_DST_ADDR_WIDTH = 32,
     parameter BANK1_DST_SIZE_WIDTH = 26,
-    parameter BANK1_STATUS_WIDTH   =  2,
-    parameter BANK1_PROFILE_WIDTH  = 32,
-    parameter BANK1_LD_MSK_WIDTH   =  8,
+    parameter BANK1_STATUS_WIDTH        =  2,
+    parameter BANK1_PROFILE_WIDTH       = 32,
+    parameter BANK1_PROFILE_EXEC_WIDTH  = 32,
+    parameter BANK1_LD_MSK_WIDTH        =  8,
     parameter BANK1_ST_MSK_WIDTH   =  8,
 
     parameter BANK0_CONTROL_WIDTH = 4,
@@ -49,8 +50,9 @@ module s_axi_write #(
     output wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_inp_des_addr,    // actually it is a wire
     output wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_inp_des_size,    // actually it is a wire
     output wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_inp_status,      // actually it is a wire
-    output wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_inp_profile,     // actually it is a wire
-    output wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_inp_ld_mask,
+    output wire [BANK1_PROFILE_WIDTH      -1:0] ext_bank1_inp_profile,      // actually it is a wire
+    output wire [BANK1_PROFILE_EXEC_WIDTH -1:0] ext_bank1_inp_profile_exec, // actually it is a wire
+    output wire [BANK1_LD_MSK_WIDTH       -1:0] ext_bank1_inp_ld_mask,
     output wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_mask,
     output wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_intr_mask_abs,
 
@@ -61,7 +63,8 @@ module s_axi_write #(
     output reg ext_bank1_set_des_size,             // actually it is wire
     output reg ext_bank1_set_status,               // actually it is wire
     output reg ext_bank1_set_profile,              // actually it is wire
-    output reg ext_bank1_set_ld_mask,          // actually it is wire
+    output reg ext_bank1_set_profile_exec,         // actually it is wire
+    output reg ext_bank1_set_ld_mask,              // actually it is wire
     output reg ext_bank1_set_st_mask,          // actually it is wire
     output reg ext_bank1_set_st_intr_mask_abs, // actually it is wire
 
@@ -158,8 +161,9 @@ assign ext_bank1_inp_src_size          = S_AXI_WDATA[BANK1_SRC_SIZE_WIDTH-1  : 0
 assign ext_bank1_inp_des_addr          = S_AXI_WDATA[BANK1_DST_ADDR_WIDTH-1  : 0];
 assign ext_bank1_inp_des_size          = S_AXI_WDATA[BANK1_DST_SIZE_WIDTH-1  : 0];
 assign ext_bank1_inp_status            = S_AXI_WDATA[BANK1_STATUS_WIDTH  -1  : 0];
-assign ext_bank1_inp_profile           = S_AXI_WDATA[BANK1_PROFILE_WIDTH -1  : 0];
-assign ext_bank1_inp_ld_mask           = S_AXI_WDATA[BANK1_LD_MSK_WIDTH  -1  : 0];
+assign ext_bank1_inp_profile           = S_AXI_WDATA[BANK1_PROFILE_WIDTH      -1 : 0];
+assign ext_bank1_inp_profile_exec      = S_AXI_WDATA[BANK1_PROFILE_EXEC_WIDTH -1 : 0];
+assign ext_bank1_inp_ld_mask           = S_AXI_WDATA[BANK1_LD_MSK_WIDTH       -1 : 0];
 assign ext_bank1_inp_st_mask           = S_AXI_WDATA[BANK1_ST_MSK_WIDTH  -1  : 0];
 assign ext_bank1_inp_st_intr_mask_abs  = S_AXI_WDATA[BANK1_ST_MSK_WIDTH  -1  : 0];
 
@@ -183,8 +187,9 @@ always @(*) begin
     ext_bank1_set_des_addr    = 0; // Default value
     ext_bank1_set_des_size    = 0; // Default value
     ext_bank1_set_status      = 0; // Default value
-    ext_bank1_set_profile     = 0; // Default value
-    ext_bank1_set_ld_mask            = 0;
+    ext_bank1_set_profile         = 0; // Default value
+    ext_bank1_set_profile_exec    = 0; // Default value
+    ext_bank1_set_ld_mask         = 0;
     ext_bank1_set_st_mask            = 0;
     ext_bank1_set_st_intr_mask_abs   = 0;
 
@@ -223,10 +228,11 @@ always @(*) begin
                     4'b0010: begin ext_bank1_set_des_addr         = 1; end // set destination address
                     4'b0011: begin ext_bank1_set_des_size         = 1; end // set destination size
                     4'b0100: begin ext_bank1_set_status           = 1; end // set status
-                    4'b0101: begin ext_bank1_set_profile          = 1; end // set profile
+                    4'b0101: begin ext_bank1_set_profile          = 1; end // set profile counter
                     4'b0110: begin ext_bank1_set_ld_mask          = 1; end // set load mask
                     4'b0111: begin ext_bank1_set_st_mask          = 1; end // set store mask
                     4'b1000: begin ext_bank1_set_st_intr_mask_abs = 1; end // set store interrupt mask
+                    4'b1001: begin ext_bank1_set_profile_exec     = 1; end // set profile exec counter (offset 0x24)
                     default: begin end // Default case for unsupported addresses
                 endcase
             end

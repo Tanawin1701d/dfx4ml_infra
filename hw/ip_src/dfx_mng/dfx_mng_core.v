@@ -8,9 +8,10 @@ module DFX_Mng_Core #(
     parameter BANK1_SRC_SIZE_WIDTH = 26,
     parameter BANK1_DST_ADDR_WIDTH = 32,
     parameter BANK1_DST_SIZE_WIDTH = 26,
-    parameter BANK1_STATUS_WIDTH   =  2,
-    parameter BANK1_PROFILE_WIDTH  = 32,
-    parameter BANK1_LD_MSK_WIDTH   =  8,
+    parameter BANK1_STATUS_WIDTH        =  2,
+    parameter BANK1_PROFILE_WIDTH       = 32,
+    parameter BANK1_PROFILE_EXEC_WIDTH  = 32,
+    parameter BANK1_LD_MSK_WIDTH        =  8,
     parameter BANK1_ST_MSK_WIDTH   =  8,
 
     parameter BANK0_CONTROL_WIDTH = 4,
@@ -35,8 +36,9 @@ module DFX_Mng_Core #(
     input wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_inp_des_addr,
     input wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_inp_des_size,
     input wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_inp_status,
-    input wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_inp_profile,
-    input wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_inp_ld_mask,
+    input wire [BANK1_PROFILE_WIDTH      -1:0] ext_bank1_inp_profile,
+    input wire [BANK1_PROFILE_EXEC_WIDTH -1:0] ext_bank1_inp_profile_exec,
+    input wire [BANK1_LD_MSK_WIDTH       -1:0] ext_bank1_inp_ld_mask,
     input wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_mask,
     // input wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_intr_mask_ack,
     input wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_intr_mask_abs,
@@ -47,6 +49,7 @@ module DFX_Mng_Core #(
     input wire ext_bank1_set_des_size,
     input wire ext_bank1_set_status,
     input wire ext_bank1_set_profile,
+    input wire ext_bank1_set_profile_exec,
     input wire ext_bank1_set_ld_mask,
     input wire ext_bank1_set_st_mask,
     // input wire ext_bank1_set_st_intr_mask_ack,
@@ -57,7 +60,8 @@ module DFX_Mng_Core #(
     output wire ext_bank1_set_fin_des_addr,   /// the result external setting
     output wire ext_bank1_set_fin_des_size,   /// the result external setting
     output wire ext_bank1_set_fin_status,     /// the result external setting
-    output wire ext_bank1_set_fin_profile,    /// the result external setting
+    output wire ext_bank1_set_fin_profile,         /// the result external setting
+    output wire ext_bank1_set_fin_profile_exec,    /// the result external setting
     output wire ext_bank1_set_fin_ld_mask,
     output wire ext_bank1_set_fin_st_mask,
     // output wire ext_bank1_set_fin_st_intr_mask_ack,
@@ -73,8 +77,9 @@ module DFX_Mng_Core #(
     output wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_out_des_addr,
     output wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_out_des_size,
     output wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_out_status  ,      // actually it is a reg
-    output wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_out_profile,       // actually it is a reg
-    output wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_out_ld_mask,     // actually it is a reg
+    output wire [BANK1_PROFILE_WIDTH      -1:0] ext_bank1_out_profile,       // actually it is a reg
+    output wire [BANK1_PROFILE_EXEC_WIDTH -1:0] ext_bank1_out_profile_exec,  // actually it is a reg
+    output wire [BANK1_LD_MSK_WIDTH       -1:0] ext_bank1_out_ld_mask,       // actually it is a reg
     output wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_mask,
     output wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_intr_mask,
 
@@ -150,8 +155,9 @@ module DFX_Mng_Core #(
     output wire [BANK1_DST_ADDR_WIDTH -1:0] slave_bank1_out_des_addr,
     output wire [BANK1_DST_SIZE_WIDTH -1:0] slave_bank1_out_des_size,
     output wire [BANK1_STATUS_WIDTH   -1:0] slave_bank1_out_status  ,      // actually it is a reg
-    output wire [BANK1_PROFILE_WIDTH  -1:0] slave_bank1_out_profile,        // actually it is a reg
-    output wire [BANK1_LD_MSK_WIDTH   -1:0] slave_bank1_out_ld_mask,     // actually it is a reg
+    output wire [BANK1_PROFILE_WIDTH      -1:0] slave_bank1_out_profile,        // actually it is a reg
+    output wire [BANK1_PROFILE_EXEC_WIDTH -1:0] slave_bank1_out_profile_exec,   // actually it is a reg
+    output wire [BANK1_LD_MSK_WIDTH       -1:0] slave_bank1_out_ld_mask,        // actually it is a reg
     output wire [BANK1_ST_MSK_WIDTH   -1:0] slave_bank1_out_st_mask,
     output wire [BANK1_ST_MSK_WIDTH   -1:0] slave_bank1_out_st_intr_mask
 
@@ -220,8 +226,9 @@ wire finishRound = (mainStatus == STATUS_WAIT4FIN) && (mainCnt == endCnt) && (sl
 
 wire [BANK1_INDEX_WIDTH    -1:0] bank1_inp_index; // actually it is a wire
 
-wire [BANK1_PROFILE_WIDTH  -1:0] bank1_inp_profile; // it must share with ps and auto inc
-wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_inp_st_intr_mask_ack; // mask is usesd only when state is w4fin the interrupt should be set forever, if there is no reset signal
+wire [BANK1_PROFILE_WIDTH      -1:0] bank1_inp_profile;       // it must share with ps and auto inc
+wire [BANK1_PROFILE_EXEC_WIDTH -1:0] bank1_inp_profile_exec;  // it must share with ps and auto inc
+wire [BANK1_ST_MSK_WIDTH       -1:0] bank1_inp_st_intr_mask_ack; // mask is usesd only when state is w4fin the interrupt should be set forever, if there is no reset signal
 wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_inp_st_intr_mask_abs;
 
 wire bank1_set_fin_src_addr;
@@ -230,6 +237,7 @@ wire bank1_set_fin_des_addr;
 wire bank1_set_fin_des_size;
 wire bank1_set_fin_status;
 wire bank1_set_fin_profile;
+wire bank1_set_fin_profile_exec;
 wire bank1_set_fin_ld_mask;
 wire bank1_set_fin_st_mask;
 wire bank1_set_fin_intr_mask_ack;
@@ -237,14 +245,15 @@ wire bank1_set_fin_intr_mask_abs;
 
 
 //////////////  the out pool
-wire [BANK1_INDEX_WIDTH    -1:0] bank1_out_index; // actually it is a wire
-wire [BANK1_DST_ADDR_WIDTH -1:0] bank1_out_src_addr;      // actually it is a reg
-wire [BANK1_DST_SIZE_WIDTH -1:0] bank1_out_src_size;      // actually it is a reg
-wire [BANK1_DST_ADDR_WIDTH -1:0] bank1_out_des_addr;
-wire [BANK1_DST_SIZE_WIDTH -1:0] bank1_out_des_size;
-wire [BANK1_STATUS_WIDTH   -1:0] bank1_out_status  ;      // actually it is a reg
-wire [BANK1_PROFILE_WIDTH  -1:0] bank1_out_profile ;      // actually it is a reg
-wire [BANK1_LD_MSK_WIDTH   -1:0] bank1_out_ld_mask;
+wire [BANK1_INDEX_WIDTH        -1:0] bank1_out_index; // actually it is a wire
+wire [BANK1_DST_ADDR_WIDTH     -1:0] bank1_out_src_addr;      // actually it is a reg
+wire [BANK1_DST_SIZE_WIDTH     -1:0] bank1_out_src_size;      // actually it is a reg
+wire [BANK1_DST_ADDR_WIDTH     -1:0] bank1_out_des_addr;
+wire [BANK1_DST_SIZE_WIDTH     -1:0] bank1_out_des_size;
+wire [BANK1_STATUS_WIDTH       -1:0] bank1_out_status  ;      // actually it is a reg
+wire [BANK1_PROFILE_WIDTH      -1:0] bank1_out_profile ;      // actually it is a reg
+wire [BANK1_PROFILE_EXEC_WIDTH -1:0] bank1_out_profile_exec;  // actually it is a reg
+wire [BANK1_LD_MSK_WIDTH       -1:0] bank1_out_ld_mask;
 wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_out_st_mask;
 wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_out_st_intr_mask;
 
@@ -263,6 +272,7 @@ assign ext_bank1_out_des_addr      = bank1_out_des_addr;
 assign ext_bank1_out_des_size      = bank1_out_des_size;
 assign ext_bank1_out_status        = bank1_out_status;
 assign ext_bank1_out_profile       = bank1_out_profile;
+assign ext_bank1_out_profile_exec  = bank1_out_profile_exec;
 assign ext_bank1_out_ld_mask       = bank1_out_ld_mask;
 assign ext_bank1_out_st_mask       = bank1_out_st_mask;
 assign ext_bank1_out_st_intr_mask  = bank1_out_st_intr_mask;
@@ -275,7 +285,8 @@ assign slave_bank1_out_src_size      =  bank1_out_src_size;
 assign slave_bank1_out_des_addr      =  bank1_out_des_addr;
 assign slave_bank1_out_des_size      =  bank1_out_des_size;
 assign slave_bank1_out_status        =  bank1_out_status;
-assign slave_bank1_out_profile       =  bank1_out_profile;
+assign slave_bank1_out_profile       = bank1_out_profile;
+assign slave_bank1_out_profile_exec  = bank1_out_profile_exec;
 assign slave_bank1_out_ld_mask       = bank1_out_ld_mask;
 assign slave_bank1_out_st_mask       = bank1_out_st_mask;
 assign slave_bank1_out_st_intr_mask  = bank1_out_st_intr_mask;
@@ -291,12 +302,16 @@ assign bank1_inp_profile = ( (mainStatus == STATUS_REPROG      ) |
                              (mainStatus == STATUS_W4SLAVERESET) |
                              (mainStatus == STATUS_W4SLAVEOP   )) ? (slave_bank1_out_profile + 1) : ext_bank1_inp_profile;
 
+assign bank1_inp_profile_exec = ( (mainStatus == STATUS_REPROG      ) |
+                                  (mainStatus == STATUS_W4SLAVERESET) |
+                                  (mainStatus == STATUS_W4SLAVEOP   )) ? (slave_bank1_out_profile_exec + 1) : ext_bank1_inp_profile_exec;
+
 assign bank1_inp_st_intr_mask_ack = mgsFinExec;
 assign bank1_inp_st_intr_mask_abs = (mainStatus == STATUS_SHUTDOWN)  ? ext_bank1_inp_st_intr_mask_abs : 0; ///// in case reset mgs
 
 ////////////// writing from external setData
 wire ext_bank1_mainActual_set_req = (mainStatus == STATUS_SHUTDOWN) &&
-                                    (ext_bank1_set_src_addr | ext_bank1_set_src_size |
+                                    (ext_bank1_set_src_addr | ext_bank1_set_src_size | ext_bank1_set_profile_exec |
                                      ext_bank1_set_des_addr | ext_bank1_set_des_size |
                                      ext_bank1_set_status   | ext_bank1_set_profile  |
                                      ext_bank1_set_ld_mask  | ext_bank1_set_st_mask  |
@@ -306,8 +321,9 @@ assign ext_bank1_set_fin_src_size   = ext_bank1_mainActual_set_req & ext_bank1_s
 assign ext_bank1_set_fin_des_addr   = ext_bank1_mainActual_set_req & ext_bank1_set_des_addr;
 assign ext_bank1_set_fin_des_size   = ext_bank1_mainActual_set_req & ext_bank1_set_des_size;
 assign ext_bank1_set_fin_status     = ext_bank1_mainActual_set_req & ext_bank1_set_status;
-assign ext_bank1_set_fin_profile    = ext_bank1_mainActual_set_req & ext_bank1_set_profile;
-assign ext_bank1_set_fin_ld_mask         = ext_bank1_mainActual_set_req & ext_bank1_set_ld_mask;
+assign ext_bank1_set_fin_profile       = ext_bank1_mainActual_set_req & ext_bank1_set_profile;
+assign ext_bank1_set_fin_profile_exec  = ext_bank1_mainActual_set_req & ext_bank1_set_profile_exec;
+assign ext_bank1_set_fin_ld_mask       = ext_bank1_mainActual_set_req & ext_bank1_set_ld_mask;
 assign ext_bank1_set_fin_st_mask         = ext_bank1_mainActual_set_req & ext_bank1_set_st_mask;
 // assign ext_bank1_set_fin_st_intr_mask_ack   = 0;
 assign ext_bank1_set_fin_st_intr_mask_abs   = ext_bank1_mainActual_set_req & ext_bank1_set_st_intr_mask_abs;
@@ -322,6 +338,14 @@ assign bank1_set_fin_profile        = ext_bank1_set_fin_profile |
                                     ( ( mainStatus == STATUS_REPROG       ) |
                                       ( mainStatus == STATUS_W4SLAVERESET ) |
                                       ( mainStatus == STATUS_W4SLAVEOP    ));
+assign bank1_set_fin_profile_exec   = ext_bank1_set_fin_profile_exec |
+                                    ( (mainStatus == STATUS_CLEAR_MGS) |
+                                      (mainStatus == STATUS_INITIALIZE_MGS) |
+                                      (mainStatus == STATUS_INITIALIZE_DMA) |
+                                      (mainStatus == STATUS_SET_DMA_LOAD) |
+                                      (mainStatus == STATUS_SET_DMA_STORE) |
+                                      (mainStatus == STATUS_TRIGGERING) |
+                                      (mainStatus == STATUS_WAIT4FIN));
 assign bank1_set_fin_ld_mask        = ext_bank1_set_fin_ld_mask;
 assign bank1_set_fin_st_mask        = ext_bank1_set_fin_st_mask;
 assign bank1_set_fin_intr_mask_ack  = mainStatus == STATUS_WAIT4FIN; //// this is internal only set
@@ -592,15 +616,16 @@ end
 ///////////////////////////////////////////////
 
 SlotArr #(
-.INDEX_WIDTH    (BANK1_INDEX_WIDTH),
-.SRC_ADDR_WIDTH (BANK1_SRC_ADDR_WIDTH),
-.SRC_SIZE_WIDTH (BANK1_SRC_SIZE_WIDTH),
-.DST_ADDR_WIDTH (BANK1_DST_ADDR_WIDTH),
-.DST_SIZE_WIDTH (BANK1_DST_SIZE_WIDTH),
-.STATUS_WIDTH   (BANK1_STATUS_WIDTH),
-.PROFILE_WIDTH  (BANK1_PROFILE_WIDTH),
-.LD_MSK_WIDTH   (BANK1_LD_MSK_WIDTH),
-.ST_MSK_WIDTH   (BANK1_ST_MSK_WIDTH)
+.INDEX_WIDTH       (BANK1_INDEX_WIDTH),
+.SRC_ADDR_WIDTH    (BANK1_SRC_ADDR_WIDTH),
+.SRC_SIZE_WIDTH    (BANK1_SRC_SIZE_WIDTH),
+.DST_ADDR_WIDTH    (BANK1_DST_ADDR_WIDTH),
+.DST_SIZE_WIDTH    (BANK1_DST_SIZE_WIDTH),
+.STATUS_WIDTH      (BANK1_STATUS_WIDTH),
+.PROFILE_WIDTH     (BANK1_PROFILE_WIDTH),
+.PROFILE_EXEC_WIDTH(BANK1_PROFILE_EXEC_WIDTH),
+.LD_MSK_WIDTH      (BANK1_LD_MSK_WIDTH),
+.ST_MSK_WIDTH      (BANK1_ST_MSK_WIDTH)
 ) dayta (
     .clk(clk),
     .reset(reset),
@@ -611,7 +636,8 @@ SlotArr #(
     .inp_des_addr           (ext_bank1_inp_des_addr),
     .inp_des_size           (ext_bank1_inp_des_size),
     .inp_status             (ext_bank1_inp_status),
-    .inp_profile            (bank1_inp_profile), // it must share with ps and auto inc
+    .inp_profile            (bank1_inp_profile),       // it must share with ps and auto inc
+    .inp_profile_exec       (bank1_inp_profile_exec),  // it must share with ps and auto inc
     .inp_ld_mask            (ext_bank1_inp_ld_mask),
     .inp_st_mask            (ext_bank1_inp_st_mask),
     .inp_st_intr_mask_ack   (bank1_inp_st_intr_mask_ack),
@@ -622,7 +648,8 @@ SlotArr #(
     .set_des_addr         (bank1_set_fin_des_addr),
     .set_des_size         (bank1_set_fin_des_size),
     .set_status           (bank1_set_fin_status  ),
-    .set_profile          (bank1_set_fin_profile ),
+    .set_profile          (bank1_set_fin_profile),
+    .set_profile_exec     (bank1_set_fin_profile_exec),
     .set_ld_mask          (bank1_set_fin_ld_mask),
     .set_st_mask          (bank1_set_fin_st_mask),
     .set_st_intr_mask_ack (bank1_set_fin_intr_mask_ack),
@@ -636,6 +663,7 @@ SlotArr #(
     .out_des_size     (bank1_out_des_size),      // actually it is a wire
     .out_status       (bank1_out_status) ,      // actually it is a wire
     .out_profile      (bank1_out_profile),       // actually it is a wire
+    .out_profile_exec (bank1_out_profile_exec),  // actually it is a wire
     .out_ld_mask      (bank1_out_ld_mask),
     .out_st_mask      (bank1_out_st_mask),
     .out_st_intr_mask (bank1_out_st_intr_mask)

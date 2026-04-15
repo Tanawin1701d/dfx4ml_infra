@@ -14,9 +14,10 @@ module s_axi_read #(
     parameter BANK1_SRC_SIZE_WIDTH = 26,
     parameter BANK1_DST_ADDR_WIDTH = 32,
     parameter BANK1_DST_SIZE_WIDTH = 26,
-    parameter BANK1_STATUS_WIDTH   =  2,
-    parameter BANK1_PROFILE_WIDTH  = 32,
-    parameter BANK1_LD_MSK_WIDTH    =  8,
+    parameter BANK1_STATUS_WIDTH        =  2,
+    parameter BANK1_PROFILE_WIDTH       = 32,
+    parameter BANK1_PROFILE_EXEC_WIDTH  = 32,
+    parameter BANK1_LD_MSK_WIDTH        =  8,
     parameter BANK1_ST_MSK_WIDTH    =  8,
 
     parameter BANK0_CONTROL_WIDTH   = 4,
@@ -48,8 +49,9 @@ module s_axi_read #(
     input   wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_out_des_addr,
     input   wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_out_des_size,
     input   wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_out_status  ,      // actually it is a wire
-    input   wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_out_profile,       // actually it is a wire
-    input   wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_out_ld_mask,     // actually it is a reg
+    input   wire [BANK1_PROFILE_WIDTH      -1:0] ext_bank1_out_profile,       // actually it is a wire
+    input   wire [BANK1_PROFILE_EXEC_WIDTH -1:0] ext_bank1_out_profile_exec,  // actually it is a wire
+    input   wire [BANK1_LD_MSK_WIDTH       -1:0] ext_bank1_out_ld_mask,       // actually it is a reg
     input   wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_mask,
     input   wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_intr_mask,
     input   wire                             ext_bank1_out_ready,         // actually it is a wire
@@ -147,10 +149,11 @@ always @(*) begin
                 4'b0010: begin S_AXI_RDATA = ext_bank1_out_des_addr;                                                    end // read source size
                 4'b0011: begin S_AXI_RDATA = {{(DATA_WIDTH - BANK1_DST_SIZE_WIDTH){1'b0}}, ext_bank1_out_des_size};     end // read destination address
                 4'b0100: begin S_AXI_RDATA = {30'b0, ext_bank1_out_status };                                            end // read destination size
-                4'b0101: begin S_AXI_RDATA = ext_bank1_out_profile;                                                     end // read status register
+                4'b0101: begin S_AXI_RDATA = ext_bank1_out_profile;                                                     end // read profile counter
                 4'b0110: begin S_AXI_RDATA = { {(DATA_WIDTH - BANK1_LD_MSK_WIDTH){1'b0}}, ext_bank1_out_ld_mask };      end // read load mask
                 4'b0111: begin S_AXI_RDATA = { {(DATA_WIDTH - BANK1_ST_MSK_WIDTH){1'b0}}, ext_bank1_out_st_mask };      end // read store mask
                 4'b1000: begin S_AXI_RDATA = { {(DATA_WIDTH - BANK1_ST_MSK_WIDTH){1'b0}}, ext_bank1_out_st_intr_mask }; end // read store interrupt mask
+                4'b1001: begin S_AXI_RDATA = ext_bank1_out_profile_exec;                                                end // read profile exec counter (offset 0x24)
                 default: begin S_AXI_RDATA = 0;                                                                         end// Default case for unsupported addresses
 
             endcase

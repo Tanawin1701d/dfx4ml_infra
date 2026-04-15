@@ -1,17 +1,18 @@
 module Slot #(
     ///////// indexing
-    parameter INPUT_IDX_WIDTH =  2,
+    parameter INPUT_IDX_WIDTH    =  2,
     ///////// slot meta-data slot
-    parameter SRC_ADDR_WIDTH  = 32,
-    parameter SRC_SIZE_WIDTH  = 26,
-    parameter DST_ADDR_WIDTH  = 32,
-    parameter DST_SIZE_WIDTH  = 26,
-    parameter STATUS_WIDTH    =  2,
-    parameter PROFILE_WIDTH   = 32,
-    parameter LD_MSK_WIDTH    =  8,
-    parameter ST_MSK_WIDTH    =  8,
+    parameter SRC_ADDR_WIDTH     = 32,
+    parameter SRC_SIZE_WIDTH     = 26,
+    parameter DST_ADDR_WIDTH     = 32,
+    parameter DST_SIZE_WIDTH     = 26,
+    parameter STATUS_WIDTH       =  2,
+    parameter PROFILE_WIDTH      = 32,
+    parameter PROFILE_EXEC_WIDTH = 32,
+    parameter LD_MSK_WIDTH       =  8,
+    parameter ST_MSK_WIDTH       =  8,
     ///////// slot identifier
-    parameter CUR_IDX         =  0
+    parameter CUR_IDX            =  0
 ) (
     input wire clk,
     input wire reset,
@@ -23,8 +24,9 @@ module Slot #(
     input wire [DST_ADDR_WIDTH-1:0]   inp_des_addr,
     input wire [DST_SIZE_WIDTH-1:0]   inp_des_size,
     input wire [STATUS_WIDTH  -1:0]   inp_status,
-    input wire [PROFILE_WIDTH -1:0]   inp_profile,
-    input wire [LD_MSK_WIDTH  -1:0]   inp_ld_mask,
+    input wire [PROFILE_WIDTH      -1:0]   inp_profile,
+    input wire [PROFILE_EXEC_WIDTH -1:0]   inp_profile_exec,
+    input wire [LD_MSK_WIDTH       -1:0]   inp_ld_mask,
     input wire [ST_MSK_WIDTH  -1:0]   inp_st_mask,
     input wire [ST_MSK_WIDTH  -1:0]   inp_st_intr_mask_ack,
     input wire [ST_MSK_WIDTH  -1:0]   inp_st_intr_mask_abs,
@@ -35,6 +37,7 @@ module Slot #(
     input wire                        set_des_size,
     input wire                        set_status,
     input wire                        set_profile,
+    input wire                        set_profile_exec,
     input wire                        set_ld_mask,
     input wire                        set_st_mask,
     input wire                        set_st_intr_mask_ack,
@@ -45,8 +48,9 @@ module Slot #(
     output reg [DST_ADDR_WIDTH-1:0]   out_des_addr,
     output reg [DST_SIZE_WIDTH-1:0]   out_des_size,
     output reg [STATUS_WIDTH  -1:0]   out_status,
-    output reg [PROFILE_WIDTH -1:0]   out_profile,
-    output reg [LD_MSK_WIDTH  -1:0]   out_ld_mask,
+    output reg [PROFILE_WIDTH      -1:0]   out_profile,
+    output reg [PROFILE_EXEC_WIDTH -1:0]   out_profile_exec,
+    output reg [LD_MSK_WIDTH       -1:0]   out_ld_mask,
     output reg [ST_MSK_WIDTH  -1:0]   out_st_mask,
     output reg [ST_MSK_WIDTH  -1:0]   out_st_intr_mask
 );
@@ -61,9 +65,10 @@ always @( posedge clk or negedge reset ) begin
         out_src_size     <= 0;
         out_des_addr     <= 0;
         out_des_size     <= 0;
-        out_status       <= 0;
-        out_profile      <= 0;
-        out_ld_mask      <= 0;
+        out_status        <= 0;
+        out_profile       <= 0;
+        out_profile_exec  <= 0;
+        out_ld_mask       <= 0;
         out_st_mask      <= 0;
         out_st_intr_mask <= 0;
     end else begin
@@ -75,8 +80,9 @@ always @( posedge clk or negedge reset ) begin
             if (set_des_addr)         begin out_des_addr <= inp_des_addr; end // Assuming des_addr is same as src_addr
             if (set_des_size)         begin out_des_size <= inp_des_size; end // Assuming des_size is same as src_size
             if (set_status)           begin out_status   <= inp_status;   end
-            if (set_profile)          begin out_profile  <= inp_profile;  end
-            if (set_ld_mask)          begin out_ld_mask  <= inp_ld_mask;  end
+            if (set_profile)          begin out_profile       <= inp_profile;       end
+            if (set_profile_exec)     begin out_profile_exec  <= inp_profile_exec;  end
+            if (set_ld_mask)          begin out_ld_mask        <= inp_ld_mask;       end
             if (set_st_mask)          begin out_st_mask  <= inp_st_mask;  end
 
             if  (set_st_intr_mask_abs)    begin out_st_intr_mask <= inp_st_intr_mask_abs; end

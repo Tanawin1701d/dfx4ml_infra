@@ -11,9 +11,10 @@ module DFX_Mng #(
     parameter BANK1_SRC_SIZE_WIDTH = 26,
     parameter BANK1_DST_ADDR_WIDTH = 32,
     parameter BANK1_DST_SIZE_WIDTH = 26,
-    parameter BANK1_STATUS_WIDTH   =  2,
-    parameter BANK1_PROFILE_WIDTH  = 32,
-    parameter BANK1_LD_MSK_WIDTH   =  8,
+    parameter BANK1_STATUS_WIDTH        =  2,
+    parameter BANK1_PROFILE_WIDTH       = 32,
+    parameter BANK1_PROFILE_EXEC_WIDTH  = 32,
+    parameter BANK1_LD_MSK_WIDTH        =  8,
     parameter BANK1_ST_MSK_WIDTH   =  8,
     // BANK0 REGISTER PARAMETER
     parameter BANK0_CONTROL_WIDTH    = 4,
@@ -130,8 +131,9 @@ output wire hw_intr
     wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_inp_des_addr;
     wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_inp_des_size;
     wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_inp_status;
-    wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_inp_profile;
-    wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_inp_ld_mask;
+    wire [BANK1_PROFILE_WIDTH      -1:0] ext_bank1_inp_profile;
+    wire [BANK1_PROFILE_EXEC_WIDTH -1:0] ext_bank1_inp_profile_exec;
+    wire [BANK1_LD_MSK_WIDTH       -1:0] ext_bank1_inp_ld_mask;
     wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_mask;
     wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_intr_mask_abs;
     // BANK 1 SETTER ENABLE
@@ -141,6 +143,7 @@ output wire hw_intr
     wire ext_bank1_set_des_size;
     wire ext_bank1_set_status;
     wire ext_bank1_set_profile;
+    wire ext_bank1_set_profile_exec;
     wire ext_bank1_set_ld_mask;
     wire ext_bank1_set_st_mask;
     wire ext_bank1_set_st_intr_mask_abs;
@@ -151,6 +154,7 @@ output wire hw_intr
     wire ext_bank1_set_fin_des_size;
     wire ext_bank1_set_fin_status;
     wire ext_bank1_set_fin_profile;
+    wire ext_bank1_set_fin_profile_exec;
     wire ext_bank1_set_fin_ld_mask;
     wire ext_bank1_set_fin_st_mask;
     wire ext_bank1_set_fin_st_intr_mask_abs;
@@ -162,8 +166,9 @@ output wire hw_intr
     wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_out_des_addr;
     wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_out_des_size;
     wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_out_status;
-    wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_out_profile;
-    wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_out_ld_mask;
+    wire [BANK1_PROFILE_WIDTH      -1:0] ext_bank1_out_profile;
+    wire [BANK1_PROFILE_EXEC_WIDTH -1:0] ext_bank1_out_profile_exec;
+    wire [BANK1_LD_MSK_WIDTH       -1:0] ext_bank1_out_ld_mask;
     wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_mask;
     wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_intr_mask;
 
@@ -220,8 +225,9 @@ output wire hw_intr
     wire [BANK1_DST_ADDR_WIDTH -1:0] slave_bank1_out_des_addr;
     wire [BANK1_DST_SIZE_WIDTH -1:0] slave_bank1_out_des_size;
     wire [BANK1_STATUS_WIDTH   -1:0] slave_bank1_out_status  ;      // actually it is a reg
-    wire [BANK1_PROFILE_WIDTH  -1:0] slave_bank1_out_profile ;      // actually it is a reg
-    wire [BANK1_LD_MSK_WIDTH   -1:0] slave_bank1_out_ld_mask;     // actually it is a reg
+    wire [BANK1_PROFILE_WIDTH      -1:0] slave_bank1_out_profile ;        // actually it is a reg
+    wire [BANK1_PROFILE_EXEC_WIDTH -1:0] slave_bank1_out_profile_exec;   // actually it is a reg
+    wire [BANK1_LD_MSK_WIDTH       -1:0] slave_bank1_out_ld_mask;     // actually it is a reg
     wire [BANK1_ST_MSK_WIDTH   -1:0] slave_bank1_out_st_mask;
     wire [BANK1_ST_MSK_WIDTH   -1:0] slave_bank1_out_st_intr_mask;
 
@@ -323,6 +329,7 @@ s_axi_read #(
     .BANK1_DST_SIZE_WIDTH(BANK1_DST_SIZE_WIDTH),
     .BANK1_STATUS_WIDTH(BANK1_STATUS_WIDTH),
     .BANK1_PROFILE_WIDTH(BANK1_PROFILE_WIDTH),
+    .BANK1_PROFILE_EXEC_WIDTH(BANK1_PROFILE_EXEC_WIDTH),
     .BANK1_LD_MSK_WIDTH(BANK1_LD_MSK_WIDTH),
     .BANK1_ST_MSK_WIDTH(BANK1_ST_MSK_WIDTH),
 
@@ -354,7 +361,8 @@ s_axi_read #(
     .ext_bank1_out_des_addr(ext_bank1_out_des_addr),
     .ext_bank1_out_des_size(ext_bank1_out_des_size),
     .ext_bank1_out_status(ext_bank1_out_status  ),      // actually it is a wire
-    .ext_bank1_out_profile(ext_bank1_out_profile),       // actually it is a wire
+    .ext_bank1_out_profile(ext_bank1_out_profile),           // actually it is a wire
+    .ext_bank1_out_profile_exec(ext_bank1_out_profile_exec), // actually it is a wire
     .ext_bank1_out_ld_mask(ext_bank1_out_ld_mask),
     .ext_bank1_out_st_mask(ext_bank1_out_st_mask),
     .ext_bank1_out_st_intr_mask(ext_bank1_out_st_intr_mask),
@@ -386,6 +394,7 @@ s_axi_write #(
     .BANK1_DST_SIZE_WIDTH(BANK1_DST_SIZE_WIDTH),
     .BANK1_STATUS_WIDTH(BANK1_STATUS_WIDTH),
     .BANK1_PROFILE_WIDTH(BANK1_PROFILE_WIDTH),
+    .BANK1_PROFILE_EXEC_WIDTH(BANK1_PROFILE_EXEC_WIDTH),
     .BANK1_LD_MSK_WIDTH(BANK1_LD_MSK_WIDTH),
     .BANK1_ST_MSK_WIDTH(BANK1_ST_MSK_WIDTH),
 
@@ -421,7 +430,8 @@ s_axi_write #(
     .ext_bank1_inp_des_addr(ext_bank1_inp_des_addr),  // actually it is a wire
     .ext_bank1_inp_des_size(ext_bank1_inp_des_size),  // actually it is a wire
     .ext_bank1_inp_status(ext_bank1_inp_status),      // actually it is a wire
-    .ext_bank1_inp_profile(ext_bank1_inp_profile),     // actually it is a wire
+    .ext_bank1_inp_profile(ext_bank1_inp_profile),              // actually it is a wire
+    .ext_bank1_inp_profile_exec(ext_bank1_inp_profile_exec),   // actually it is a wire
     .ext_bank1_inp_ld_mask(ext_bank1_inp_ld_mask),
     .ext_bank1_inp_st_mask(ext_bank1_inp_st_mask),
     .ext_bank1_inp_st_intr_mask_abs(ext_bank1_inp_st_intr_mask_abs),
@@ -432,6 +442,7 @@ s_axi_write #(
     .ext_bank1_set_des_size(ext_bank1_set_des_size),
     .ext_bank1_set_status(ext_bank1_set_status),
     .ext_bank1_set_profile(ext_bank1_set_profile),
+    .ext_bank1_set_profile_exec(ext_bank1_set_profile_exec),
     .ext_bank1_set_ld_mask(ext_bank1_set_ld_mask),
     .ext_bank1_set_st_mask(ext_bank1_set_st_mask),
     .ext_bank1_set_st_intr_mask_abs(ext_bank1_set_st_intr_mask_abs),
@@ -468,6 +479,7 @@ DFX_Mng_Core #(
     .BANK1_DST_SIZE_WIDTH(BANK1_DST_SIZE_WIDTH),
     .BANK1_STATUS_WIDTH(BANK1_STATUS_WIDTH),
     .BANK1_PROFILE_WIDTH(BANK1_PROFILE_WIDTH),
+    .BANK1_PROFILE_EXEC_WIDTH(BANK1_PROFILE_EXEC_WIDTH),
     .BANK1_LD_MSK_WIDTH(BANK1_LD_MSK_WIDTH),
     .BANK1_ST_MSK_WIDTH(BANK1_ST_MSK_WIDTH),
 
@@ -490,6 +502,7 @@ DFX_Mng_Core #(
     .ext_bank1_inp_des_size             (ext_bank1_inp_des_size),
     .ext_bank1_inp_status               (ext_bank1_inp_status),
     .ext_bank1_inp_profile              (ext_bank1_inp_profile),
+    .ext_bank1_inp_profile_exec         (ext_bank1_inp_profile_exec),
     .ext_bank1_inp_ld_mask              (ext_bank1_inp_ld_mask),
     .ext_bank1_inp_st_mask              (ext_bank1_inp_st_mask),
     .ext_bank1_inp_st_intr_mask_abs     (ext_bank1_inp_st_intr_mask_abs),
@@ -500,6 +513,7 @@ DFX_Mng_Core #(
     .ext_bank1_set_des_size             (ext_bank1_set_des_size),
     .ext_bank1_set_status               (ext_bank1_set_status),
     .ext_bank1_set_profile              (ext_bank1_set_profile),
+    .ext_bank1_set_profile_exec         (ext_bank1_set_profile_exec),
     .ext_bank1_set_ld_mask              (ext_bank1_set_ld_mask),
     .ext_bank1_set_st_mask              (ext_bank1_set_st_mask),
     .ext_bank1_set_st_intr_mask_abs     (ext_bank1_set_st_intr_mask_abs),
@@ -510,6 +524,7 @@ DFX_Mng_Core #(
     .ext_bank1_set_fin_des_size         (ext_bank1_set_fin_des_size),
     .ext_bank1_set_fin_status           (ext_bank1_set_fin_status),
     .ext_bank1_set_fin_profile          (ext_bank1_set_fin_profile),
+    .ext_bank1_set_fin_profile_exec     (ext_bank1_set_fin_profile_exec),
     .ext_bank1_set_fin_ld_mask          (ext_bank1_set_fin_ld_mask),
     .ext_bank1_set_fin_st_mask          (ext_bank1_set_fin_st_mask),
     .ext_bank1_set_fin_st_intr_mask_abs (ext_bank1_set_fin_st_intr_mask_abs),
@@ -525,6 +540,7 @@ DFX_Mng_Core #(
     .ext_bank1_out_des_size     (ext_bank1_out_des_size),
     .ext_bank1_out_status       (ext_bank1_out_status),
     .ext_bank1_out_profile      (ext_bank1_out_profile),
+    .ext_bank1_out_profile_exec (ext_bank1_out_profile_exec),
     .ext_bank1_out_ld_mask      (ext_bank1_out_ld_mask),
     .ext_bank1_out_st_mask      (ext_bank1_out_st_mask),
     .ext_bank1_out_st_intr_mask (ext_bank1_out_st_intr_mask),
@@ -581,7 +597,8 @@ DFX_Mng_Core #(
     .slave_bank1_out_des_addr(slave_bank1_out_des_addr) ,
     .slave_bank1_out_des_size(slave_bank1_out_des_size) ,
     .slave_bank1_out_status(slave_bank1_out_status)   ,      // actually it is a reg
-    .slave_bank1_out_profile(slave_bank1_out_profile)        // actually it is a reg
+    .slave_bank1_out_profile(slave_bank1_out_profile),       // actually it is a reg
+    .slave_bank1_out_profile_exec(slave_bank1_out_profile_exec) // actually it is a reg
 
 );
 
