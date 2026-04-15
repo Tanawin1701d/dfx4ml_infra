@@ -1,0 +1,7 @@
+# Auto-generated Tcl script from Python wrapper (IP build only)
+set build_folder_path "{build_folder_path}"
+set dfx4ml_root "{dfx4ml_root}"
+
+source "{build_ip_only_tcl_path}"
+
+build_ip_only $build_folder_path $dfx4ml_root

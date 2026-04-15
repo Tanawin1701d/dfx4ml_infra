@@ -70,6 +70,7 @@ class HwBuildHelper:
             ignored = [k for k, v in custom_params.items() if v]
             for k in ignored:
                 print(f"Warning: {k} is provided but will be ignored because board='{board}' (only used when board='custom')")
+        self.ip_only_mode             = False
         _abspath = lambda p: os.path.abspath(p) if p else p
         self.build_folder_path        = _abspath(build_folder_path)
         self.dfx_root_path            = _abspath(dfx_root_path)
@@ -121,6 +122,18 @@ class HwBuildHelper:
             raise ValueError(
                 f"Length of ip_map_list ({len(ip_map_list)}) does not match num_actual_rm ({num_actual_rm})")
 
+    @classmethod
+    def for_ip_only(cls, build_folder_path, dfx_root_path, vivado_path):
+        """Create a minimal instance for IP-only composition (build_ip_only()).
+        Only build_folder_path, dfx_root_path, and vivado_path are required."""
+        obj = object.__new__(cls)
+        _abspath = lambda p: os.path.abspath(p) if p else p
+        obj.ip_only_mode      = True
+        obj.build_folder_path = _abspath(build_folder_path)
+        obj.dfx_root_path     = _abspath(dfx_root_path)
+        obj.vivado_path       = vivado_path
+        return obj
+
     def _list_to_tcl(self, lst):
         """Converts a Python list to a Tcl list string."""
         if isinstance(lst, list):
@@ -132,6 +145,9 @@ class HwBuildHelper:
 
     def run_build(self):
         """Reads a Tcl template, fills it with parameters, and invokes Vivado to run the build."""
+        if (self.ip_only_mode):
+            raise RuntimeError("run_build() cannot be called in IP generation only mode. Use build_ip_only() instead.")
+
         # Create build folder if it doesn't exist
         if not os.path.exists(self.build_folder_path):
             os.makedirs(self.build_folder_path)
@@ -189,6 +205,38 @@ class HwBuildHelper:
             # Optionally remove the temporary file
             # os.remove(temp_tcl)
             pass
+
+    def build_ip_only(self):
+        """Composes all DFX4ML IPs only, without running synthesis or implementation."""
+        if not os.path.exists(self.build_folder_path):
+            os.makedirs(self.build_folder_path)
+
+        lib_dir                = os.path.dirname(os.path.abspath(__file__))
+        template_path          = os.path.join(lib_dir, "run_build_ip_only.tcl.template")
+        project_root           = os.path.abspath(os.path.join(lib_dir, ".."))
+        build_ip_only_tcl_path = os.path.join(project_root, "hw", "build_script", "build_ip_only.tcl")
+
+        if not os.path.exists(template_path):
+            raise FileNotFoundError(f"Template not found at {template_path}")
+
+        with open(template_path, "r") as f:
+            template_content = f.read()
+
+        tcl_script = template_content.format(
+            build_folder_path      = self.build_folder_path,
+            dfx4ml_root            = self.dfx_root_path,
+            build_ip_only_tcl_path = build_ip_only_tcl_path,
+        )
+
+        temp_tcl = os.path.join(self.build_folder_path, "run_build_ip_only.tcl")
+        with open(temp_tcl, "w") as f:
+            f.write(tcl_script)
+
+        print(f"Running Vivado IP-only build with {temp_tcl}...")
+        try:
+            subprocess.run([self.vivado_path, "-mode", "gui", "-source", temp_tcl], check=True, cwd=self.build_folder_path)
+        except subprocess.CalledProcessError as e:
+            print(f"Vivado execution failed with error: {e}")
 
     def augment_hwh_file(self, hwh_path):
         import re
