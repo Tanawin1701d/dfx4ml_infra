@@ -24,7 +24,9 @@ module DFX_Mng #(
     parameter BANK0_ROUNDTRIP_WIDTH  = 16, /// the round trip counter for the sequencer
     // DMA PRECEDURE PARAMETER
     parameter DMA_INIT_TASK_CNT   = 8, //// (baseAddr0 + size0) + (baseAddr1 + size1)
-    parameter DMA_EXEC_TASK_CNT   = 1
+    parameter DMA_EXEC_TASK_CNT   = 1,
+    // PR CTRL PROCEDURE PARAMETER
+    parameter PR_CTRL_TASK_CNT    = 2  //// (set batch_size + ap_start)
 ) (
 
 input wire clk,
@@ -194,6 +196,14 @@ output wire hw_intr
     wire                          ext_bank0_set_dfxCtrlAddr;
     wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_dfxCtrlAddr;
 
+    wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_inp_prCtrlAddr;
+    wire                          ext_bank0_set_prCtrlAddr;
+    wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_prCtrlAddr;
+
+    wire [GLOB_DATA_WIDTH-1: 0]   ext_bank0_inp_batchSize;
+    wire                          ext_bank0_set_batchSize;
+    wire [GLOB_DATA_WIDTH-1: 0]   ext_bank0_out_batchSize;
+
     wire [BANK0_INTR_WIDTH-1: 0]  ext_bank0_inp_intrEna; //// input data for the interrupt counter
     wire                          ext_bank0_set_intrEna; //// set the interrupt counter ONLY when the system is in shutdown state
     wire[BANK0_INTR_WIDTH-1: 0]   ext_bank0_out_intrEna; //// output data for the interrupt counter
@@ -211,8 +221,11 @@ output wire hw_intr
 // DMA IP side =======
 // ===================
     ////// the mgs control will be handled by io
-    wire [DMA_INIT_TASK_CNT-1: 0] slaveInit   ; // trigger slave dma to do init task via AXI-LITE
-    wire [DMA_INIT_TASK_CNT-1: 0] slaveFinInit; // dma response to the controller core when it finishes
+    wire [DMA_INIT_TASK_CNT -1: 0] slaveInit   ; // trigger slave dma to do init task via AXI-LITE
+    wire [DMA_INIT_TASK_CNT -1: 0] slaveFinInit; // dma response to the controller core when it finishes
+
+    wire [PR_CTRL_TASK_CNT  -1: 0] prCtrlInit;    // trigger PR ctrl IP init via AXI-LITE
+    wire [PR_CTRL_TASK_CNT  -1: 0] prCtrlFinInit; // PR ctrl IP acknowledges task done
 
     wire [DMA_EXEC_TASK_CNT-1: 0] slaveStartExec; // trigger slave dma to do execute task via AXI-LITE
     wire [DMA_EXEC_TASK_CNT-1: 0] slaveStartExecAccept; // // dma response to the controller core when it finishes
@@ -263,7 +276,7 @@ m_axi_read #(
 );
 
 m_axi_write #(
-        .GLOB_ADDR_WIDTH(GLOB_ADDR_WIDTH),
+    .GLOB_ADDR_WIDTH(GLOB_ADDR_WIDTH),
     .GLOB_DATA_WIDTH(GLOB_DATA_WIDTH),
     .BANK1_INDEX_WIDTH(BANK1_INDEX_WIDTH),
     .BANK1_SRC_ADDR_WIDTH(BANK1_SRC_ADDR_WIDTH),
@@ -275,7 +288,8 @@ m_axi_write #(
     .BANK1_LD_MSK_WIDTH(BANK1_LD_MSK_WIDTH),
     .BANK1_ST_MSK_WIDTH(BANK1_ST_MSK_WIDTH),
     .DMA_INIT_TASK_CNT(DMA_INIT_TASK_CNT),
-    .DMA_EXEC_TASK_CNT(DMA_EXEC_TASK_CNT)
+    .DMA_EXEC_TASK_CNT(DMA_EXEC_TASK_CNT),
+    .PR_CTRL_TASK_CNT(PR_CTRL_TASK_CNT)
 ) axiCmdWrite (
 
     .clk(clk),
@@ -295,10 +309,14 @@ m_axi_write #(
     .M_AXI_BREADY(M_AXI_BREADY),
 
     .ext_bank0_out_dmaBaseAddr(ext_bank0_out_dmaBaseAddr),
-
+    .ext_bank0_out_prCtrlAddr(ext_bank0_out_prCtrlAddr),
+    .ext_bank0_out_batchSize(ext_bank0_out_batchSize),
 
     .slaveInit(slaveInit),
     .slaveFinInit(slaveFinInit),
+
+    .prCtrlInit(prCtrlInit),
+    .prCtrlFinInit(prCtrlFinInit),
 
     .slaveStartExec(slaveStartExec),
     .slaveStartExecAccept(slaveStartExecAccept),
@@ -375,6 +393,8 @@ s_axi_read #(
     .ext_bank0_out_endCnt(ext_bank0_out_endCnt),     /// read only
     .ext_bank0_out_dmaBaseAddr(ext_bank0_out_dmaBaseAddr),
     .ext_bank0_out_dfxCtrlAddr(ext_bank0_out_dfxCtrlAddr),
+    .ext_bank0_out_prCtrlAddr(ext_bank0_out_prCtrlAddr),
+    .ext_bank0_out_batchSize(ext_bank0_out_batchSize),
     .ext_bank0_out_intrEna(ext_bank0_out_intrEna),
     .ext_bank0_out_intr(ext_bank0_out_intr),
     .ext_bank0_out_roundTrip(ext_bank0_out_roundTrip) /// output data for the round trip counter
@@ -455,6 +475,10 @@ s_axi_write #(
     .ext_bank0_set_dmaBaseAddr(ext_bank0_set_dmaBaseAddr),
     .ext_bank0_inp_dfxCtrlAddr(ext_bank0_inp_dfxCtrlAddr),
     .ext_bank0_set_dfxCtrlAddr(ext_bank0_set_dfxCtrlAddr),
+    .ext_bank0_inp_prCtrlAddr(ext_bank0_inp_prCtrlAddr),
+    .ext_bank0_set_prCtrlAddr(ext_bank0_set_prCtrlAddr),
+    .ext_bank0_inp_batchSize(ext_bank0_inp_batchSize),
+    .ext_bank0_set_batchSize(ext_bank0_set_batchSize),
     .ext_bank0_inp_intrEna(ext_bank0_inp_intrEna),
     .ext_bank0_set_intrEna(ext_bank0_set_intrEna),
     .ext_bank0_inp_intr(ext_bank0_inp_intr),
@@ -489,7 +513,8 @@ DFX_Mng_Core #(
     .BANK0_INTR_WIDTH(BANK0_INTR_WIDTH),
     .BANK0_ROUNDTRIP_WIDTH(BANK0_ROUNDTRIP_WIDTH),
     .DMA_INIT_TASK_CNT(DMA_INIT_TASK_CNT),
-    .DMA_EXEC_TASK_CNT(DMA_EXEC_TASK_CNT)
+    .DMA_EXEC_TASK_CNT(DMA_EXEC_TASK_CNT),
+    .PR_CTRL_TASK_CNT(PR_CTRL_TASK_CNT)
 ) dfx_mng_core_0(
     .clk(clk),
     .reset(nreset),
@@ -566,6 +591,14 @@ DFX_Mng_Core #(
     .ext_bank0_set_dfxCtrlAddr(ext_bank0_set_dfxCtrlAddr),
     .ext_bank0_out_dfxCtrlAddr(ext_bank0_out_dfxCtrlAddr),
 
+    .ext_bank0_inp_prCtrlAddr(ext_bank0_inp_prCtrlAddr),
+    .ext_bank0_set_prCtrlAddr(ext_bank0_set_prCtrlAddr),
+    .ext_bank0_out_prCtrlAddr(ext_bank0_out_prCtrlAddr),
+
+    .ext_bank0_inp_batchSize(ext_bank0_inp_batchSize),
+    .ext_bank0_set_batchSize(ext_bank0_set_batchSize),
+    .ext_bank0_out_batchSize(ext_bank0_out_batchSize),
+
     .ext_bank0_inp_intrEna(ext_bank0_inp_intrEna),
     .ext_bank0_set_intrEna(ext_bank0_set_intrEna),
     .ext_bank0_out_intrEna(ext_bank0_out_intrEna),
@@ -589,6 +622,9 @@ DFX_Mng_Core #(
     .slaveMgsLoadInit  (slaveMgsLoadInit),
     .slaveInit         (slaveInit), ///// trigger slave dma to do somthing
     .slaveFinInit      (slaveFinInit),
+
+    .prCtrlInit        (prCtrlInit),
+    .prCtrlFinInit     (prCtrlFinInit),
 
     .mgsFinExec(mgsFinExec), ///// the slave dma is finished, so we can go to triggering next
 

@@ -78,7 +78,12 @@ module s_axi_write #(
     output wire [GLOB_ADDR_WIDTH-1: 0]    ext_bank0_inp_dmaBaseAddr,
     output reg                            ext_bank0_set_dmaBaseAddr,
     output wire [GLOB_ADDR_WIDTH-1: 0]    ext_bank0_inp_dfxCtrlAddr,
-    output reg                           ext_bank0_set_dfxCtrlAddr,
+    output reg                            ext_bank0_set_dfxCtrlAddr,
+
+    output wire [GLOB_ADDR_WIDTH-1: 0]    ext_bank0_inp_prCtrlAddr,
+    output reg                            ext_bank0_set_prCtrlAddr,
+    output wire [GLOB_DATA_WIDTH-1: 0]    ext_bank0_inp_batchSize,
+    output reg                            ext_bank0_set_batchSize,
 
 
     output wire [BANK0_INTR_WIDTH-1: 0]  ext_bank0_inp_intrEna, //// input data for the interrupt counter
@@ -175,6 +180,9 @@ assign ext_bank0_inp_endCnt         = S_AXI_WDATA[BANK0_CNT_WIDTH    -1:0]; /// 
 assign ext_bank0_inp_dmaBaseAddr    = S_AXI_WDATA[GLOB_ADDR_WIDTH    -1:0];
 assign ext_bank0_inp_dfxCtrlAddr    = S_AXI_WDATA[GLOB_ADDR_WIDTH    -1:0];
 
+assign ext_bank0_inp_prCtrlAddr     = S_AXI_WDATA[GLOB_ADDR_WIDTH    -1:0];
+assign ext_bank0_inp_batchSize      = S_AXI_WDATA[GLOB_DATA_WIDTH    -1:0];
+
 assign ext_bank0_inp_intrEna        = S_AXI_WDATA[BANK0_INTR_WIDTH   -1:0]; /// input data for the interrupt Ena counter
 assign ext_bank0_inp_intr           = S_AXI_WDATA[BANK0_INTR_WIDTH   -1:0]; /// input data for the interrupt counter
 assign ext_bank0_inp_roundTrip      = S_AXI_WDATA[BANK0_ROUNDTRIP_WIDTH-1:0]; /// input data for the round trip counter
@@ -199,6 +207,8 @@ always @(*) begin
     ext_bank0_set_endCnt      = 0; // Default value
     ext_bank0_set_dmaBaseAddr = 0; // Default value
     ext_bank0_set_dfxCtrlAddr = 0; // Default value
+    ext_bank0_set_prCtrlAddr  = 0; // Default value
+    ext_bank0_set_batchSize   = 0; // Default value
     ext_bank0_set_intrEna     = 0; // Default value
     ext_bank0_set_intr        = 0; // Default value
     ext_bank0_set_roundTrip   = 0; // Default value
@@ -216,6 +226,8 @@ always @(*) begin
                     8'h06: begin ext_bank0_set_intrEna     = 1; end // set interrupt enable
                     8'h07: begin ext_bank0_set_intr        = 1; end // set interrupt
                     8'h08: begin ext_bank0_set_roundTrip   = 1; end // set round trip counter
+                    8'h09: begin ext_bank0_set_prCtrlAddr  = 1; end // set PR ctrl IP base address
+                    8'h0A: begin ext_bank0_set_batchSize   = 1; end // set batch size
                     default: begin end
                 endcase
             end

@@ -62,6 +62,8 @@ module s_axi_read #(
     input wire [BANK0_CNT_WIDTH      -1: 0] ext_bank0_out_endCnt,      /// read only
     input wire [GLOB_ADDR_WIDTH      -1: 0] ext_bank0_out_dmaBaseAddr,
     input wire [GLOB_ADDR_WIDTH      -1: 0] ext_bank0_out_dfxCtrlAddr,
+    input wire [GLOB_ADDR_WIDTH      -1: 0] ext_bank0_out_prCtrlAddr,
+    input wire [GLOB_DATA_WIDTH      -1: 0] ext_bank0_out_batchSize,
     input wire [BANK0_INTR_WIDTH     -1: 0] ext_bank0_out_intrEna, //// output data for the round counter
     input wire [BANK0_INTR_WIDTH     -1: 0] ext_bank0_out_intr,  //// output data for the interrupt counter
     input wire [BANK0_ROUNDTRIP_WIDTH-1: 0] ext_bank0_out_roundTrip
@@ -137,6 +139,8 @@ always @(*) begin
                 8'h06:   begin S_AXI_RDATA = { {(DATA_WIDTH - BANK0_INTR_WIDTH){1'b0}}, ext_bank0_out_intrEna};         end // read round counter register
                 8'h07:   begin S_AXI_RDATA = { {(DATA_WIDTH - BANK0_INTR_WIDTH){1'b0}}, ext_bank0_out_intr };           end // read interrupt register
                 8'h08:   begin S_AXI_RDATA = { {(DATA_WIDTH - BANK0_ROUNDTRIP_WIDTH){1'b0}}, ext_bank0_out_roundTrip }; end // read round trip counter register
+                8'h09:   begin S_AXI_RDATA = ext_bank0_out_prCtrlAddr;                                                  end // read PR ctrl IP base address
+                8'h0A:   begin S_AXI_RDATA = ext_bank0_out_batchSize;                                                   end // read batch size
                 default: begin S_AXI_RDATA = 0;                                                                         end// Default case for unsupported addresses
             endcase
 

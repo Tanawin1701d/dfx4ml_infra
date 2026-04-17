@@ -13,7 +13,9 @@ module m_axi_write #(
     parameter BANK1_ST_MSK_WIDTH   =  8,
 
     parameter DMA_INIT_TASK_CNT   = 8, //// (reset interrupt + startReadChannel + baseAddr0 + size0) + (reset interrupt + startWriteChannel + baseAddr1 + size1)
-    parameter DMA_EXEC_TASK_CNT   = 1
+    parameter DMA_EXEC_TASK_CNT   = 1,
+
+    parameter PR_CTRL_TASK_CNT    = 2  //// (set batch_size + ap_start)
 )(
     input  wire                   clk,
     input  wire                   reset,
@@ -37,10 +39,17 @@ module m_axi_write #(
     // dma base addr
     input  wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_dmaBaseAddr,
 
+    // pr ctrl addr and batch size
+    input  wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_prCtrlAddr,
+    input  wire [GLOB_DATA_WIDTH-1: 0]   ext_bank0_out_batchSize,
+
     // slave input
 
-    input   wire[DMA_INIT_TASK_CNT-1: 0] slaveInit   , ///// trigger slave dma to do somthing
-    output  reg [DMA_INIT_TASK_CNT-1: 0] slaveFinInit,
+    input   wire[DMA_INIT_TASK_CNT -1: 0] slaveInit   , ///// trigger slave dma to do somthing
+    output  reg [DMA_INIT_TASK_CNT -1: 0] slaveFinInit,
+
+    input   wire[PR_CTRL_TASK_CNT  -1: 0] prCtrlInit,
+    output  reg [PR_CTRL_TASK_CNT  -1: 0] prCtrlFinInit,
 
     input   wire[DMA_EXEC_TASK_CNT-1: 0] slaveStartExec      ,
     output  reg [DMA_EXEC_TASK_CNT-1: 0]  slaveStartExecAccept, ///// the slave dma is ready to start
@@ -73,6 +82,11 @@ wire[GLOB_ADDR_WIDTH-1: 0] dmaSrcDataSizeADDR = ext_bank0_out_dmaBaseAddr + 32'h
 
 wire[GLOB_ADDR_WIDTH-1: 0] dmDesStatusADDR    = ext_bank0_out_dmaBaseAddr + 32'h34;
 
+//////// PR CTRL CHANNEL
+
+wire[GLOB_ADDR_WIDTH-1: 0] prCtrlApCtrlADDR   = ext_bank0_out_prCtrlAddr + 32'h00;
+wire[GLOB_ADDR_WIDTH-1: 0] prCtrlBatchSizeADDR = ext_bank0_out_prCtrlAddr + 32'h10;
+
 wire[GLOB_ADDR_WIDTH-1: 0] dmaDesCtrlADDR     = ext_bank0_out_dmaBaseAddr + 32'h30;
 wire[GLOB_ADDR_WIDTH-1: 0] dmaDesDataAddrADDR = ext_bank0_out_dmaBaseAddr + 32'h48;
 wire[GLOB_ADDR_WIDTH-1: 0] dmaDesDataSizeADDR = ext_bank0_out_dmaBaseAddr + 32'h58;
@@ -97,7 +111,7 @@ always @(posedge clk or negedge reset) begin
     end else begin
         case(state)
             STATUS_IDLE: begin
-                if ( (slaveInit != 0) | (slaveStartExec != 0)) begin state = STATUS_WADDR; end
+                if ( (slaveInit != 0) | (slaveStartExec != 0) | (prCtrlInit != 0)) begin state = STATUS_WADDR; end
             end
             STATUS_WADDR: begin
                 if (M_AXI_AWREADY) begin state = STATUS_WDATA; end
@@ -136,6 +150,7 @@ always @ (*) begin
 
     slaveFinInit = 0;
     slaveStartExecAccept = 0;
+    prCtrlFinInit = 0;
 
     if (slaveInit != 0)begin
 
@@ -191,13 +206,29 @@ always @ (*) begin
                     end
         endcase
     end
-    // end else if (slaveStartExec != 0) begin
-    //         M_AXI_AWADDR = dmaCtrlAddrADDR;
-    //         M_AXI_WDATA  = 1;
-    //         if (state == STATUS_UNLOCK)begin
-    //         slaveFinInit = slaveInit;
-    //         end
-    // end
+    end else if (prCtrlInit != 0) begin
+
+        if (state == STATUS_UNLOCK) begin
+            prCtrlFinInit = prCtrlInit;
+        end
+
+        case (prCtrlInit)
+            2'b01: begin // PR_CTRL_TASK_BATCH_SIZE: write batchSize to offset 0x10
+                        M_AXI_AWADDR = prCtrlBatchSizeADDR;
+                        M_AXI_WDATA  = ext_bank0_out_batchSize;
+                   end
+            2'b10: begin // PR_CTRL_TASK_AP_START: write ap_start (bit 0) to offset 0x00
+                        M_AXI_AWADDR = prCtrlApCtrlADDR;
+                        M_AXI_WDATA  = {{(GLOB_DATA_WIDTH-1){1'b0}}, 1'b1};
+                   end
+            default: begin
+                        M_AXI_AWADDR  = 0;
+                        M_AXI_WDATA   = 0;
+                        prCtrlFinInit = 0;
+                    end
+        endcase
+
+    end
 
 end
 

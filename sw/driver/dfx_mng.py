@@ -34,7 +34,9 @@ class DFX_Mng:
         self.REG_DFX_ADDR   = (0,5,0)
         self.REG_INTR_ENA   = (0,6,0)
         self.REG_INTR       = (0,7,0)
-        self.REG_ROUND_TRIP = (0,8,0)
+        self.REG_ROUND_TRIP   = (0,8,0)
+        self.REG_PR_CTRL_ADDR = (0,9,0)
+        self.REG_BATCH_SIZE   = (0,10,0)
 
         #### the row must be change to match the slot
         ######(bankId, rowIdx(row can vary), colIdx)
@@ -85,7 +87,11 @@ class DFX_Mng:
         return self.read(self.gen_addr(*self.REG_INTR))
     def get_round_trip(self):
         return self.read(self.gen_addr(*self.REG_ROUND_TRIP))
-    
+    def get_pr_ctrl_addr(self):
+        return self.read(self.gen_addr(*self.REG_PR_CTRL_ADDR))
+    def get_batch_size(self):
+        return self.read(self.gen_addr(*self.REG_BATCH_SIZE))
+
     def get_slot(self, slot_idx):
 
         addr_src_addr  = self.gen_addr_for_slot(self.SLOT_SRC_ADDR, slot_idx)
@@ -134,7 +140,11 @@ class DFX_Mng:
         return self.write(self.gen_addr(*self.REG_INTR), value)
     def set_round_trip(self, value):
         return self.write(self.gen_addr(*self.REG_ROUND_TRIP), value)
-    
+    def set_pr_ctrl_addr(self, value):
+        return self.write(self.gen_addr(*self.REG_PR_CTRL_ADDR), value)
+    def set_batch_size(self, value):
+        return self.write(self.gen_addr(*self.REG_BATCH_SIZE), value)
+
     def set_slot(self, slot_t, slot_idx, value):
         addr  = self.gen_addr_for_slot(slot_t, slot_idx)
         self.write(addr, value)
@@ -193,13 +203,22 @@ class DFX_Mng:
     # =============================================
 
     def status_to_str(self, status_idx):
-        mapper = [ "SHUTDOWN","REPROG","W4SLAVERESET","W4SLAVEOP","CLEAR_MGS","INITIALIZE_MGS",
-                  "INITIALIZE_DMA","SET_DMA_LOAD","SET_DMA_STORE","TRIGGERING","WAIT4FIN","PAUSEONERROR"
-        ]
-
-        if status_idx not in range(0, len(mapper)):
-            return "STATUS ERROR"
-        return mapper[status_idx]
+        mapper = {
+            0:  "SHUTDOWN",
+            1:  "REPROG",
+            2:  "W4SLAVERESET",
+            3:  "W4SLAVEOP",
+            4:  "CLEAR_MGS",
+            5:  "INITIALIZE_MGS",
+            6:  "INITIALIZE_DMA",
+            7:  "SET_DMA_LOAD",
+            8:  "SET_DMA_STORE",
+            9:  "TRIGGERING",
+            10: "WAIT4FIN",
+            11: "INITIALIZE_PR_CTRL",
+            15: "PAUSEONERROR",
+        }
+        return mapper.get(status_idx, "STATUS ERROR")
         
     def print_main_status(self):
 
@@ -216,11 +235,15 @@ class DFX_Mng:
         dfx_addr = self.get_dfx_addr()
         print("--------> DFXADDR  = ", hex(dfx_addr))
         intr_ena = self.get_intr_ena()
-        print("--------> INTR_ENA = ", hex(intr_ena))
+        print("--------> INTR_ENA    = ", hex(intr_ena))
         intr    = self.get_intr()
-        print("--------> INTR     = ", hex(intr))
+        print("--------> INTR        = ", hex(intr))
         round_trip = self.get_round_trip()
-        print("--------> ROUND_TRIP = ", hex(round_trip))
+        print("--------> ROUND_TRIP  = ", hex(round_trip))
+        pr_ctrl_addr = self.get_pr_ctrl_addr()
+        print("--------> PR_CTRL_ADDR = ", hex(pr_ctrl_addr))
+        batch_size = self.get_batch_size()
+        print("--------> BATCH_SIZE  = ", hex(batch_size))
 
 
     def print_slot_data(self):

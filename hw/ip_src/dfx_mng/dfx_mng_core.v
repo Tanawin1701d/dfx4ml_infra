@@ -21,7 +21,9 @@ module DFX_Mng_Core #(
     parameter BANK0_ROUNDTRIP_WIDTH = 16, /// the round trip counter for the sequencer
 
     parameter DMA_INIT_TASK_CNT   = 8, //// (reset interrupt + startReadChannel + baseAddr0 + size0) + (startWriteChannel + baseAddr1 + size1)
-    parameter DMA_EXEC_TASK_CNT   = 1
+    parameter DMA_EXEC_TASK_CNT   = 1,
+
+    parameter PR_CTRL_TASK_CNT    = 2  //// (set batch_size + ap_start)
 ) (
     input wire clk,
     input wire reset,
@@ -111,6 +113,14 @@ module DFX_Mng_Core #(
     input  wire                          ext_bank0_set_dfxCtrlAddr,
     output wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_dfxCtrlAddr,
 
+    input  wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_inp_prCtrlAddr,
+    input  wire                          ext_bank0_set_prCtrlAddr,
+    output wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_prCtrlAddr,
+
+    input  wire [GLOB_DATA_WIDTH-1: 0]   ext_bank0_inp_batchSize,
+    input  wire                          ext_bank0_set_batchSize,
+    output wire [GLOB_DATA_WIDTH-1: 0]   ext_bank0_out_batchSize,
+
     input  wire [BANK0_INTR_WIDTH-1: 0]  ext_bank0_inp_intrEna, //// input data for the interrupt counter
     input  wire                          ext_bank0_set_intrEna, //// set the interrupt counter ONLY when the system is in shutdown state
     output wire[BANK0_INTR_WIDTH-1: 0]   ext_bank0_out_intrEna, //// output data for the interrupt counter
@@ -143,8 +153,11 @@ module DFX_Mng_Core #(
     output wire [BANK1_LD_MSK_WIDTH-1: 0] slaveMgsLoadReset,  //// reset the interrupt signal
     output wire [BANK1_ST_MSK_WIDTH-1: 0] slaveMgsStoreInit,  //// init the store of the magic streamer bucket
     output wire [BANK1_LD_MSK_WIDTH-1: 0] slaveMgsLoadInit,   //// init the load of the magic streamer bucket
-    output wire [DMA_INIT_TASK_CNT -1: 0] slaveInit   , ///// trigger slave dma to do somthing via AXI
-    input  wire [DMA_INIT_TASK_CNT -1: 0] slaveFinInit, ///// trigger slave dma to do somthing via AXI
+    output wire [DMA_INIT_TASK_CNT  -1: 0] slaveInit   , ///// trigger slave dma to do somthing via AXI
+    input  wire [DMA_INIT_TASK_CNT  -1: 0] slaveFinInit, ///// trigger slave dma to do somthing via AXI
+
+    output wire [PR_CTRL_TASK_CNT   -1: 0] prCtrlInit,    ///// trigger pr ctrl IP initialization via AXI
+    input  wire [PR_CTRL_TASK_CNT   -1: 0] prCtrlFinInit, ///// pr ctrl IP acknowledges task done
 
     ////// finish exec
     input wire  [BANK1_ST_MSK_WIDTH   -1: 0] mgsFinExec, ///// the slave magic sequencer Ip acknowledge that it is finish
@@ -166,11 +179,12 @@ module DFX_Mng_Core #(
 );
 
 
-localparam STATUS_SHUTDOWN       = 4'b0000;
-localparam STATUS_REPROG         = 4'b0001;
-localparam STATUS_W4SLAVERESET   = 4'b0010;
-localparam STATUS_W4SLAVEOP      = 4'b0011;
-localparam STATUS_CLEAR_MGS      = 4'b0100;
+localparam STATUS_SHUTDOWN            = 4'b0000;
+localparam STATUS_REPROG              = 4'b0001;
+localparam STATUS_W4SLAVERESET        = 4'b0010;
+localparam STATUS_W4SLAVEOP           = 4'b0011;
+localparam STATUS_INITIALIZE_PR_CTRL  = 4'b1011; // initialize PR-controlled IP (set batch_size + ap_start)
+localparam STATUS_CLEAR_MGS           = 4'b0100;
 localparam STATUS_INITIALIZE_MGS = 4'b0101; // initialize magic streamer, to reset magic streamer and start the streaming
 localparam STATUS_INITIALIZE_DMA = 4'b0110; // the state will reset the interrupt signal
 localparam STATUS_SET_DMA_LOAD   = 4'b0111; // the system is setting the dma load, we can trigger the slave to do something
@@ -188,6 +202,10 @@ localparam DMA_TASK_LOAD_TASK_END  = 4;  // load task end
 localparam DMA_TASK_STORE_TASK_BEG = 5; // store task begin
 localparam DMA_TASK_STORE_TASK_END = 7; // store task end
 
+///////////// task for PR ctrl IP
+localparam PR_CTRL_TASK_BATCH_SIZE = 0; // write BATCH_SIZE to IP offset 0x10
+localparam PR_CTRL_TASK_AP_START   = 1; // write ap_start (0x01) to IP offset 0x00
+
 localparam CTRL_CLEAR            = 4'b0000;
 localparam CTRL_SHUTDOWN         = 4'b0001;
 localparam CTRL_START            = 4'b0010;
@@ -204,12 +222,15 @@ reg [BANK0_CNT_WIDTH   -1:0]    endCnt; ///// 0xC
 
 reg [GLOB_ADDR_WIDTH   -1:0]    dmaBaseAddr; ///// 0x10
 reg [GLOB_ADDR_WIDTH   -1:0]    dfxCtrlAddr; ///// 0x14
+reg [GLOB_ADDR_WIDTH   -1:0]    prCtrlAddr;  ///// 0x24
+reg [GLOB_DATA_WIDTH   -1:0]    batchSize;   ///// 0x28
 
 reg [BANK0_INTR_WIDTH      -1:0]    intrEna;
 reg [BANK0_INTR_WIDTH      -1:0]    intr;
 reg [BANK0_ROUNDTRIP_WIDTH -1:0]    roundTrip; /// the round trip counter
 
-reg [DMA_INIT_TASK_CNT -1:0]    dmaInitTask;
+reg [DMA_INIT_TASK_CNT  -1:0]    dmaInitTask;
+reg [PR_CTRL_TASK_CNT   -1:0]    prCtrlTask;
 ////////////////////////////////////////////////
 ////// restart signal declaration //////////////
 ////////////////////////////////////////////////
@@ -298,9 +319,10 @@ assign bank1_inp_index             = (mainStatus == STATUS_SHUTDOWN) ? ext_bank1
 
 ///////////// writing profiler data
 
-assign bank1_inp_profile = ( (mainStatus == STATUS_REPROG      ) |
-                             (mainStatus == STATUS_W4SLAVERESET) |
-                             (mainStatus == STATUS_W4SLAVEOP   )) ? (slave_bank1_out_profile + 1) : ext_bank1_inp_profile;
+assign bank1_inp_profile = ( (mainStatus == STATUS_REPROG             ) |
+                             (mainStatus == STATUS_W4SLAVERESET        ) |
+                             (mainStatus == STATUS_W4SLAVEOP           ) |
+                             (mainStatus == STATUS_INITIALIZE_PR_CTRL  )) ? (slave_bank1_out_profile + 1) : ext_bank1_inp_profile;
 
 assign bank1_inp_profile_exec = ( (mainStatus == STATUS_CLEAR_MGS) |
                                   (mainStatus == STATUS_INITIALIZE_MGS) |
@@ -339,9 +361,10 @@ assign bank1_set_fin_des_addr       = ext_bank1_set_fin_des_addr;
 assign bank1_set_fin_des_size       = ext_bank1_set_fin_des_size;
 assign bank1_set_fin_status         = ext_bank1_set_fin_status;
 assign bank1_set_fin_profile        = ext_bank1_set_fin_profile |
-                                    ( ( mainStatus == STATUS_REPROG       ) |
-                                      ( mainStatus == STATUS_W4SLAVERESET ) |
-                                      ( mainStatus == STATUS_W4SLAVEOP    ));
+                                    ( ( mainStatus == STATUS_REPROG            ) |
+                                      ( mainStatus == STATUS_W4SLAVERESET      ) |
+                                      ( mainStatus == STATUS_W4SLAVEOP         ) |
+                                      ( mainStatus == STATUS_INITIALIZE_PR_CTRL));
 assign bank1_set_fin_profile_exec   = ext_bank1_set_fin_profile_exec |
                                     ( (mainStatus == STATUS_CLEAR_MGS) |
                                       (mainStatus == STATUS_INITIALIZE_MGS) |
@@ -417,6 +440,34 @@ always @(posedge clk or negedge reset)begin
 end
 
 ///////////////////////////////////////////
+//////////// PR ctrl address setting    ///
+///////////////////////////////////////////
+assign ext_bank0_out_prCtrlAddr = prCtrlAddr;
+always @(posedge clk or negedge reset) begin
+    if (~reset) begin
+        prCtrlAddr <= 0;
+    end else if (mainStatus == STATUS_SHUTDOWN) begin
+        if (ext_bank0_set_prCtrlAddr) begin
+            prCtrlAddr <= ext_bank0_inp_prCtrlAddr;
+        end
+    end
+end
+
+///////////////////////////////////////////
+//////////// batch size setting         ///
+///////////////////////////////////////////
+assign ext_bank0_out_batchSize = batchSize;
+always @(posedge clk or negedge reset) begin
+    if (~reset) begin
+        batchSize <= 0;
+    end else if (mainStatus == STATUS_SHUTDOWN) begin
+        if (ext_bank0_set_batchSize) begin
+            batchSize <= ext_bank0_inp_batchSize;
+        end
+    end
+end
+
+///////////////////////////////////////////
 //////////// interrupt  enable          ///
 ///////////////////////////////////////////
 assign ext_bank0_out_intrEna = intrEna;
@@ -471,6 +522,7 @@ assign slaveMgsStoreReset = (mainStatus == STATUS_CLEAR_MGS)      ? bank1_out_st
 assign slaveMgsLoadInit   = (mainStatus == STATUS_INITIALIZE_MGS) ? bank1_out_ld_mask : 0; ///// the magic sequencer will load the data from the bank1 slot
 assign slaveMgsStoreInit  = (mainStatus == STATUS_INITIALIZE_MGS) ? bank1_out_st_mask : 0; ///// the magic sequencer will store the data to the bank1 slot
 assign slaveInit[DMA_INIT_TASK_CNT-1: 0] = dmaInitTask[DMA_INIT_TASK_CNT-1: 0];
+assign prCtrlInit[PR_CTRL_TASK_CNT-1: 0] = (mainStatus == STATUS_INITIALIZE_PR_CTRL) ? prCtrlTask[PR_CTRL_TASK_CNT-1: 0] : 0;
 
 
 //////////////////////////////////////////////
@@ -485,6 +537,7 @@ always @(posedge clk or negedge reset ) begin
         mainCnt    <= 0;
         mainTrigger <= 0;
         dmaInitTask <= 0;
+        prCtrlTask  <= 0;
     end else if (ext_bank0_set_control) begin
         case (ext_bank0_inp_control)
             CTRL_CLEAR: begin
@@ -492,6 +545,7 @@ always @(posedge clk or negedge reset ) begin
                 mainCnt     <= 0;
                 mainTrigger <= 0;
                 dmaInitTask <= 0;
+                prCtrlTask  <= 0;
             end
             CTRL_SHUTDOWN: begin
                 mainStatus <= STATUS_SHUTDOWN;
@@ -536,7 +590,16 @@ always @(posedge clk or negedge reset ) begin
             end
             STATUS_W4SLAVEOP: begin
                 if (nslaveReset) begin
-                    mainStatus  <= STATUS_CLEAR_MGS;
+                    mainStatus <= STATUS_INITIALIZE_PR_CTRL;
+                    prCtrlTask <= 1; // start with task bit 0 (BATCH_SIZE write)
+                end
+            end
+            STATUS_INITIALIZE_PR_CTRL: begin
+                if (prCtrlFinInit[PR_CTRL_TASK_AP_START]) begin
+                    mainStatus <= STATUS_CLEAR_MGS;
+                    prCtrlTask <= 0;
+                end else if (prCtrlFinInit != 0) begin
+                    prCtrlTask <= prCtrlTask << 1; // advance to next task
                 end
             end
             STATUS_CLEAR_MGS: begin
