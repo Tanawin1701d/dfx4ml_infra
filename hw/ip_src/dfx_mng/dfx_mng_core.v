@@ -302,9 +302,13 @@ assign bank1_inp_profile = ( (mainStatus == STATUS_REPROG      ) |
                              (mainStatus == STATUS_W4SLAVERESET) |
                              (mainStatus == STATUS_W4SLAVEOP   )) ? (slave_bank1_out_profile + 1) : ext_bank1_inp_profile;
 
-assign bank1_inp_profile_exec = ( (mainStatus == STATUS_REPROG      ) |
-                                  (mainStatus == STATUS_W4SLAVERESET) |
-                                  (mainStatus == STATUS_W4SLAVEOP   )) ? (slave_bank1_out_profile_exec + 1) : ext_bank1_inp_profile_exec;
+assign bank1_inp_profile_exec = ( (mainStatus == STATUS_CLEAR_MGS) |
+                                  (mainStatus == STATUS_INITIALIZE_MGS) |
+                                  (mainStatus == STATUS_INITIALIZE_DMA) |
+                                  (mainStatus == STATUS_SET_DMA_LOAD) |
+                                  (mainStatus == STATUS_SET_DMA_STORE) |
+                                  (mainStatus == STATUS_TRIGGERING) |
+                                  (mainStatus == STATUS_WAIT4FIN)) ? (slave_bank1_out_profile_exec + 1) : ext_bank1_inp_profile_exec;
 
 assign bank1_inp_st_intr_mask_ack = mgsFinExec;
 assign bank1_inp_st_intr_mask_abs = (mainStatus == STATUS_SHUTDOWN)  ? ext_bank1_inp_st_intr_mask_abs : 0; ///// in case reset mgs
