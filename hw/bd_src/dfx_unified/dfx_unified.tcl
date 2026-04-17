@@ -318,6 +318,14 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
    CONFIG.READ_WRITE_MODE {READ_ONLY} \
    ] $M_AXI_BS
 
+  set M_AXI_LITE_PR_CTRL [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M_AXI_LITE_PR_CTRL ]
+  set_property -dict [ list \
+   CONFIG.ADDR_WIDTH {32} \
+   CONFIG.DATA_WIDTH {32} \
+   CONFIG.FREQ_HZ "$clk_frq" \
+   CONFIG.PROTOCOL {AXI4LITE} \
+   ] $M_AXI_LITE_PR_CTRL
+
   for {set i 1} {$i < $num_dfx_streamer} {incr i} {
     set port_name "M_AXIS_DS$i"
     
@@ -330,7 +338,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
   # Create ports
   set clk [ create_bd_port -dir I -type clk -freq_hz $clk_frq clk ]
   set_property -dict [ list \
-   CONFIG.ASSOCIATED_BUSIF {M_AXI_DMA_IN:M_AXI_DMA_OUT:M_AXIS_DS0:S_AXIS_DS0:S_AXIS_DS1:S_AXI_CTRL:M_AXI_BS:M_AXIS_DS1} \
+   CONFIG.ASSOCIATED_BUSIF {M_AXI_DMA_IN:M_AXI_DMA_OUT:M_AXIS_DS0:S_AXIS_DS0:S_AXIS_DS1:S_AXI_CTRL:M_AXI_BS:M_AXIS_DS1:M_AXI_LITE_PR_CTRL} \
  ] $clk
   set nreset [ create_bd_port -dir I -type rst nreset ]
   set dfx_intr [ create_bd_port -dir O -type intr dfx_intr ]
@@ -387,7 +395,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
   # Create instance: DFX_Ctrl_0_axi_periph, and set properties
   set DFX_Ctrl_0_axi_periph [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 DFX_Ctrl_0_axi_periph ]
   set_property -dict [list \
-    CONFIG.NUM_MI {5} \
+    CONFIG.NUM_MI {6} \
     CONFIG.NUM_SI {2} \
   ] $DFX_Ctrl_0_axi_periph
   
@@ -488,6 +496,7 @@ set_property -dict [list \
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M02_AXI [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M02_AXI] [get_bd_intf_pins DFX_Ctrl_B/s_axi_reg]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M03_AXI [get_bd_intf_pins axi_dfx_reset/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M03_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M04_AXI [get_bd_intf_pins axi_dfx_decup/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M04_AXI]
+  connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M05_AXI [get_bd_intf_ports M_AXI_LITE_PR_CTRL] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M05_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_B_ICAP [get_bd_intf_pins DFX_Ctrl_B/ICAP] [get_bd_intf_pins icapWrap_0/ICAP]
   connect_bd_intf_net -intf_net DFX_Ctrl_B_M_AXI_MEM [get_bd_intf_ports M_AXI_BS] [get_bd_intf_pins DFX_Ctrl_B/M_AXI_MEM]
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
@@ -550,6 +559,7 @@ set_property -dict [list \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ACLK] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ACLK] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ACLK] \
+    [get_bd_pins DFX_Ctrl_0_axi_periph/M05_ACLK] \
     [get_bd_pins dma_hier/clk]
   connect_bd_net -net reset_0_1 \
     [get_bd_ports nreset] \
@@ -566,6 +576,7 @@ set_property -dict [list \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M02_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ARESETN] \
+    [get_bd_pins DFX_Ctrl_0_axi_periph/M05_ARESETN] \
     [get_bd_pins dma_hier/nreset]
   connect_bd_net -net reset_join_Res [get_bd_pins reset_join/Res] \
     [get_bd_pins DFX_Mng/nslaveReset] [get_bd_ports dfx_nreset]
@@ -588,6 +599,7 @@ set_property -dict [list \
   assign_bd_address -offset 0x00040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs axi_dfx_decup/S_AXI/Reg] -force
   assign_bd_address -offset 0x00030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs axi_dfx_reset/S_AXI/Reg] -force
   assign_bd_address -offset 0x00020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
+  assign_bd_address -offset 0x00050000 -range 0x00010000 -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] [get_bd_addr_segs M_AXI_LITE_PR_CTRL/Reg] -force
   assign_bd_address -offset 0x00000000 -range 0x000100000000 -target_address_space [get_bd_addr_spaces DFX_Ctrl_B/Data] [get_bd_addr_segs M_AXI_BS/Reg] -force
   assign_bd_address -offset 0x00000000 -range 0x000100000000 -target_address_space [get_bd_addr_spaces dma_hier/axi_dma_0/Data_MM2S] [get_bd_addr_segs M_AXI_DMA_IN/Reg] -force
   assign_bd_address -offset 0x00000000 -range 0x000100000000 -target_address_space [get_bd_addr_spaces dma_hier/axi_dma_0/Data_S2MM] [get_bd_addr_segs M_AXI_DMA_OUT/Reg] -force
@@ -596,6 +608,7 @@ set_property -dict [list \
   assign_bd_address -offset 0x00040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs axi_dfx_decup/S_AXI/Reg] -force
   assign_bd_address -offset 0x00030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs axi_dfx_reset/S_AXI/Reg] -force
   assign_bd_address -offset 0x00020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
+  assign_bd_address -offset 0x00050000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_CTRL] [get_bd_addr_segs M_AXI_LITE_PR_CTRL/Reg] -force
 
 
   # Restore current instance
