@@ -70,6 +70,7 @@ proc compose_all_ips {build_tcl_path dfx4ml_root } {
         dfx_streamer_s2m_free
         dfx_streamer_sreset
         dfx_streamer_sshut
+        dfx_axi_lite_shut
     }
 
     foreach module $ip_modules {
