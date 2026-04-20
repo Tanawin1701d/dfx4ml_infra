@@ -51,3 +51,7 @@ doc/tech_report/main.synctex.gz
 build_prj_*
 export_*
 build_ip_only
+/example/vitis_kernel/s2m_with_axi/.cache/
+/example/vitis_kernel/s2m_with_axi/.Xil/
+/example/vitis_kernel/s2m_with_axi/.gitignore
+/example/vitis_kernel/s2m_with_axi/s2m_with_axi/

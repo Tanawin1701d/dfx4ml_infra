@@ -148,11 +148,13 @@ proc create_dfx4ml_design { parentCell \
 
 
   # Create interface connections
-  
+
   for {set i 0} {$i < $num_dfx_streamer} {incr i} {
     connect_bd_intf_net -intf_net dfx_pr_0_0_M_DS_${i} [get_bd_intf_pins dfx_pr_0_0/M_DS_${i}] [get_bd_intf_pins dfx_unified_0/S_AXIS_DS${i}]
     connect_bd_intf_net -intf_net dfx_unified_0_M_AXIS_DS${i} [get_bd_intf_pins dfx_unified_0/M_AXIS_DS${i}] [get_bd_intf_pins dfx_pr_0_0/S_DS_${i}]
   }
+
+  connect_bd_intf_net -intf_net dfx_unified_0_M_AXI_LITE_PR_CTRL [get_bd_intf_pins dfx_unified_0/M_AXI_LITE_PR_CTRL] [get_bd_intf_pins dfx_pr_0_0/S_AXI_LITE_PR_CTRL]
 
   # Create port connections
   connect_bd_net -net dfx_unified_0_dfx_nreset [get_bd_pins dfx_unified_0/dfx_nreset] [get_bd_pins dfx_pr_0_0/nreset]

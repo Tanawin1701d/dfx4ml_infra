@@ -205,7 +205,6 @@ always @ (*) begin
                         slaveStartExecAccept  = 0;
                     end
         endcase
-    end
     end else if (prCtrlInit != 0) begin
 
         if (state == STATUS_UNLOCK) begin

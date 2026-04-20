@@ -84,16 +84,26 @@ proc create_dfx_region_bd { \
      ] [set S_DS_$i]
   }
 
+  set S_AXI_LITE_PR_CTRL [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_LITE_PR_CTRL ]
+  set_property -dict [ list \
+   CONFIG.ADDR_WIDTH {32} \
+   CONFIG.DATA_WIDTH {32} \
+   CONFIG.FREQ_HZ "$clk_frq" \
+   CONFIG.PROTOCOL {AXI4LITE} \
+   ] $S_AXI_LITE_PR_CTRL
 
   # Create ports
   set clk [ create_bd_port -dir I -type clk -freq_hz $clk_frq clk ]
   set_property -dict [ list \
-   CONFIG.ASSOCIATED_BUSIF {M_DS_0:S_M_DS_0:S_DS_0} \
+   CONFIG.ASSOCIATED_BUSIF {M_DS_0:S_M_DS_0:S_DS_0:S_AXI_LITE_PR_CTRL} \
  ] $clk
   set nreset [ create_bd_port -dir I nreset ]
 
   # Create instance: Stream_Single_S2M_0, and set properties
   set Stream_Single_S2M_0 [ create_bd_cell -type ip -vlnv user.org:user:Stream_Single_S2M:1.0 Stream_Single_S2M_0 ]
+
+  # Create instance: AXI_Lite_Shut_0, and set properties
+  set AXI_Lite_Shut_0 [ create_bd_cell -type ip -vlnv user.org:user:AXI_Lite_Shut:1.0 AXI_Lite_Shut_0 ]
 
   # Create interface connections
 
@@ -125,12 +135,17 @@ proc create_dfx_region_bd { \
 
 
 
+  # Connect S_AXI_LITE_PR_CTRL to AXI_Lite_Shut_0
+  connect_bd_intf_net -intf_net S_AXI_LITE_PR_CTRL_1 [get_bd_intf_ports S_AXI_LITE_PR_CTRL] [get_bd_intf_pins AXI_Lite_Shut_0/S_AXI]
+
   # Create port connections
   connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins Stream_Single_S2M_0/clk]
+  connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins AXI_Lite_Shut_0/clk]
   connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Single_S2M_0/nreset]
+  connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins AXI_Lite_Shut_0/nreset]
 
   # Create address segments
-
+  assign_bd_address -offset 0x00000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_LITE_PR_CTRL] [get_bd_addr_segs AXI_Lite_Shut_0/S_AXI/reg0] -force
 
   # Restore current instance
   current_bd_instance $oldCurInst

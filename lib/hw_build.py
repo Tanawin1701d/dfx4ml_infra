@@ -246,11 +246,11 @@ class HwBuildHelper:
         new_lines = []
         for line in lines:
             # Check if line contains INSTANCE="dfx_unified_0" and it is a MEMRANGE
-            if 'INSTANCE="dfx_unified_0"' in line and '<MEMRANGE' in line:
+            if (('INSTANCE="dfx_unified_0"' in line) or ('INSTANCE="dfx_pr_0_0"' in line)) and ('<MEMRANGE' in line):
                 # 1. Modify the line with BASEVALUE="0xA0000000"
                 if 'BASEVALUE="0xA0000000"' in line:
                     # Change HIGHVALUE="0xA000FFFF" to HIGHVALUE="0xA004FFFF"
-                    line = re.sub(r'HIGHVALUE="0xA000FFFF"', 'HIGHVALUE="0xA004FFFF"', line)
+                    line = re.sub(r'HIGHVALUE="0xA000FFFF"', 'HIGHVALUE="0xA005FFFF"', line)
                     # Change SLAVEBUSINTERFACE="s_axi_reg" to SLAVEBUSINTERFACE="S_AXI_CTRL"
                     # Handle both cases if it is already changed or not, 
                     # but specifically target what user requested.
@@ -260,7 +260,9 @@ class HwBuildHelper:
                 elif 'BASEVALUE="0xA0010000"' in line or \
                      'BASEVALUE="0xA0020000"' in line or \
                      'BASEVALUE="0xA0030000"' in line or \
-                     'BASEVALUE="0xA0040000"' in line:
+                     'BASEVALUE="0xA0040000"' in line or \
+                     'BASEVALUE="0xA0050000"' in line:
+                    print(f"Warning: Removing BASEVALUE from line: {line}")
                     continue
                 else:
                     new_lines.append(line)
