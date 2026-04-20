@@ -33,76 +33,66 @@ module AXI_Lite_Shut #(
     input  wire                  S_AXI_RREADY
 );
 
-assign S_AXI_AWREADY = 1;
-assign S_AXI_WREADY  = 1;
-assign S_AXI_BRESP   = 0;
-assign S_AXI_BVALID  = 1;
-assign S_AXI_ARREADY = 1;
-assign S_AXI_RDATA   = 1;
-assign S_AXI_RRESP   = 0;
-assign S_AXI_RVALID  = 1;
+//------------------------------------------------------
+// Write path
+// Accepts AW and W independently; fires BVALID once both
+// are received; stalls only while BVALID is pending.
+//------------------------------------------------------
 
-//
-////------------------------------------------------------
-//// Write path
-//// Accepts AW and W independently; fires BVALID once both
-//// are received; stalls only while BVALID is pending.
-////------------------------------------------------------
-//
-//reg aw_recv;   // write address received, waiting for data
-//reg w_recv;    // write data received, waiting for address
-//reg bvalid_r;
-//
-//wire aw_fire = S_AXI_AWVALID & S_AXI_AWREADY;
-//wire w_fire  = S_AXI_WVALID  & S_AXI_WREADY;
-//
-//assign S_AXI_AWREADY = ~bvalid_r & ~aw_recv;
-//assign S_AXI_WREADY  = ~bvalid_r & ~w_recv;
-//assign S_AXI_BVALID  = bvalid_r;
-//assign S_AXI_BRESP   = 2'b00; // OKAY
-//
-//always @(posedge clk or negedge nreset) begin
-//    if (~nreset) begin
-//        aw_recv  <= 0;
-//        w_recv   <= 0;
-//        bvalid_r <= 0;
-//    end else begin
-//        if (bvalid_r & S_AXI_BREADY) begin
-//            // response accepted — return to idle
-//            bvalid_r <= 0;
-//            aw_recv  <= 0;
-//            w_recv   <= 0;
-//        end else begin
-//            if (aw_fire) aw_recv <= 1;
-//            if (w_fire)  w_recv  <= 1;
-//            // assert BVALID once both halves are in hand
-//            if ((aw_recv | aw_fire) & (w_recv | w_fire))
-//                bvalid_r <= 1;
-//        end
-//    end
-//end
-//
-////------------------------------------------------------
-//// Read path
-//// Always accepts AR; returns RDATA=0 (OKAY) one cycle later.
-////------------------------------------------------------
-//
-//reg rvalid_r;
-//
-//assign S_AXI_ARREADY = ~rvalid_r;
-//assign S_AXI_RVALID  = rvalid_r;
-//assign S_AXI_RDATA   = {DATA_WIDTH{1'b0}};
-//assign S_AXI_RRESP   = 2'b00; // OKAY
-//
-//always @(posedge clk or negedge nreset) begin
-//    if (~nreset) begin
-//        rvalid_r <= 0;
-//    end else begin
-//        if (rvalid_r & S_AXI_RREADY)
-//            rvalid_r <= 0;
-//        else if (S_AXI_ARVALID & S_AXI_ARREADY)
-//            rvalid_r <= 1;
-//    end
-//end
+reg aw_recv;   // write address received, waiting for data
+reg w_recv;    // write data received, waiting for address
+reg bvalid_r;
+
+wire aw_fire = S_AXI_AWVALID & S_AXI_AWREADY;
+wire w_fire  = S_AXI_WVALID  & S_AXI_WREADY;
+
+assign S_AXI_AWREADY = ~bvalid_r & ~aw_recv;
+assign S_AXI_WREADY  = ~bvalid_r & ~w_recv;
+assign S_AXI_BVALID  = bvalid_r;
+assign S_AXI_BRESP   = 2'b00; // OKAY
+
+always @(posedge clk or negedge nreset) begin
+    if (~nreset) begin
+        aw_recv  <= 0;
+        w_recv   <= 0;
+        bvalid_r <= 0;
+    end else begin
+        if (bvalid_r & S_AXI_BREADY) begin
+            // response accepted — return to idle
+            bvalid_r <= 0;
+            aw_recv  <= 0;
+            w_recv   <= 0;
+        end else begin
+            if (aw_fire) aw_recv <= 1;
+            if (w_fire)  w_recv  <= 1;
+            // assert BVALID once both halves are in hand
+            if ((aw_recv | aw_fire) & (w_recv | w_fire))
+                bvalid_r <= 1;
+        end
+    end
+end
+
+//------------------------------------------------------
+// Read path
+// Always accepts AR; returns RDATA=0 (OKAY) one cycle later.
+//------------------------------------------------------
+
+reg rvalid_r;
+
+assign S_AXI_ARREADY = ~rvalid_r;
+assign S_AXI_RVALID  = rvalid_r;
+assign S_AXI_RDATA   = {DATA_WIDTH{1'b0}};
+assign S_AXI_RRESP   = 2'b00; // OKAY
+
+always @(posedge clk or negedge nreset) begin
+    if (~nreset) begin
+        rvalid_r <= 0;
+    end else begin
+        if (rvalid_r & S_AXI_RREADY)
+            rvalid_r <= 0;
+        else if (S_AXI_ARVALID & S_AXI_ARREADY)
+            rvalid_r <= 1;
+    end
+end
 
 endmodule

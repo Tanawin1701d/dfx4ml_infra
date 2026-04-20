@@ -477,7 +477,7 @@ set_property -dict [list \
 
 
   # Create instance: dfx_decup_ctrl — mux between DFX controller and PS decoupler signals
-  set dfx_decup_ctrl [ create_bd_cell -type module -reference user.org:user:dfx_decup_ctrl:1.0 dfx_decup_ctrl ]
+  set dfx_decup_ctrl [ create_bd_cell -type ip -vlnv user.org:user:dfx_decup_ctrl:1.0 dfx_decup_ctrl ]
 
 
   # Create instance: icapWrap_0, and set properties
