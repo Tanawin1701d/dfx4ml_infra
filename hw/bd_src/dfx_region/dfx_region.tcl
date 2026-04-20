@@ -96,6 +96,7 @@ proc create_dfx_region_bd { \
   set clk [ create_bd_port -dir I -type clk -freq_hz $clk_frq clk ]
   set_property -dict [ list \
    CONFIG.ASSOCIATED_BUSIF {M_DS_0:S_M_DS_0:S_DS_0:S_AXI_LITE_PR_CTRL} \
+   CONFIG.ASSOCIATED_RESET {nreset} \
  ] $clk
   set nreset [ create_bd_port -dir I nreset ]
 

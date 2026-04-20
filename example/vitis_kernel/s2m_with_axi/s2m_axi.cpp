@@ -2,28 +2,16 @@
 
 typedef hls::axis<int, 0, 0, 0, AXIS_ENABLE_KEEP | AXIS_ENABLE_LAST> dma_data_packet;
 
-
-
 void axis_to_stream(
     hls::stream<dma_data_packet> &in,
     hls::stream<int> &out,
     int batch_size)
 {
-//     for (int i = 0; i < batch_size; i++) {
-// #pragma HLS PIPELINE II=1
-//         dma_data_packet w;
-//         in.read(w);
-//         out.write(w.data);
-//     }
-
-    while(true){
+    for (int i = 0; i < batch_size; i++) {
 #pragma HLS PIPELINE II=1
         dma_data_packet w;
         in.read(w);
         out.write(w.data);
-        if (w.data == 7){
-            break;
-        }
     }
 }
 
@@ -32,25 +20,13 @@ void stream_to_axis(
     hls::stream<dma_data_packet> &out,
     int batch_size)
 {
-//     for (int i = 0; i < batch_size; i++) {
-// #pragma HLS PIPELINE II=1
-//         dma_data_packet w;
-//         w.data = in.read();
-//         w.last = (i == batch_size - 1);
-//         w.keep = -1;
-//         out.write(w);
-//     }
-
-    while (true) {
+    for (int i = 0; i < batch_size; i++) {
 #pragma HLS PIPELINE II=1
         dma_data_packet w;
         w.data = in.read();
-        w.last = 0; ///(i == batch_size - 1);
+        w.last = (i == batch_size - 1);
         w.keep = -1;
         out.write(w);
-        if (w.data == 7){
-            break;
-        }
     }
 
 }
