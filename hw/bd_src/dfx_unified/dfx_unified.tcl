@@ -486,6 +486,13 @@ set_property -dict [list \
   # Create instance: icapWrap_0, and set properties
   set icapWrap_0 [ create_bd_cell -type ip -vlnv user.org:user:icapWrap:1.0 icapWrap_0 ]
 
+  # Create instance: dfx_decoupler_pr_ctrl, and set properties
+  set dfx_decoupler_pr_ctrl [ create_bd_cell -type ip -vlnv xilinx.com:ip:dfx_decoupler:1.0 dfx_decoupler_pr_ctrl ]
+  set_property -dict [list \
+    CONFIG.ALL_PARAMS {HAS_SIGNAL_STATUS 0 ALWAYS_HAVE_AXI_CLK 1 INTF {intf_0 {ID 0 VLNV xilinx.com:interface:aximm_rtl:1.0}}} \
+    CONFIG.GUI_SELECT_VLNV {xilinx.com:interface:aximm_rtl:1.0} \
+  ] $dfx_decoupler_pr_ctrl
+
   # Create instance: dma_hier
   create_hier_cell_dma_hier [current_bd_instance .] dma_hier
 
@@ -496,7 +503,8 @@ set_property -dict [list \
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M02_AXI [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M02_AXI] [get_bd_intf_pins DFX_Ctrl_B/s_axi_reg]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M03_AXI [get_bd_intf_pins axi_dfx_reset/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M03_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M04_AXI [get_bd_intf_pins axi_dfx_decup/S_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M04_AXI]
-  connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M05_AXI [get_bd_intf_ports M_AXI_LITE_PR_CTRL] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M05_AXI]
+  connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M05_AXI [get_bd_intf_pins dfx_decoupler_pr_ctrl/rp_intf_0] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/M05_AXI]
+  connect_bd_intf_net -intf_net dfx_decoupler_pr_ctrl_s_intf_0 [get_bd_intf_ports M_AXI_LITE_PR_CTRL] [get_bd_intf_pins dfx_decoupler_pr_ctrl/s_intf_0]
   connect_bd_intf_net -intf_net DFX_Ctrl_B_ICAP [get_bd_intf_pins DFX_Ctrl_B/ICAP] [get_bd_intf_pins icapWrap_0/ICAP]
   connect_bd_intf_net -intf_net DFX_Ctrl_B_M_AXI_MEM [get_bd_intf_ports M_AXI_BS] [get_bd_intf_pins DFX_Ctrl_B/M_AXI_MEM]
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
@@ -523,7 +531,7 @@ set_property -dict [list \
     connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadReset [get_bd_pins DFX_Mng/slaveMgsLoadReset] [get_bd_pins Dfx_Streamer_${i}/loadReset_pool]
     connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreInit [get_bd_pins DFX_Mng/slaveMgsStoreInit] [get_bd_pins Dfx_Streamer_${i}/storeInit_pool]
     connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreReset [get_bd_pins DFX_Mng/slaveMgsStoreReset] [get_bd_pins Dfx_Streamer_${i}/storeReset_pool]
-    connect_bd_net -net util_vector_logic_0_Res [get_bd_pins util_vector_logic_0/Res] [get_bd_pins dma_hier/decouple] [get_bd_pins Dfx_Streamer_${i}/decup]
+    connect_bd_net -net util_vector_logic_0_Res [get_bd_pins util_vector_logic_0/Res] [get_bd_pins dma_hier/decouple] [get_bd_pins dfx_decoupler_pr_ctrl/decouple] [get_bd_pins dma_hier/decouple] [get_bd_pins Dfx_Streamer_${i}/decup]
     connect_bd_net -net Dfx_Streamer_${i}_finStore [get_bd_pins Dfx_Streamer_${i}/finStore] [get_bd_pins fin_store_concat_0/In${i}]
   }
   
@@ -560,7 +568,8 @@ set_property -dict [list \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ACLK] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ACLK] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M05_ACLK] \
-    [get_bd_pins dma_hier/clk]
+    [get_bd_pins dma_hier/clk] \
+    [get_bd_pins dfx_decoupler_pr_ctrl/intf_0_aclk]
   connect_bd_net -net reset_0_1 \
     [get_bd_ports nreset] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/S00_ARESETN] \
@@ -577,7 +586,9 @@ set_property -dict [list \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M03_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M04_ARESETN] \
     [get_bd_pins DFX_Ctrl_0_axi_periph/M05_ARESETN] \
-    [get_bd_pins dma_hier/nreset]
+    [get_bd_pins dma_hier/nreset] \
+    [get_bd_pins dfx_decoupler_pr_ctrl/intf_0_arstn]
+
   connect_bd_net -net reset_join_Res [get_bd_pins reset_join/Res] \
     [get_bd_pins DFX_Mng/nslaveReset] [get_bd_ports dfx_nreset]
 
