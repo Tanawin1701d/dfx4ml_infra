@@ -468,19 +468,16 @@ set_property -dict [list \
 
 
   # Create instance: axi_dfx_decup, and set properties
+  # 2-bit output: [1]=PS decoupler value, [0]=source-select (1=DFX ctrl, 0=PS)
   set axi_dfx_decup [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_dfx_decup ]
   set_property -dict [list \
     CONFIG.C_ALL_OUTPUTS {1} \
-    CONFIG.C_GPIO_WIDTH {1} \
+    CONFIG.C_GPIO_WIDTH {2} \
   ] $axi_dfx_decup
 
 
-  # Create instance: util_vector_logic_0, and set properties
-  set util_vector_logic_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 util_vector_logic_0 ]
-  set_property -dict [list \
-    CONFIG.C_OPERATION {or} \
-    CONFIG.C_SIZE {1} \
-  ] $util_vector_logic_0
+  # Create instance: dfx_decup_ctrl — mux between DFX controller and PS decoupler signals
+  set dfx_decup_ctrl [ create_bd_cell -type module -reference dfx_decup_ctrl dfx_decup_ctrl ]
 
 
   # Create instance: icapWrap_0, and set properties
@@ -531,7 +528,7 @@ set_property -dict [list \
     connect_bd_net -net DFX_Ctrl_0_slaveMgsLoadReset [get_bd_pins DFX_Mng/slaveMgsLoadReset] [get_bd_pins Dfx_Streamer_${i}/loadReset_pool]
     connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreInit [get_bd_pins DFX_Mng/slaveMgsStoreInit] [get_bd_pins Dfx_Streamer_${i}/storeInit_pool]
     connect_bd_net -net DFX_Ctrl_0_slaveMgsStoreReset [get_bd_pins DFX_Mng/slaveMgsStoreReset] [get_bd_pins Dfx_Streamer_${i}/storeReset_pool]
-    connect_bd_net -net util_vector_logic_0_Res [get_bd_pins util_vector_logic_0/Res] [get_bd_pins dma_hier/decouple] [get_bd_pins dfx_decoupler_pr_ctrl/decouple] [get_bd_pins dma_hier/decouple] [get_bd_pins Dfx_Streamer_${i}/decup]
+    connect_bd_net -net dfx_decup_ctrl_decup_res [get_bd_pins dfx_decup_ctrl/decup_res] [get_bd_pins dma_hier/decouple] [get_bd_pins dfx_decoupler_pr_ctrl/decouple] [get_bd_pins Dfx_Streamer_${i}/decup]
     connect_bd_net -net Dfx_Streamer_${i}_finStore [get_bd_pins Dfx_Streamer_${i}/finStore] [get_bd_pins fin_store_concat_0/In${i}]
   }
   
@@ -545,10 +542,10 @@ set_property -dict [list \
 
   connect_bd_net -net DFX_Mng_hw_intr [get_bd_pins DFX_Mng/hw_intr] [get_bd_ports dfx_intr]
   connect_bd_net -net DFX_Mng_slaveReprog [get_bd_pins DFX_Mng/slaveReprog] [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_hw_triggers]
-  connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_decouple [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_decouple] [get_bd_pins util_vector_logic_0/Op1]
+  connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_decouple [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_decouple] [get_bd_pins dfx_decup_ctrl/decup_dfx_ctrl]
   connect_bd_net -net DFX_Ctrl_B_vsm_vs4ml_rm_reset [get_bd_pins DFX_Ctrl_B/vsm_vs4ml_rm_reset] [get_bd_pins reset_join/Op1]
 
-  connect_bd_net -net axi_dfx_decup_gpio_io_o [get_bd_pins axi_dfx_decup/gpio_io_o] [get_bd_pins util_vector_logic_0/Op2]
+  connect_bd_net -net axi_dfx_decup_gpio_io_o [get_bd_pins axi_dfx_decup/gpio_io_o] [get_bd_pins dfx_decup_ctrl/decup_and_ctrl_ps]
   connect_bd_net -net axi_dfx_reset_gpio_io_o [get_bd_pins axi_dfx_reset/gpio_io_o] [get_bd_pins reset_join/Op2]
   connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins dma_hier/s2mm_introut] [get_bd_pins fin_store_concat_0/In0]
   connect_bd_net -net clk_0_1 \
