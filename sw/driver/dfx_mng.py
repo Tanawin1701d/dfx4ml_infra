@@ -26,17 +26,17 @@ class DFX_Mng:
 
         # bank 0 register address meta
         # ==                  (bankId, rowIdx, colIdx)
-        self.REG_CTRL       = (0,0,0)
-        self.REG_ST         = (0,1,0)
-        self.REG_MAINCNT    = (0,2,0)
-        self.REG_ENDCNT     = (0,3,0)
-        self.REG_DMA_ADDR   = (0,4,0)
-        self.REG_DFX_ADDR   = (0,5,0)
-        self.REG_INTR_ENA   = (0,6,0)
-        self.REG_INTR       = (0,7,0)
-        self.REG_ROUND_TRIP   = (0,8,0)
-        self.REG_PR_CTRL_ADDR = (0,9,0)
-        self.REG_BATCH_SIZE   = (0,10,0)
+        self.REG_CTRL         = (0, 0, 0)
+        self.REG_ST           = (0, 1, 0)
+        self.REG_MAINCNT      = (0, 2, 0)
+        self.REG_ENDCNT       = (0, 3, 0)
+        self.REG_DMA_ADDR     = (0, 4, 0)
+        self.REG_DFX_ADDR     = (0, 5, 0)
+        self.REG_INTR_ENA     = (0, 6, 0)
+        self.REG_INTR         = (0, 7, 0)
+        self.REG_ROUND_TRIP   = (0, 8, 0)
+        self.REG_PR_CTRL_ADDR = (0, 9, 0)
+        self.REG_BATCH_SIZE   = (0,10, 0)
 
         #### the row must be change to match the slot
         ######(bankId, rowIdx(row can vary), colIdx)
