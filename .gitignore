@@ -55,3 +55,5 @@ build_ip_only
 /example/vitis_kernel/s2m_with_axi/.Xil/
 /example/vitis_kernel/s2m_with_axi/.gitignore
 /example/vitis_kernel/s2m_with_axi/s2m_with_axi/
+
+archive
