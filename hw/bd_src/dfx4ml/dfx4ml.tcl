@@ -4,7 +4,7 @@ proc create_sub_block_design {parentCell \
                               num_dfx_streamer \
                               interface_widths \
                               applied_interface_widths \
-                              storage_index_widths \
+                              amt_rows \
                               num_actual_rm\
                               input_map_list \
                               output_map_list \
@@ -17,7 +17,7 @@ proc create_sub_block_design {parentCell \
     # num_dfx_streamer
     # interface_widths
     # applied_interface_widths
-    # storage_index_widths
+    # amt_rows
 
     # the integrity check for this argument below will be handled by dfx region
     # inside element input_map_list
@@ -69,7 +69,7 @@ proc create_sub_block_design {parentCell \
 
     create_dfx_unified_bd $parentCell $clk_frq $rm_index_width \
                               $num_dfx_streamer $interface_widths \
-                              $applied_interface_widths $storage_index_widths
+                              $applied_interface_widths $amt_rows
 
 }
 
@@ -80,7 +80,7 @@ proc create_dfx4ml_design { parentCell \
                             num_dfx_streamer \
                             interface_widths \
                             applied_interface_widths \
-                            storage_index_widths \
+                            amt_rows \
                             num_actual_rm\
                             input_map_list \
                             output_map_list \
@@ -99,7 +99,7 @@ proc create_dfx4ml_design { parentCell \
                           $num_dfx_streamer \
                           $interface_widths \
                           $applied_interface_widths \
-                          $storage_index_widths \
+                          $amt_rows \
                           $num_actual_rm\
                           $input_map_list \
                           $output_map_list \

@@ -1,7 +1,7 @@
 module Stream_Master_Dummy #
 (
     parameter integer DATA_WIDTH        = 32,
-    parameter integer STORAGE_IDX_WIDTH = 10     //// 4 Kb
+    parameter integer AMT_ROW           = 1024
 )
 (
     // AXIS Master Interface load interface

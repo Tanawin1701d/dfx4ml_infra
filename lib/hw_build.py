@@ -28,7 +28,7 @@ class HwBuildHelper:
                  num_dfx_streamer        ,
                  interface_widths        ,
                  applied_interface_widths,
-                 storage_index_widths    ,
+                 amt_rows                ,
                  num_actual_rm           ,
                  input_map_list          ,
                  output_map_list         ,
@@ -51,7 +51,7 @@ class HwBuildHelper:
         # num_dfx_streamer=2
         # interface_widths=None
         # applied_interface_widths=None
-        # storage_index_widths=None
+        # amt_rows=None
         # num_actual_rm=2
         # input_map_list=None
         # output_map_list=None
@@ -84,7 +84,7 @@ class HwBuildHelper:
         self.num_dfx_streamer         = num_dfx_streamer
         self.interface_widths         = interface_widths
         self.applied_interface_widths = applied_interface_widths
-        self.storage_index_widths     = storage_index_widths
+        self.amt_rows                 = amt_rows
         self.num_actual_rm            = num_actual_rm
         self.input_map_list           = input_map_list
         self.output_map_list          = output_map_list
@@ -182,7 +182,7 @@ class HwBuildHelper:
             num_dfx_streamer         = self.num_dfx_streamer,
             interface_widths         = self._list_to_tcl(self.interface_widths),
             applied_interface_widths = self._list_to_tcl(self.applied_interface_widths),
-            storage_index_widths     = self._list_to_tcl(self.storage_index_widths),
+            amt_rows                 = self._list_to_tcl(self.amt_rows),
             num_actual_rm            = self.num_actual_rm,
             input_map_list           = self._list_to_tcl(self.input_map_list),
             output_map_list          = self._list_to_tcl(self.output_map_list),

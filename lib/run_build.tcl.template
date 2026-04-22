@@ -15,7 +15,7 @@ set num_dfx_streamer {num_dfx_streamer}
 
 set interface_widths {interface_widths}
 set applied_interface_widths {applied_interface_widths}
-set storage_index_widths {storage_index_widths}
+set amt_rows {amt_rows}
 
 set num_actual_rm {num_actual_rm}
 set input_map_list {input_map_list}
@@ -37,7 +37,7 @@ build $build_folder_path \
       $num_dfx_streamer \
       $interface_widths \
       $applied_interface_widths \
-      $storage_index_widths \
+      $amt_rows \
       $num_actual_rm \
       $input_map_list \
       $output_map_list \

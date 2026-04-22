@@ -110,7 +110,7 @@ proc build {build_tcl_path \
             num_dfx_streamer \
             interface_widths \
             applied_interface_widths \
-            storage_index_widths \
+            amt_rows \
             num_actual_rm \
             input_map_list \
             output_map_list \
@@ -132,7 +132,7 @@ proc build {build_tcl_path \
         import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path $user_rm_build_tcl_path
         create_kv260_dfx4ml_design $parentCell $clk_frq $rm_index_width \
                                   $num_dfx_streamer $interface_widths $applied_interface_widths \
-                                  $storage_index_widths $num_actual_rm $input_map_list \
+                                  $amt_rows $num_actual_rm $input_map_list \
                                   $output_map_list $ip_map_list $test_mode
     } elseif {$board == "no_syn"} {
         puts "prepare model for custom board (no synthesis) generation"
@@ -141,7 +141,7 @@ proc build {build_tcl_path \
         import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path $user_rm_build_tcl_path
         create_no_syn_dfx4ml_design $parentCell $clk_frq $rm_index_width \
                                    $num_dfx_streamer $interface_widths $applied_interface_widths \
-                                   $storage_index_widths $num_actual_rm $input_map_list \
+                                   $amt_rows $num_actual_rm $input_map_list \
                                    $output_map_list $ip_map_list $test_mode
         set run_syn 0
     } elseif {$board == "custom"} {
@@ -157,7 +157,7 @@ proc build {build_tcl_path \
         import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode $user_repo_path $user_rm_build_tcl_path
         create_custom_dfx4ml_design $parentCell $clk_frq $rm_index_width \
                                    $num_dfx_streamer $interface_widths $applied_interface_widths \
-                                   $storage_index_widths $num_actual_rm $input_map_list \
+                                   $amt_rows $num_actual_rm $input_map_list \
                                    $output_map_list $ip_map_list $test_mode
     } else {
         error "Unsupported board: $board. Supported values: kv260, no_syn, custom."

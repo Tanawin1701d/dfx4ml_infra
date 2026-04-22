@@ -22,7 +22,7 @@ proc create_no_syn_dfx4ml_design { parentCell \
                                   num_dfx_streamer \
                                   interface_widths \
                                   applied_interface_widths \
-                                  storage_index_widths \
+                                  amt_rows \
                                   num_actual_rm\
                                   input_map_list \
                                   output_map_list \
@@ -37,7 +37,7 @@ proc create_no_syn_dfx4ml_design { parentCell \
                          $num_dfx_streamer  \
                          $interface_widths  \
                          $applied_interface_widths  \
-                         $storage_index_widths  \
+                         $amt_rows  \
                          $num_actual_rm  \
                          $input_map_list  \
                          $output_map_list  \

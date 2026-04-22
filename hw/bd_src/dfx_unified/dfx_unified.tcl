@@ -105,7 +105,7 @@ TUSER {PRESENT 0 WIDTH 0} TLAST {PRESENT 1 WIDTH 1} TID {PRESENT 0 WIDTH 0} TDES
 
 # Procedure to create entire design; Provide argument to make
 # procedure reusable. If parentCell is "", will use root.
-proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer interface_widths applied_interface_widths storage_index_widths} {
+proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer interface_widths applied_interface_widths amt_rows} {
 
   variable script_folder
   variable design_name
@@ -139,8 +139,8 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
      return
   }
   
-  if { $num_dfx_streamer != [llength $storage_index_widths] } {
-     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <$num_dfx_streamer> must equal length of storage_index_widths <[llength $storage_index_widths]>!"}
+  if { $num_dfx_streamer != [llength $amt_rows] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <$num_dfx_streamer> must equal length of amt_rows <[llength $amt_rows]>!"}
      return
   }
   
@@ -156,7 +156,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
   for {set i 0} {$i < $num_dfx_streamer} {incr i} {
      set iw  [lindex $interface_widths $i]         ;# iw      interface width
      set aiw [lindex $applied_interface_widths $i] ;# aiw     applied interface width
-     set sw  [lindex $storage_index_widths $i]     ;# sw      storage index width
+     set sw  [lindex $amt_rows $i]     ;# sw      storage index width
 
      if { !($iw != 0 && ($iw & ($iw - 1)) == 0) } {
         catch {common::send_gid_msg -ssname BD::TCL -id 2094 -severity "ERROR" "interface_widths\[$i\] = <$iw> is not a power of two!"}
@@ -169,7 +169,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
      }
 
      if { $sw <= 0 } {
-        catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "storage_index_widths\[$i\] = <$sw> must be greater than 0!"}
+        catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "amt_rows\[$i\] = <$sw> must be greater than 0!"}
         return
      }
 
@@ -363,11 +363,11 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width num_dfx_streamer 
     set target_streamer [set Dfx_Streamer_$i]
     set aiw [lindex $applied_interface_widths $i] ; # actual/applied index width
     set iw [lindex $interface_widths $i]          ; # interface index width
-    set sw [lindex $storage_index_widths $i]      ; # storage index width
+    set sw [lindex $amt_rows $i]      ; # storage index width
     set_property -dict [ list \
          CONFIG.DATA_WIDTH "$aiw" \
          CONFIG.ITF_DATA_WIDTH "$iw" \
-         CONFIG.STORAGE_IDX_WIDTH "$sw" \
+         CONFIG.AMT_ROW "$sw" \
          CONFIG.BANK1_ST_MSK_WIDTH "$num_dfx_streamer" \
          CONFIG.BANK1_LD_MSK_WIDTH "$num_dfx_streamer" \
          CONFIG.STREAMER_IDX "$i" \

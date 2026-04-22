@@ -17,7 +17,7 @@ set rm_index_width 2 ;
 set num_dfx_streamer 2 ; # dma included
 set interface_widths [list 32 32 ] ;# Must be power of two
 set applied_interface_widths [list 32 32] ;# Must be <= interface_widths
-set storage_index_widths [list 10 10] ;
+set amt_rows [list 1024 1024] ;
 
 
 set num_actual_rm 2
@@ -54,7 +54,7 @@ build $project_path  \
       $num_dfx_streamer \
       $interface_widths \
       $applied_interface_widths \
-      $storage_index_widths \
+      $amt_rows \
       $num_actual_rm\
       $input_map_list \
       $output_map_list \

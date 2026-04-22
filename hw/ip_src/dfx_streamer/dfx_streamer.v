@@ -2,7 +2,7 @@ module Dfx_Streamer #
 (
     parameter integer DATA_WIDTH         = 32,
     parameter integer ITF_DATA_WIDTH     = 32,   // the interface data width should larger than
-    parameter integer STORAGE_IDX_WIDTH  = 10,     //// 4 Kb
+    parameter integer AMT_ROW            = 1024,
     parameter integer STATE_BIT_WIDTH    =  4,
     parameter integer BANK1_ST_MSK_WIDTH =  8,
     parameter integer BANK1_LD_MSK_WIDTH =  8,
@@ -72,10 +72,11 @@ localparam STATUS_IDLE       = 4'b0000;
 localparam STATUS_STORE      = 4'b0001;
 localparam STATUS_LOAD       = 4'b0010;
 
+localparam STORAGE_IDX_WIDTH = $clog2(AMT_ROW);
 localparam TRACKER_IDX_WIDTH = STORAGE_IDX_WIDTH + 1; ///// this is for tracker index width
 
 ///// meta data
-(* ram_style = "block" *) reg[DATA_WIDTH-1: 0] mainMem [0: ((1 << STORAGE_IDX_WIDTH) - 1)];
+(* ram_style = "block" *) reg[DATA_WIDTH-1: 0] mainMem [0: AMT_ROW-1];
 
 reg[STATE_BIT_WIDTH  -1: 0] state;
 reg[TRACKER_IDX_WIDTH-1: 0] amt_store_bytes; ///// store to this block
