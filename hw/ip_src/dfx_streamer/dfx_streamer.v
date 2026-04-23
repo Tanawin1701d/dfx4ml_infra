@@ -22,7 +22,7 @@ module Dfx_Streamer #
 
     // AXIS Master Interface load interface
     output  wire [ITF_DATA_WIDTH-1:0]  M_AXI_TDATA,    // it is supposed to be reg
-    output  wire [(DATA_WIDTH/8)-1:0]  M_AXI_TKEEP,    // it is supposed to be reg
+    output  wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0]  M_AXI_TKEEP,    // it is supposed to be reg
     output  wire                       M_AXI_TVALID,    // it is supposed to be reg
     input   wire                       M_AXI_TREADY,    // it is supposed to be reg
     output  wire                       M_AXI_TLAST,    // it is supposed to be reg
@@ -41,8 +41,8 @@ module Dfx_Streamer #
 
     // out put wire for debugging
     output wire [STATE_BIT_WIDTH-1:0]   dbg_state,
-    output wire [(STORAGE_IDX_WIDTH+1)-1:0] dbg_amt_store_bytes,
-    output wire [(STORAGE_IDX_WIDTH+1)-1:0] dbg_amt_load_bytes
+    output wire [$clog2(AMT_ROW)-1+1:0] dbg_amt_store_bytes,
+    output wire [$clog2(AMT_ROW)-1+1:0] dbg_amt_load_bytes
 
 );
 
@@ -76,7 +76,7 @@ localparam STORAGE_IDX_WIDTH = $clog2(AMT_ROW);
 localparam TRACKER_IDX_WIDTH = STORAGE_IDX_WIDTH + 1; ///// this is for tracker index width
 
 ///// meta data
-(* ram_style = "block" *) reg[DATA_WIDTH-1: 0] mainMem [0: AMT_ROW-1];
+(* ram_style = "ultra" *) reg[DATA_WIDTH-1: 0] mainMem [0: AMT_ROW-1];
 
 reg[STATE_BIT_WIDTH  -1: 0] state;
 reg[TRACKER_IDX_WIDTH-1: 0] amt_store_bytes; ///// store to this block
@@ -90,7 +90,7 @@ reg storeIntr;
 ///////// store
 assign S_AXI_TREADY_CLEAN = (state == STATUS_STORE) && S_AXI_TVALID_CLEAN;
 ///////// load
-assign M_AXI_TKEEP   = {(DATA_WIDTH/8){1'b1}};
+assign M_AXI_TKEEP   = {(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8){1'b1}};
 ///////// interrupt signal
 assign finStore = storeIntr;
 /////////// debug signal
