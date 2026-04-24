@@ -3,7 +3,7 @@ module Dfx_Streamer #
     parameter integer DATA_WIDTH         = 32,
     parameter integer ITF_DATA_WIDTH     = 32,   // the interface data width should larger than
     parameter integer AMT_ROW            = 1024,
-    parameter integer STATE_BIT_WIDTH    =  4,
+    parameter integer STATE_BIT_WIDTH    =  5,
     parameter integer BANK1_ST_MSK_WIDTH =  8,
     parameter integer BANK1_LD_MSK_WIDTH =  8,
     parameter integer STREAMER_IDX       =  1 /// the index is start at one
@@ -15,7 +15,7 @@ module Dfx_Streamer #
 
     // AXIS Slave Interface   store in terface
     input  wire [ITF_DATA_WIDTH-1:0] S_AXI_TDATA,
-//    input  wire [DATA_WIDTH/8-1:0] S_AXI_TKEEP_CLEAN,  // <= tkeep added        //// we disable tkeep
+    //    input  wire [DATA_WIDTH/8-1:0] S_AXI_TKEEP_CLEAN,  // <= tkeep added        //// we disable tkeep
     input  wire                      S_AXI_TVALID,
     output wire                      S_AXI_TREADY,
     input  wire                      S_AXI_TLAST,
@@ -68,9 +68,12 @@ module Dfx_Streamer #
 
 ///// declare state
 
-localparam STATUS_IDLE       = 4'b0000;
-localparam STATUS_STORE      = 4'b0001;
-localparam STATUS_LOAD       = 4'b0010;
+localparam STATUS_IDLE       = 5'b00000;
+localparam STATUS_STORE      = 5'b00001; // start store to the pipeline
+localparam STATUS_FIN_STORE  = 5'b00010; // latency 1 state to make the pipeline finish
+localparam STATUS_PRE_LOAD   = 5'b00100; // latency 1 state to make the load data
+localparam STATUS_LOAD       = 5'b01000; // loading the data
+localparam STATUS_AFT_LOAD   = 5'b10000; // cleanup the load interface
 
 localparam STORAGE_IDX_WIDTH = $clog2(AMT_ROW);
 localparam TRACKER_IDX_WIDTH = STORAGE_IDX_WIDTH + 1; ///// this is for tracker index width
@@ -82,6 +85,14 @@ reg[STATE_BIT_WIDTH  -1: 0] state;
 reg[TRACKER_IDX_WIDTH-1: 0] amt_store_bytes; ///// store to this block
 reg[TRACKER_IDX_WIDTH-1: 0] amt_load_bytes;  ///// load to this block
 reg storeIntr;
+
+/////////////////////////////////////
+////// pipeline IO //////////////////
+/////////////////////////////////////
+
+reg                 s_pip_valid;
+reg[DATA_WIDTH-1:0] s_pip_data;
+reg[DATA_WIDTH-1:0] m_pip_data;
 
 /////////////////////////////////////
 ////// axi signal assign ////////////
@@ -104,52 +115,81 @@ assign dbg_amt_load_bytes  = amt_load_bytes;
 always @(posedge clk) begin
 
     if (~nreset) begin
-        state           <= STATUS_IDLE;
-        amt_store_bytes <= 0;
-        amt_load_bytes  <= 0;
-        storeIntr       <= 0;
+        state              <= STATUS_IDLE;
+        amt_store_bytes    <= 0;
+        amt_load_bytes     <= -1;
+        storeIntr          <= 0;
         M_AXI_TVALID_CLEAN <= 0;
+        s_pip_valid        <= 0;
     end else begin
         case (state)
             STATUS_IDLE    : begin
                     if (storeReset) begin
                         amt_store_bytes <= 0;
-                        storeIntr       <= 0;
                     end else if (loadReset) begin
-                        amt_load_bytes <= 0;
-                        storeIntr      <= 0;
+                        amt_load_bytes <= -1;
                     end else if (storeInit) begin
                         state <= STATUS_STORE;
                     end else if (loadInit & (amt_store_bytes > 0)) begin
-                        state <= STATUS_LOAD;
+                        state <= STATUS_PRE_LOAD;
                     end
                     M_AXI_TVALID_CLEAN <= 0;
+                    s_pip_valid        <= 0;
+                    storeIntr          <= 0;
             end
             //////////// case store data to the internal memory
             STATUS_STORE    : begin
+                /// please note that the pipeline store is based on assumption that bram is always ready for data
+                s_pip_valid <= 0;
                 if (S_AXI_TVALID_CLEAN)begin //// we are sure that ready will send this time
                     amt_store_bytes <= amt_store_bytes + 1;
+                    s_pip_valid     <= 1;
+                    s_pip_data      <= S_AXI_TDATA_CLEAN[DATA_WIDTH-1:0];
                     if (S_AXI_TLAST_CLEAN)begin
-                        storeIntr <= 1;
-                        state     <= STATUS_IDLE;
+                        state     <= STATUS_FIN_STORE;
                     end
                 end
             end
-            STATUS_LOAD    : begin
-                if (M_AXI_TREADY_CLEAN | (amt_load_bytes == 0)) begin //// last sending is success in this cycle/ send next
-                    if ( amt_load_bytes == amt_store_bytes )begin
-                        /////// no data to send anymore
-                        M_AXI_TVALID_CLEAN <= 0;
-                        M_AXI_TLAST_CLEAN  <= 0;
-                        state <= STATUS_IDLE;
-                    end else begin
-                        M_AXI_TVALID_CLEAN <= 1;
-                        M_AXI_TLAST_CLEAN  <= (amt_load_bytes == (amt_store_bytes-1));
-                        amt_load_bytes <= amt_load_bytes + 1;
+
+            STATUS_FIN_STORE : begin
+                s_pip_valid <= 0;
+                storeIntr   <= 1;
+                state       <= STATUS_IDLE;
+            end
+
+            STATUS_PRE_LOAD : begin
+                // wait for main memory for data load
+                state <= STATUS_LOAD;
+                amt_load_bytes <= amt_load_bytes + 1;
+            end
+
+            STATUS_LOAD    : begin   /// the first data is initialize in the m_pip_data
+
+                if ( (M_AXI_TVALID_CLEAN && M_AXI_TREADY_CLEAN) | (amt_load_bytes == 0)) begin //// last sending is success in this cycle/ send next
+
+                    // send the data
+                    M_AXI_TVALID_CLEAN <= 1;
+                    M_AXI_TDATA_CLEAN  <= (ITF_DATA_WIDTH > DATA_WIDTH) ?
+                                              {{(ITF_DATA_WIDTH-DATA_WIDTH){1'b0}}, m_pip_data} :
+                                              m_pip_data;
+                    M_AXI_TLAST_CLEAN  <= (amt_load_bytes == (amt_store_bytes-1));
+                    amt_load_bytes <= amt_load_bytes + 1;
+                    if (amt_load_bytes == (amt_store_bytes-1))begin
+                        state <= STATUS_AFT_LOAD;
                     end
                 end
                 ///// at here do nothing just wait for hls4ml to ready to get data
             end
+
+            STATUS_AFT_LOAD    : begin
+                if (M_AXI_TVALID_CLEAN && M_AXI_TREADY_CLEAN)begin
+                    M_AXI_TVALID_CLEAN <= 0;
+                    M_AXI_TLAST_CLEAN  <= 0;
+                    state <= STATUS_IDLE;
+                end
+            end
+
+
             default: begin end
 
         endcase
@@ -162,28 +202,24 @@ end
 ///// M_DATA and MEM management
 /////////////////////////////////////
 
+
 always @(posedge clk) begin
-    if (state == STATUS_STORE)begin
-        if (S_AXI_TVALID_CLEAN)begin
-            mainMem[amt_store_bytes[STORAGE_IDX_WIDTH-1: 0]] <=  S_AXI_TDATA_CLEAN[DATA_WIDTH-1:0];
-        end
 
-    end else if (state == STATUS_LOAD) begin
-
-        if (M_AXI_TREADY_CLEAN | (amt_load_bytes == 0))begin
-            if (amt_load_bytes == amt_store_bytes)begin
-                M_AXI_TDATA_CLEAN <= 48;
+    if (s_pip_valid)begin
+        mainMem[amt_store_bytes-1] <=  s_pip_data;
+    end else if ( state == STATUS_PRE_LOAD) begin
+        m_pip_data <= mainMem[0];
+    end else if (state == STATUS_LOAD)begin
+        if ( (M_AXI_TVALID_CLEAN && M_AXI_TREADY_CLEAN) | (amt_load_bytes == 0))begin
+            if ((amt_load_bytes+1) >= amt_store_bytes)begin
+                m_pip_data <= 48;
             end else begin
-                M_AXI_TDATA_CLEAN <= (ITF_DATA_WIDTH > DATA_WIDTH) ?
-                       {{(ITF_DATA_WIDTH-DATA_WIDTH){1'b0}},
-                         mainMem[amt_load_bytes[STORAGE_IDX_WIDTH-1:0]]
-                       } :
-                        mainMem[amt_load_bytes[STORAGE_IDX_WIDTH-1:0]];
+                m_pip_data <= mainMem[amt_load_bytes+1];
             end
         end
-
+    end else begin
+        m_pip_data <= 50;
     end
 end
-
 
 endmodule
