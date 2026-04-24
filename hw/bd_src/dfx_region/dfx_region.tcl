@@ -11,7 +11,11 @@ proc create_dfx_region_bd { \
     input_maps \
     output_maps \
     ip_name \
+    rm_id
 } {
+
+
+
 
 #  variable script_folder
 #  variable design_name
@@ -100,8 +104,28 @@ proc create_dfx_region_bd { \
  ] $clk
   set nreset [ create_bd_port -dir I nreset ]
 
+  # Find S_DATA_WIDTH and M_DATA_WIDTH from active (non -1) entries in input/output maps
+  set s2m_s_width 32
+  set s2m_m_width 32
+  for {set i 0} {$i < [llength $input_maps]} {incr i} {
+    if { [lindex $input_maps $i] != -1 } {
+      set s2m_s_width [lindex $interface_widths $i]
+      break
+    }
+  }
+  for {set i 0} {$i < [llength $output_maps]} {incr i} {
+    if { [lindex $output_maps $i] != -1 } {
+      set s2m_m_width [lindex $interface_widths $i]
+      break
+    }
+  }
+
   # Create instance: Stream_Single_S2M_0, and set properties
   set Stream_Single_S2M_0 [ create_bd_cell -type ip -vlnv user.org:user:Stream_Single_S2M:1.0 Stream_Single_S2M_0 ]
+  set_property -dict [list \
+    CONFIG.S_DATA_WIDTH "$s2m_s_width" \
+    CONFIG.M_DATA_WIDTH "$s2m_m_width" \
+  ] $Stream_Single_S2M_0
 
   # Create instance: AXI_Lite_Shut_0, and set properties
   set AXI_Lite_Shut_0 [ create_bd_cell -type ip -vlnv user.org:user:AXI_Lite_Shut:1.0 AXI_Lite_Shut_0 ]

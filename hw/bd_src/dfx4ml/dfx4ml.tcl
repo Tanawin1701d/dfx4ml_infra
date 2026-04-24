@@ -56,13 +56,13 @@ proc create_sub_block_design {parentCell \
             create_dfx_region_bd $parentCell "dfx_pr_${i}" $clk_frq \
                                  $num_dfx_streamer $interface_widths \
                                  $input_maps $output_maps \
-                                 $ip_src
+                                 $ip_src $i
         } else {
             puts "create dfx_region for testing"
             create_dfx_region_user_bd $parentCell "dfx_pr_${i}" $clk_frq \
                                  $num_dfx_streamer $interface_widths \
                                  $input_maps $output_maps \
-                                 $ip_src
+                                 $ip_src $i
 
         }
     }
