@@ -72,6 +72,8 @@ proc compose_all_ips {build_tcl_path dfx4ml_root } {
         dfx_streamer_sshut
         dfx_axi_lite_shut
         dfx_decup_ctrl
+        dfx_stream_aligner_m2s
+        dfx_stream_aligner_s2m
     }
 
     foreach module $ip_modules {
