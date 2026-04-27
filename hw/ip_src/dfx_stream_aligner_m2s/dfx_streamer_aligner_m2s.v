@@ -23,7 +23,11 @@ module Dfx_Streamer_Aligner_M2S #(
     output wire [M_TKEEP_WIDTH-1:0] M_AXI_TKEEP,
     output wire                     M_AXI_TVALID,
     input  wire                     M_AXI_TREADY,
-    output wire                     M_AXI_TLAST
+    output wire                     M_AXI_TLAST,
+
+    input   wire clk,
+    input   wire nreset
+
 );
 
     assign S_AXI_TREADY = M_AXI_TREADY;
