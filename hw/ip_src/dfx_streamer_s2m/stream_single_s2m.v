@@ -28,11 +28,15 @@ module Stream_Single_S2M #
     reg    sending;
     wire   ready_for_next = nreset && S_AXI_TVALID && S_AXI_TREADY;
 
-    // width-adapt S_AXI_TDATA → M_AXI_TDATA (zero-extend or truncate)
-    wire [M_DATA_WIDTH-1:0] tdata_adapted =
-        (M_DATA_WIDTH > S_DATA_WIDTH) ?
-            {{(M_DATA_WIDTH-S_DATA_WIDTH){1'b0}}, S_AXI_TDATA} :
-            S_AXI_TDATA[M_DATA_WIDTH-1:0];
+    wire [M_DATA_WIDTH-1:0] tdata_adapted;
+    generate
+        if (M_DATA_WIDTH > S_DATA_WIDTH) begin
+            localparam REPS = M_DATA_WIDTH / S_DATA_WIDTH;
+            assign tdata_adapted = {REPS{S_AXI_TDATA}};
+        end else begin
+            assign tdata_adapted = S_AXI_TDATA[M_DATA_WIDTH-1:0];
+        end
+    endgenerate
 
     always @(posedge clk) begin
         if (!nreset) begin

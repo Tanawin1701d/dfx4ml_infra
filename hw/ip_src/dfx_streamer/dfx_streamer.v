@@ -53,10 +53,10 @@ module Dfx_Streamer #
     wire                      S_AXI_TLAST_CLEAN  = decup ? 0: S_AXI_TLAST;
 
     // AXIS Master Interface load interface
-    reg [ITF_DATA_WIDTH-1:0]     M_AXI_TDATA_CLEAN; assign M_AXI_TDATA = M_AXI_TDATA_CLEAN;   // it is supposed to be reg
-    reg                          M_AXI_TVALID_CLEAN; assign M_AXI_TVALID = M_AXI_TVALID_CLEAN;   // it is supposed to be reg
-    wire                         M_AXI_TREADY_CLEAN = decup ? 0: M_AXI_TREADY;    // it is supposed to be reg
-    reg                          M_AXI_TLAST_CLEAN; assign M_AXI_TLAST = M_AXI_TLAST_CLEAN;     // it is supposed to be reg
+    reg [ITF_DATA_WIDTH-1:0]     M_AXI_TDATA_CLEAN; assign M_AXI_TDATA = M_AXI_TDATA_CLEAN;
+    reg                          M_AXI_TVALID_CLEAN; assign M_AXI_TVALID = M_AXI_TVALID_CLEAN;
+    wire                         M_AXI_TREADY_CLEAN = decup ? 0: M_AXI_TREADY;
+    reg                          M_AXI_TLAST_CLEAN; assign M_AXI_TLAST = M_AXI_TLAST_CLEAN;
 
     //// we accept all dfx controller command to make it easier to compute
     wire storeReset = storeReset_pool[STREAMER_IDX];
@@ -76,23 +76,32 @@ localparam STATUS_LOAD       = 5'b01000; // loading the data
 localparam STATUS_AFT_LOAD   = 5'b10000; // cleanup the load interface
 
 localparam STORAGE_IDX_WIDTH = $clog2(AMT_ROW);
-localparam TRACKER_IDX_WIDTH = STORAGE_IDX_WIDTH + 1; ///// this is for tracker index width
+localparam TRACKER_IDX_WIDTH = STORAGE_IDX_WIDTH + 1;
 
-///// meta data
-(* ram_style = "ultra" *) reg[DATA_WIDTH-1: 0] mainMem [0: AMT_ROW-1];
+///// memory banking: each bank stays under Vivado's 1M-bit per-variable limit
+localparam BANK_ROW_LOG2  = $clog2(1000000 / DATA_WIDTH + 1) - 1; // make it lower 1 bit, it is ok
+localparam ROWS_PER_BANK  = 1 << BANK_ROW_LOG2;
+localparam NUM_BANKS      = (AMT_ROW + ROWS_PER_BANK - 1) / ROWS_PER_BANK;
+localparam BANK_SEL_WIDTH = (NUM_BANKS <= 1) ? 1 : $clog2(NUM_BANKS);
 
 reg[STATE_BIT_WIDTH  -1: 0] state;
-reg[TRACKER_IDX_WIDTH-1: 0] amt_store_bytes; ///// store to this block
-reg[TRACKER_IDX_WIDTH-1: 0] amt_load_bytes;  ///// load to this block
+reg[TRACKER_IDX_WIDTH-1: 0] amt_store_bytes;
+reg[TRACKER_IDX_WIDTH-1: 0] amt_load_bytes;
 reg storeIntr;
 
 /////////////////////////////////////
 ////// pipeline IO //////////////////
 /////////////////////////////////////
 
-reg                 s_pip_valid;
-reg[DATA_WIDTH-1:0] s_pip_data;
-reg[DATA_WIDTH-1:0] m_pip_data;
+reg                  s_pip_valid;
+reg [DATA_WIDTH-1:0] s_pip_data;
+
+// bank_rdata: plain reg array — dynamic indexing is legal here (unlike generate hierarchy)
+reg [DATA_WIDTH-1:0]     bank_rdata [0:NUM_BANKS-1];
+reg [BANK_SEL_WIDTH-1:0] bank_sel_q;
+
+// m_pip_data is a 1-cycle-delayed read output, muxed from the correct bank
+wire [DATA_WIDTH-1:0] m_pip_data = bank_rdata[bank_sel_q];
 
 /////////////////////////////////////
 ////// axi signal assign ////////////
@@ -108,6 +117,43 @@ assign finStore = storeIntr;
 assign dbg_state           = state;
 assign dbg_amt_store_bytes = amt_store_bytes;
 assign dbg_amt_load_bytes  = amt_load_bytes;
+
+/////////////////////////////////////
+///// Memory: generate one bank per ROWS_PER_BANK rows
+///// Write and read entirely inside generate so only static indices are used.
+///// bank_rdata (plain reg array) is used for the output mux outside.
+/////////////////////////////////////
+
+// Read address and enable (combinatorial from registered control signals)
+wire rd_preload = (state == STATUS_PRE_LOAD); // load on preload
+wire rd_load_en = (state == STATUS_LOAD) &&   // load to contiue
+                  ((M_AXI_TVALID_CLEAN && M_AXI_TREADY_CLEAN) | (amt_load_bytes == 0)) &&
+                  ((amt_load_bytes + 1) < amt_store_bytes);
+wire                       rd_en   = rd_preload | rd_load_en;
+wire [TRACKER_IDX_WIDTH:0] rd_addr = rd_preload ? 0 : (amt_load_bytes + 1);
+
+genvar b;
+generate
+    for (b = 0; b < NUM_BANKS; b = b + 1) begin : MEM_BANK
+        (* ram_style = "ultra" *) reg [DATA_WIDTH-1:0] mem [0:ROWS_PER_BANK-1];
+
+        always @(posedge clk) begin
+            // write port — enabled only for the matching bank (static b used here)
+            if (s_pip_valid && ((amt_store_bytes - 1) >> BANK_ROW_LOG2 == b))
+                mem[(amt_store_bytes - 1) & (ROWS_PER_BANK - 1)] <= s_pip_data;
+
+            // read port — output to flat reg array (static b used here)
+            if (rd_en && (rd_addr >> BANK_ROW_LOG2 == b))
+                bank_rdata[b] <= mem[rd_addr & (ROWS_PER_BANK - 1)];
+        end
+    end
+endgenerate
+
+// Register bank select so it aligns with bank_rdata latency
+always @(posedge clk) begin
+    if (rd_en)
+        bank_sel_q <= rd_addr >> BANK_ROW_LOG2;
+end
 
 /////////////////////////////////////
 ////// control system    ////////////
@@ -139,9 +185,8 @@ always @(posedge clk) begin
             end
             //////////// case store data to the internal memory
             STATUS_STORE    : begin
-                /// please note that the pipeline store is based on assumption that bram is always ready for data
                 s_pip_valid <= 0;
-                if (S_AXI_TVALID_CLEAN)begin //// we are sure that ready will send this time
+                if (S_AXI_TVALID_CLEAN)begin
                     amt_store_bytes <= amt_store_bytes + 1;
                     s_pip_valid     <= 1;
                     s_pip_data      <= S_AXI_TDATA_CLEAN[DATA_WIDTH-1:0];
@@ -158,16 +203,14 @@ always @(posedge clk) begin
             end
 
             STATUS_PRE_LOAD : begin
-                // wait for main memory for data load
                 state <= STATUS_LOAD;
                 amt_load_bytes <= amt_load_bytes + 1;
             end
 
-            STATUS_LOAD    : begin   /// the first data is initialize in the m_pip_data
+            STATUS_LOAD    : begin
 
-                if ( (M_AXI_TVALID_CLEAN && M_AXI_TREADY_CLEAN) | (amt_load_bytes == 0)) begin //// last sending is success in this cycle/ send next
+                if ( (M_AXI_TVALID_CLEAN && M_AXI_TREADY_CLEAN) | (amt_load_bytes == 0)) begin
 
-                    // send the data
                     M_AXI_TVALID_CLEAN <= 1;
                     M_AXI_TDATA_CLEAN  <= (ITF_DATA_WIDTH > DATA_WIDTH) ?
                                               {{(ITF_DATA_WIDTH-DATA_WIDTH){1'b0}}, m_pip_data} :
@@ -178,7 +221,6 @@ always @(posedge clk) begin
                         state <= STATUS_AFT_LOAD;
                     end
                 end
-                ///// at here do nothing just wait for hls4ml to ready to get data
             end
 
             STATUS_AFT_LOAD    : begin
@@ -189,7 +231,6 @@ always @(posedge clk) begin
                 end
             end
 
-
             default: begin end
 
         endcase
@@ -197,29 +238,5 @@ always @(posedge clk) begin
 
 end
 
-
-/////////////////////////////////////
-///// M_DATA and MEM management
-/////////////////////////////////////
-
-
-always @(posedge clk) begin
-
-    if (s_pip_valid)begin
-        mainMem[amt_store_bytes-1] <=  s_pip_data;
-    end else if ( state == STATUS_PRE_LOAD) begin
-        m_pip_data <= mainMem[0];
-    end else if (state == STATUS_LOAD)begin
-        if ( (M_AXI_TVALID_CLEAN && M_AXI_TREADY_CLEAN) | (amt_load_bytes == 0))begin
-            if ((amt_load_bytes+1) >= amt_store_bytes)begin
-                m_pip_data <= 48;
-            end else begin
-                m_pip_data <= mainMem[amt_load_bytes+1];
-            end
-        end
-    end else begin
-        m_pip_data <= 50;
-    end
-end
 
 endmodule
