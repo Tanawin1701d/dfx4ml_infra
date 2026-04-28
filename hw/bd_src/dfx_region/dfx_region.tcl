@@ -136,6 +136,7 @@ proc create_dfx_region_bd { \
     set target_port [lindex $input_maps $i]
     if { $target_port == -1 } {
         set Stream_Slave_Dummy_${i} [ create_bd_cell -type ip -vlnv user.org:user:Stream_Slave_Dummy:1.0 Stream_Slave_Dummy_${i} ]
+        set_property -dict [list CONFIG.DATA_WIDTH "[lindex $interface_widths $i]"] [set Stream_Slave_Dummy_${i}]
         connect_bd_intf_net -intf_net S_DS_${i}_1 [get_bd_intf_ports S_DS_${i}] [get_bd_intf_pins Stream_Slave_Dummy_${i}/S_AXI]
         connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins Stream_Slave_Dummy_${i}/clk]
         connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Slave_Dummy_${i}/nreset]
@@ -149,6 +150,7 @@ proc create_dfx_region_bd { \
     set target_port [lindex $output_maps $i]
     if { $target_port == -1 } {
         set Stream_Master_Dummy_$i [ create_bd_cell -type ip -vlnv user.org:user:Stream_Master_Dummy:1.0 Stream_Master_Dummy_$i ]
+        set_property -dict [list CONFIG.DATA_WIDTH "[lindex $interface_widths $i]"] [set Stream_Master_Dummy_${i}]
         connect_bd_intf_net -intf_net M_DS_${i}_1 [get_bd_intf_pins Stream_Master_Dummy_${i}/M_AXI] [get_bd_intf_ports M_DS_${i}]
         connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins Stream_Master_Dummy_${i}/clk]
         connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Master_Dummy_${i}/nreset]
