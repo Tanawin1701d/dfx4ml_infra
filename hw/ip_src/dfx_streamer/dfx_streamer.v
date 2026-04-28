@@ -78,9 +78,12 @@ localparam STATUS_AFT_LOAD   = 5'b10000; // cleanup the load interface
 localparam STORAGE_IDX_WIDTH = $clog2(AMT_ROW);
 localparam TRACKER_IDX_WIDTH = STORAGE_IDX_WIDTH + 1;
 
-///// memory banking: each bank stays under Vivado's 1M-bit per-variable limit
-localparam BANK_ROW_LOG2  = $clog2(1000000 / DATA_WIDTH + 1) - 1; // make it lower 1 bit, it is ok
-localparam ROWS_PER_BANK  = 1 << BANK_ROW_LOG2;
+///// memory banking: align to URAM native depth (4096) to maximize utilization.
+///// URAM288B is always 4096x72; wider data uses parallel URAMs (depth stays 4096).
+///// Using shallower banks (e.g. 2048) wastes half the URAM depth.
+localparam URAM_NATIVE_DEPTH = 4096;
+localparam BANK_ROW_LOG2     = $clog2(URAM_NATIVE_DEPTH); // 12
+localparam ROWS_PER_BANK     = URAM_NATIVE_DEPTH;         // 4096
 localparam NUM_BANKS      = (AMT_ROW + ROWS_PER_BANK - 1) / ROWS_PER_BANK;
 localparam BANK_SEL_WIDTH = (NUM_BANKS <= 1) ? 1 : $clog2(NUM_BANKS);
 
