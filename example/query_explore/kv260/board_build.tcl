@@ -1,4 +1,4 @@
-proc build_kv260_prj {{build_dir "build"}} {
+proc build_custom_prj {{build_dir "build"}} {
     # Create build directory if it doesn't exist
     file mkdir $build_dir
 
