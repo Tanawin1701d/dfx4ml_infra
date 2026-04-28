@@ -16,7 +16,7 @@ proc build_kv260_prj {{build_dir "build"}} {
 
 
 
-proc create_kv260_dfx4ml_design { parentCell \
+proc create_custom_dfx4ml_design { parentCell \
                                   clk_frq \
                                   rm_index_width \
                                   num_dfx_streamer \
