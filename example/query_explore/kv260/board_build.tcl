@@ -1,4 +1,4 @@
-proc build_custom_prj {{build_dir "build"}} {
+proc build_kv260_prj {{build_dir "build"}} {
     # Create build directory if it doesn't exist
     file mkdir $build_dir
 
@@ -16,7 +16,7 @@ proc build_custom_prj {{build_dir "build"}} {
 
 
 
-proc create_custom_dfx4ml_design { parentCell \
+proc create_kv260_dfx4ml_design { parentCell \
                                   clk_frq \
                                   rm_index_width \
                                   num_dfx_streamer \
@@ -485,17 +485,24 @@ proc create_custom_dfx4ml_design { parentCell \
     assign_bd_address -offset 0xC0000000 -range 0x20000000 -target_address_space [get_bd_addr_spaces dfx_unified_0/dma_hier/axi_dma_0/Data_MM2S] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP0/HPC0_QSPI] -force
     assign_bd_address -offset 0x00000000 -range 0x80000000 -target_address_space [get_bd_addr_spaces dfx_unified_0/dma_hier/axi_dma_0/Data_S2MM] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP1/HPC1_DDR_LOW] -force
     assign_bd_address -offset 0xC0000000 -range 0x20000000 -target_address_space [get_bd_addr_spaces dfx_unified_0/dma_hier/axi_dma_0/Data_S2MM] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP1/HPC1_QSPI] -force
+
+    # source from dfx manager
     assign_bd_address -offset 0xA0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/DFX_Ctrl_B/s_axi_reg/Reg] -force
     assign_bd_address -offset 0xA0040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/DFX_Mng/S_AXI/reg0] -force
     assign_bd_address -offset 0xA0010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/axi_dfx_decup/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/axi_dfx_reset/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
+    assign_bd_address -offset 0xA0050000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_pr_0_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+
+    #source from processor
     assign_bd_address -offset 0xA0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/DFX_Ctrl_B/s_axi_reg/Reg] -force
     assign_bd_address -offset 0xA0040000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/DFX_Mng/S_AXI/reg0] -force
     assign_bd_address -offset 0xA0010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/axi_dfx_decup/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/axi_dfx_reset/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
-    assign_bd_address -offset 0xA0050000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs axi_intc_0/S_AXI/Reg] -force
+    assign_bd_address -offset 0xA0050000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_pr_0_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+
+    assign_bd_address -offset 0xA0060000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs axi_intc_0/S_AXI/Reg] -force
 
     # Exclude Address Segments
     exclude_bd_addr_seg -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Ctrl_B/Data] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP0/HPC0_DDR_HIGH]
