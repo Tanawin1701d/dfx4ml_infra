@@ -4,8 +4,13 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
-BUILD_PRJ_DIR = Path(__file__).parent / "build_prj_0"
-EXPORT_HW_DIR = Path(__file__).parent / "export_0" / "hw"
+BUILD_PRJ_DIR  = Path(__file__).parent / "build_prj_0"
+EXPORT_DIR     = Path(__file__).parent / "export_0"
+EXPORT_HW_DIR  = EXPORT_DIR / "hw"
+EXPORT_DATA_DIR = EXPORT_DIR / "data"
+
+NOTEBOOK_NAME  = "test.ipynb"
+INPUT_NPY_NAME = "x_input_1000000.npy"
 
 RUNS_DIR = BUILD_PRJ_DIR / "link_prj" / "link_prj.runs"
 
@@ -68,6 +73,28 @@ def copy_partial_bitstreams(runs: dict[int, Path], hw_dir: Path, log: logging.Lo
         log.info(f"PARTIAL [{run_path.name}]  {src.name}  ->  {dst.name}")
 
 
+def copy_notebook_and_data(export_dir: Path, data_dir: Path, log: logging.Logger) -> None:
+    src_dir = Path(__file__).parent
+
+    nb_src = src_dir / NOTEBOOK_NAME
+    nb_dst = export_dir / NOTEBOOK_NAME
+    if nb_src.exists():
+        export_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(nb_src, nb_dst)
+        log.info(f"NOTEBOOK  {nb_src.name}  ->  {nb_dst}")
+    else:
+        log.warning(f"Notebook not found: {nb_src}")
+
+    npy_src = src_dir / INPUT_NPY_NAME
+    npy_dst = data_dir / INPUT_NPY_NAME
+    if npy_src.exists():
+        data_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(npy_src, npy_dst)
+        log.info(f"DATA      {npy_src.name}  ->  {npy_dst}")
+    else:
+        log.warning(f"Input .npy not found: {npy_src}")
+
+
 def main() -> None:
     log = setup_logger(EXPORT_HW_DIR)
     log.info(f"=== extract_export  {datetime.now().isoformat(timespec='seconds')} ===")
@@ -92,6 +119,7 @@ def main() -> None:
 
     copy_full_bitstream(parent_run, EXPORT_HW_DIR, log)
     copy_partial_bitstreams(runs, EXPORT_HW_DIR, log)
+    copy_notebook_and_data(EXPORT_DIR, EXPORT_DATA_DIR, log)
 
     log.info("=== done ===")
 
