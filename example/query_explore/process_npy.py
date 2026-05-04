@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 input_file = 'x_input_1000000.npy'
-output_file = 'x_input_100000.npy'
+output_file = 'x_input_20000.npy'
 
 if not os.path.exists(input_file):
     print(f"Error: {input_file} not found.")
@@ -16,8 +16,8 @@ print(f"Original shape: {data.shape}")
 if data.shape == (1000000, 8, 8, 1):
     print("Shape matches (1000000, 8, 8, 1).")
     
-    print("Slicing to (100000, 8, 8, 1)...")
-    sliced_data = data[:100000]
+    print("Slicing to (20000, 8, 8, 1)...")
+    sliced_data = data[:20000]
     
     print(f"Sliced shape: {sliced_data.shape}")
     
