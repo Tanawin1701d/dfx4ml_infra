@@ -12,7 +12,7 @@ EXPORT_HW_DIR   = EXPORT_DIR / "hw"
 EXPORT_DATA_DIR = EXPORT_DIR / "data"
 
 NOTEBOOK_NAME   = "test.ipynb"
-INPUT_NPY_NAME  = "x_input_100000.npy"
+INPUT_NPY_NAME  = "x_input_20000.npy"
 
 RUNS_DIR = BUILD_PRJ_DIR / "link_prj" / "link_prj.runs"
 
