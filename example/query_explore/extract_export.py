@@ -11,8 +11,9 @@ EXPORT_DIR      = Path(__file__).parent / "export_0"
 EXPORT_HW_DIR   = EXPORT_DIR / "hw"
 EXPORT_DATA_DIR = EXPORT_DIR / "data"
 
-NOTEBOOK_NAME   = "test.ipynb"
-INPUT_NPY_NAME  = "x_input_20000.npy"
+NOTEBOOK_NAME         = "test.ipynb"
+MULTI_NOTEBOOK_NAME   = "test_multi.ipynb"
+INPUT_NPY_NAME        = "x_input_20000.npy"
 
 RUNS_DIR = BUILD_PRJ_DIR / "link_prj" / "link_prj.runs"
 
@@ -110,12 +111,13 @@ def copy_partial_bitstreams(runs: dict[int, Path], hw_dir: Path, log: logging.Lo
 def copy_notebook_and_data(export_dir: Path, data_dir: Path, log: logging.Logger, copied: list[Path]) -> None:
     src_dir = Path(__file__).parent
 
-    nb_src = src_dir / NOTEBOOK_NAME
-    if nb_src.exists():
-        export_dir.mkdir(parents=True, exist_ok=True)
-        safe_copy(nb_src, export_dir / NOTEBOOK_NAME, log, copied)
-    else:
-        log.warning(f"Notebook not found: {nb_src}")
+    for nb_name in (NOTEBOOK_NAME, MULTI_NOTEBOOK_NAME):
+        nb_src = src_dir / nb_name
+        if nb_src.exists():
+            export_dir.mkdir(parents=True, exist_ok=True)
+            safe_copy(nb_src, export_dir / nb_name, log, copied)
+        else:
+            log.warning(f"Notebook not found: {nb_src}")
 
     npy_src = src_dir / INPUT_NPY_NAME
     if npy_src.exists():
