@@ -36,16 +36,16 @@ build_prj/
 export
 
 # Tech report build artifacts
-doc/tech_report/main.pdf
-doc/tech_report/main.aux
-doc/tech_report/main.log
-doc/tech_report/main.out
-doc/tech_report/main.toc
-doc/tech_report/main.bbl
-doc/tech_report/main.blg
-doc/tech_report/main.fdb_latexmk
-doc/tech_report/main.fls
-doc/tech_report/main.synctex.gz
+doc/*/main.pdf
+doc/*/main.aux
+doc/*/main.log
+doc/*/main.out
+doc/*/main.toc
+doc/*/main.bbl
+doc/*/main.blg
+doc/*/main.fdb_latexmk
+doc/*/main.fls
+doc/*/main.synctex.gz
 
 
 build_prj_*
