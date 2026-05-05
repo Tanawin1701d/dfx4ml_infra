@@ -1,0 +1,515 @@
+\PassOptionsToPackage{table}{xcolor}
+\documentclass{cernatsnote}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{placeins}
+\usepackage{float}
+\usepackage{rotating}
+\usepackage{verbatim}
+\usepackage{fancyvrb}
+\usepackage{listings}
+\lstdefinestyle{python}{
+  language=Python,
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color[RGB]{0,0,200}\bfseries,
+  stringstyle=\color[RGB]{163,21,21},
+  commentstyle=\color[RGB]{0,128,0}\itshape, 
+  numberstyle=\tiny\color{gray},
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{framecolor},
+  showstringspaces=false,
+  breaklines=true,
+  morekeywords={True,False,None},
+}
+\lstdefinestyle{tcl}{
+  language=tcl,
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color[RGB]{0,0,200}\bfseries,
+  stringstyle=\color[RGB]{163,21,21},
+  commentstyle=\color[RGB]{0,128,0}\itshape,
+  numberstyle=\tiny\color{gray},
+  backgroundcolor=\color{codebg},
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{framecolor},
+  showstringspaces=false,
+  breaklines=true,
+}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\graphicspath{{images/}}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{framecolor}{RGB}{180,180,180}
+\definecolor{darkgreen}{RGB}{0,128,0}
+% Register map colors
+\definecolor{rwgreen}{RGB}{15,110,86}
+\definecolor{rwbg}{RGB}{225,245,238}
+\definecolor{roblue}{RGB}{24,95,165}
+\definecolor{robg}{RGB}{230,241,251}
+\definecolor{woamber}{RGB}{133,79,11}
+\definecolor{wobg}{RGB}{250,238,218}
+\definecolor{headerbg}{RGB}{241,239,232}
+\definecolor{sectionbg}{RGB}{230,230,230}
+\definecolor{monocolor}{RGB}{60,52,137}
+% Register map badge commands
+\newcommand{\badrw}{\colorbox{rwbg}{\textcolor{rwgreen}{\textbf{\small R/W}}}}
+\newcommand{\badro}{\colorbox{robg}{\textcolor{roblue}{\textbf{\small RO}}}}
+\newcommand{\badwo}{\colorbox{wobg}{\textcolor{woamber}{\textbf{\small WO}}}}
+\newcommand{\reg}[1]{\texttt{\textcolor{monocolor}{#1}}}
+\newcommand{\addr}[1]{\texttt{\small #1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcommand{\subrow}[1]{\rowcolor{sectionbg} \multicolumn{5}{l}{\small\textbf{\textsc{#1}}} \\}
+
+\title{DFX4ML-ARCH}
+\author{
+	Omitted for blind review \\
+	CERN, CH-1211 Geneva, Switzerland
+}
+\email{author.email@cern.ch}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+DFX4ML-ARCH presents an FPGA architecture designed to enable partial reconfiguration for machine learning workloads. The project incorporates a self-reconfiguration mechanism, allowing the FPGA fabric to partially reprogram itself. It targets AMD FPGAs equipped with the ICAP3 interface and leverages the PYNQ framework for system integration.
+\end{abstract}
+\\ \\ \\
+
+\begin{small}
+\noindent\textbf{Disclaimer:} The technical content, architecture designs, implementation decisions, and all intellectual contributions in this report are entirely the work of the authors. Generative AI tools were used solely for grammar correction and readability enhancement of the written text. No AI-generated technical content, code, or design decisions are included.
+
+\medskip
+\noindent\textbf{Template:} This document uses the CERN ATS Note \LaTeX{} template, available at \url{https://www.overleaf.com/latex/templates/cern-ats-note/yzjmgkrvtsqg}.
+\end{small}
+
+\bigskip
+
+\begingroup
+\color{black}
+\tableofcontents
+\endgroup
+
+\pagebreak
+
+\section{Introduction}
+
+The goal of this experiment session is to gather empirical data on the key parameters that govern design trade-offs in an FPGA partial reconfiguration system for machine learning workloads. The results will inform architectural decisions going forward.
+
+\subsection{Parameters Under Consideration}
+
+\begin{description}
+  \item[Data Batch Size]
+    Varies with static region size and model I/O type.
+    A larger batch size is desirable, but it competes directly with the desire for a large static region.
+
+  \item[FPGA Static Region Size]
+    Should be as small as possible to leave more area for the dynamic region.
+
+  \item[FPGA Dynamic Region Size]
+    Should be as large as possible to accommodate larger ML models.
+    However, a larger dynamic region increases reconfiguration time.
+
+  \item[Reconfiguration Time]
+    Should be as small as possible, which pushes toward a smaller dynamic region --- directly opposing the goal above.
+
+  \item[Model Size]
+    Larger ML models are preferred, but they require a larger dynamic region, which increases reconfiguration time.
+
+\end{description}
+
+\subsection{Goal}
+
+Quantify the actual trends between these parameters so that architectural decisions can be grounded in evidence rather than assumption. Three experiment sessions are proposed:
+
+\begin{enumerate}
+
+  \item \textbf{Region Size vs. Reconfigure Time} ---
+    The reconfigure time depends on The size of dynamic region (\textbf{not size of model in dynamic region}). The experiment aims to explore the trend of time consumming in varies size of dynamic region
+
+  \item \textbf{DFX Streamer packing exploration} ---
+    We proposed the optimized way to expand the size of dynamic region as much as possible while keep the BRAM/URAM in static region for DFX Streamer as much as possible as well.
+
+  \item \textbf{Latency Hiding Technique (IN PROGRESS)} ---
+    We proposed the technique to hiding the latency by using the double dynamic region method to keep the system executing all the time.
+
+
+\end{enumerate}
+
+With data from all sessions, the aim is to identify the operating point that maximises performance, or at minimum to establish a principled basis for deciding the next phase of the design.
+
+
+
+\section{Architecture Upgrade}
+
+\subsection{DFX Streamer}
+
+
+\subsubsection{Problems}
+
+We encounter 2 problems on Vivado and KV260:
+
+\begin{enumerate}
+  \item \textbf{Vivado cannot handle a single large BRAM/URAM array.}
+    Vivado synthesis rejects the \texttt{mainMem} variable in \texttt{dfx\_streamer.v} (line~82) with the following error:
+
+    \begin{quote}
+      \ttfamily\small
+      [Synth 8-4556] size of variable `mainMem' is too large to handle; \\
+      the size of the variable is 20{,}480{,}000, the limit is 1{,}000{,}000.
+    \end{quote}
+
+    The variable \texttt{mainMem} is declared as a flat Verilog register array whose total bit-width (20\,480\,000) exceeds Vivado's synthesis limit of 1\,000\,000 bits.
+    Vivado cannot map such a monolithic array to physical BRAM/URAM primitives directly.
+    The fix is to split \texttt{mainMem} into multiple smaller arrays, each within the 1\,000\,000-bit limit, so that Vivado can infer and place individual BRAM/URAM tiles.
+
+  \item \textbf{Boarder Latency Problem}
+    The old version of DFX Streamer (Magic Streamer) requires one cycle for save the data to BRAM/URAM. The timming does not met. My Assumption is the placement restriction from different Pblock. Fig. \ref{fig:bram_problem} illustrates the SRC signal (green block) which is restricted in dynamic region while the target bram is spread across another region. the Vivado cannot do the fan-out optimization accross the region especially in the dynamic region. Morever, Vivado cannot retimming the path as well.
+
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.55\linewidth]{bram_problem.png}
+      \caption{Vivado synthesis error caused by oversized \texttt{mainMem} array in \texttt{dfx\_streamer.v}.}
+      \label{fig:bram_problem}
+    \end{figure}
+ 
+\end{enumerate}
+ 
+\subsubsection{DFX Stream Next Gen}
+
+We address the DFX Streamer's problem by fully re-architecture the memory Management System.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\linewidth]{dfx_streamer2.png}
+  \caption{DFX Streamer next-generation architecture.}
+  \label{fig:dfx_streamer2}
+\end{figure}
+
+
+First, to address the Vivado error message, we divide the DFX Streamer's memory bank into multiple bank. Each bank have IO with equal to the IO of the ML model's front wrap. However, multiple of 64 bit aligment wrap width is recommended because URAM's bitwidth equal to 64 bit. 
+
+Moreover, The DFX Streamer will try to pack 4096 entries foreach bank because we aims to maximise the resource usage for each URAM. If we did not pack the entries, the vivado cannot decide to join two Memory bank into into single URAM/BRAM eventhough the block is not accessed at the same time.
+
+Second, to address the latency problem, we do pipelining on the URAM/BRAM data transfer (both load and store). On the store side, we add addition register with equal to wrap size to buffer the data come from the dynamic region. On the other side, we add the addition register with equal to $wrap size x amt of Mem bank$, the pipeline support the back pressure in case the ML model is not ready to receive the data from memory bank.
+
+
+\subsection{DFX Manager Next Gen}
+
+In current experiment session, we used the ML model from HLS4ML's Vitis Unified Backend; therefore we need the AXI-LITE for control the MODEL. We have added two register into BANK 0 of the \texttt{s\_axi\_write} module:
+
+\begin{itemize}
+  \item \textbf{Address DFX\_MAN\_ADDR + \texttt{0x240}} --- \reg{prCtrlAddr}: stores the base address of the PR control IP (AXI-Lite slave of the HLS4ML model).
+  \item \textbf{Address DFX\_MAN\_ADDR + \texttt{0x280}} --- \reg{batchSize}: stores the batch size used for a single inference invocation.
+\end{itemize}
+
+Both registers are 32-bit wide (\texttt{GLOB\_ADDR\_WIDTH} / \texttt{GLOB\_DATA\_WIDTH}) and are decoded from address bits~[13:6] in the BANK~0 region (\texttt{write\_addr[15:14] == 2'b00}).
+
+To accurately collect the execution time for each ML, we added the 32 bits register into Bank 1 (\textbf{\texttt{0x4024 + 0x64 * RM\_ID}}) to collect the amount of cycles in the system.
+
+
+\subsection{DFX Decoupler Controller Next Gen}
+
+For debugging purpose, in the old version, The DFX Controller IP own the DFX decoupler; therefore, it is not possible for PS to bypass the control in some situations. We then redesign the ownership control of the dfx decoupler which is at address \texttt{0xA001\_0000}. The register bit-field definition is shown in Table~\ref{tab:dfx_decoupler_reg}.
+
+\begin{table}[H]
+  \centering
+  \caption{DFX Decoupler Control Register (\texttt{0xA001\_0000}) bit-field definition.}
+  \label{tab:dfx_decoupler_reg}
+  \begin{tabular}{C{1.2cm} C{1.6cm} C{2.2cm} p{8.2cm}}
+    \toprule
+    \textbf{Bit} & \textbf{Access} & \textbf{Value} & \textbf{Description} \\
+    \midrule
+    \multirow{2}{*}{0} & \multirow{2}{*}{\badwo} &
+
+        \texttt{1} & Ownership of the DFX decoupler belongs to the \textbf{DFX Controller IP}. \\
+    & & \texttt{0} & Ownership of the DFX decoupler belongs to the \textbf{PS} (Processing System). \\
+    \midrule
+    \multirow{2}{*}{1} & \multirow{2}{*}{\badwo} &
+
+        \texttt{1} & Decouple~0 is \textbf{coupled} (active). Valid only when Bit~0~\texttt{= 0} (PS ownership). \\
+    & & \texttt{0} & Decouple~0 is \textbf{decoupled}. Valid only when Bit~0~\texttt{= 0} (PS ownership). \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\pagebreak
+
+
+\section{Temporal HLS4ML's Vitis Modified Backend Modification}
+
+To explore multiple design that fit into DFX4ML and KV260, we decided to modify the HLS4ML's Vitis Unified backend to enable the it's interface connected to DFX4ML system. However, we did not want to build full new back-end right now. We want the minimal modification as follow:
+
+\begin{enumerate}
+  \item the mod backend's intermediate the layer's warp as baremetal bits (not convert back to float32 or other type)
+  \item we use software prediction result from Old Vitis Unified Backend for result checking.
+  \item we use Fifo-Depth optimization from Old Vitis Unfied Backend and manually copy it into the new chopped model
+\end{enumerate}
+
+\begin{sloppypar}
+the modified backend is at \url{https://github.com/Tanawin1701d/hls4ml/tree/VitisUnifiedPartialExp}
+\end{sloppypar}
+
+
+\subsection{Interface Configuration}
+
+The modified backend is invoked via the following call:
+
+\begin{lstlisting}[style=python]
+hls_model = hls4ml.converters.convert_from_keras_model(
+    keras_model,
+    hls_config=cfg,
+    output_dir=output_dir,
+    input_flat=input_flat,
+    output_flat=output_flat,
+    package_as_xo=full_run,
+    project_name=_PROJECT_NAMES[key],
+    **_HLS_PARAMS,
+)
+\end{lstlisting}
+ 
+Three parameters are specific to the modified backend:
+
+\begin{description}
+  \item[\texttt{input\_flat}]
+    A boolean flag that controls whether the model's input warp is flattened into a 1-D stream of baremetal bits before being passed to the HLS kernel.
+    When \texttt{True}, it is flattened, else \texttt{False} the system convert from float32 to the target tensor.
+
+  \item[\texttt{output\_flat}]
+    The output-side counterpart of \texttt{input\_flat}.
+
+  \item[\texttt{package\_as\_xo}]
+    When \texttt{True} (bound to \texttt{full\_run}), the backend runs the full new Vitis HLS flow and packages the resulting kernel as an \texttt{.xo} object file ready for linking.
+    When \texttt{False}, it system will follow Vitis HLS ip for vivado flow.
+\end{description}
+
+\begin{sloppypar}
+The in detail implementation of the modified interface is at \url{https://github.com/Tanawin1701d/hls4ml/blob/VitisUnifiedPartialExp/hls4ml/templates/vitis_unified/myproject_axi_stream.cpp}
+\end{sloppypar}
+
+\pagebreak
+
+\section{Experiment}
+
+\subsection{Dynamic Region Size vs Reconfigure Time}
+
+Two build projects were synthesised on the KV260 board (100\,MHz system clock) with
+different dynamic-region sizes.
+Table~\ref{tab:recon_raw} summarises the raw measurements.
+
+\begin{table}[H]
+  \centering
+  \caption{Measured reconfiguration time for two dynamic-region configurations on KV260 (100\,MHz).}
+  \label{tab:recon_raw}
+  \small
+  \begin{tabular}{lrrrr}
+    \toprule
+    \textbf{Project} & \textbf{Size (KB)} & \textbf{Recon.\ cycles} & \textbf{Recon.\ time (ms)} & \textbf{Throughput (MB/s)} \\
+    \midrule
+    \texttt{build\_prj\_0} & 1436 & 367\,778 & 3.678 & 381.4 \\
+    \texttt{build\_prj\_1} & 2897 & 741\,674 & 7.417 & 381.5 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[t]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{build_project_0.png}
+    \caption{\texttt{build\_prj\_0} dynamic region.}
+    \label{fig:build_prj_0}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{build_project_1.png}
+    \caption{\texttt{build\_prj\_1} dynamic region.}
+    \label{fig:build_prj_1}
+  \end{minipage}
+\end{figure}
+
+The reconfiguration time is linear in bitstream size (ICAP3 throughput is constant at
+$\approx$381\,MB/s), which yields the fitted model:
+\[
+  t_{\text{recon}}(\text{KB}) \;=\; 0.002560 \times \text{file\_size}_{\text{KB}} + 0.0010
+  \quad [\text{ms}]
+\]
+
+Figure~\ref{fig:recon_bar} shows the per-project reconfiguration time and Figure~\ref{fig:recon_scatter} shows the linear relationship with predictions extrapolated up to a 22\,MB bitstream.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.55\linewidth]{recon_time_bar.png}
+  \caption{Reconfiguration time per build project on KV260 (100\,MHz).}
+  \label{fig:recon_bar}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.72\linewidth]{recon_time_scatter.png}
+  \caption{Bitstream file size vs.\ reconfiguration time with linear fit and predictions up to 22\,MB.}
+  \label{fig:recon_scatter}
+\end{figure}
+
+\textbf{Key Takeaway}: As I experiment last year, the ZCU102's reconfigure rate is limited to ~399 MB/sec; therefore, the bottleneck is caused from the ICAP3 port that can be accepted only 32 bits per cycle (4 bytes). So at 100 MHz, the system's rate therefore saturate at 400 MHz (4 bytes * 100 MHz)
+
+In addition, the bit file size and reconfigure time did not depend on the amount of used logic cell in the FPGA, it depends on the region size in the fabric.
+ 
+\pagebreak
+
+\subsection{DFX Streamer Packing Exploration}
+
+
+\subsubsection{Dynamic Region Layout}
+
+To allocate the fabric's resource for both dynamic region and static region.
+
+\begin{enumerate}
+  \item Static Region: we need it small as much as possible because it is not relevant to the ML workloads. However, we need the on-chip memory as much as possible because we require it for DFX Streamer to hold the intermediate data.
+  \item Dynamic Region: we need it large as much as possible because it is mainly used for ML workloads. However, The large region may invade the static region's URAM/BRAM memory and increase the reconfigure time.
+\end{enumerate}
+
+
+As a result, we design the region arrangement shown in Fig.~\ref{fig:packing_layout}.
+We compactise the static region into the right of the fabric which has plenty of URAM/BRAM.
+Table~\ref{tab:static_mem} summarises the on-chip memory allocated to the static region.
+
+\begin{table}[H]
+  \centering
+  \caption{Static region on-chip memory resources (KV260).}
+  \label{tab:static_mem}
+  \small
+  \begin{tabular}{lrrrr}
+    \toprule
+    \textbf{Type} & \textbf{Blocks} & \textbf{Rows / block} & \textbf{Bit-width} & \textbf{Total (MB)} \\
+    \midrule
+    URAM288 & 64  & 4096 & 64 & 2.000 \\
+    BRAM36  & 96 & 1024 & 32 & 0.375 \\ 
+    \midrule
+    \textbf{Total} & --- & --- & --- & \textbf{2.375} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\pagebreak 
+
+\subsubsection{HLS4ML model}
+
+We used the modified HLS4ML's Vitis Unified Backend. With the following ML model (image generated from claude)
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\linewidth]{ML.png}
+  \caption{ML model architecture used in the experiment.}
+  \label{fig:ml_model}
+\end{figure}
+
+The model generated code and debugger are at \url{https://github.com/Tanawin1701d/hls4ml/blob/VitisUnifiedPartialExp/simple_conv_nn_vitis_unified_exp.py}
+
+The mode was chopped at the bottleneck layer and the fifo-depth optimization was copiled from the Vitis Unified Backend's model. The reuse factor was globally set to 8, but the internal HLS4ML may reconfigure to match the kernel alignment.
+
+\begin{sloppypar}
+In addition, we have modified the convolution to fix the BRAM over-utilisation problem for weight storage (\url{https://github.com/Tanawin1701d/hls4ml/commit/f21523ba25b67e429cc411d2b75378817aeb2cf4}).
+\end{sloppypar}
+
+\subsubsection{Synthesis \& implementation}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\linewidth]{packing_layout.png}
+  \caption{DFX Streamer packing layout for the dynamic region.}
+  \label{fig:packing_layout}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[t]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/layout_config_0.png}
+    \caption{Layout First Half.}
+    \label{fig:layout_config_1}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/layout_config_1.png}
+    \caption{Layout Second Half.}
+    \label{fig:layout_config_2}
+  \end{minipage}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \caption{Implementation results: timing and hardware resource utilisation (KV260, xck26-sfvc784-2LV-c).}
+  \label{tab:impl_results}
+  \small
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Run} & \textbf{WNS (ns)} & \textbf{LUT} & \textbf{FF} & \textbf{BRAM} & \textbf{URAM} & \textbf{DSP} \\
+    \midrule
+    impl\_dfx           & 0.15 & 30{,}964 & 37{,}029 & 59 & 64 & 728 \\
+    child\_2\_impl\_dfx & 0.70 & 27{,}256 & 33{,}511 & 59 & 64 & 480 \\ 
+    \bottomrule
+  \end{tabular}
+\end{table} 
+
+
+
+
+
+\subsubsection{Query Explore: Reconfiguration vs Execution Time}
+
+The reconfiguration time is essentially constant across query counts (it depends only on bitstream
+size), while the execution time grows linearly with the number of queries.
+Each configuration is shown at full range alongside a zoomed view ($<5000$ queries). 
+
+\subsubsection*{Configuration 1}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[t]{0.54\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{query_explore_time_1.png}
+    \caption{Configuration~1 --- full range (KV260, 100\,MHz).}
+    \label{fig:qe_time1}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.44\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{query_explore_time_1_zoom.png}
+    \caption{Configuration~1 --- zoomed ($<5000$ queries).}
+    \label{fig:qe_time1_zoom}
+  \end{minipage}
+\end{figure}
+
+\subsubsection*{Configuration 2}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[t]{0.54\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{query_explore_time_2.png}
+    \caption{Configuration~2 --- full range (KV260, 100\,MHz).}
+    \label{fig:qe_time2}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.44\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{query_explore_time_2_zoom.png}
+    \caption{Configuration~2 --- zoomed ($<5000$ queries).}
+    \label{fig:qe_time2_zoom}
+  \end{minipage}
+\end{figure}
+
+\pagebreak 
+
+\end{document} 

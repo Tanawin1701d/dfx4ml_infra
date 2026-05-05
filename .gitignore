@@ -57,3 +57,6 @@ build_ip_only
 /example/vitis_kernel/s2m_with_axi/s2m_with_axi/
 
 archive
+
+# Large numpy data files
+*.npy
