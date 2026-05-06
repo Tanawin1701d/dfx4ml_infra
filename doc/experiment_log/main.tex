@@ -68,12 +68,12 @@
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcommand{\subrow}[1]{\rowcolor{sectionbg} \multicolumn{5}{l}{\small\textbf{\textsc{#1}}} \\}
 
-\title{DFX4ML-ARCH}
+\title{DFX4ML-ARCH (Progress Update)}
 \author{
 	Omitted for blind review \\
 	CERN, CH-1211 Geneva, Switzerland
 }
-\email{author.email@cern.ch}
+\email{Tanawin1701d@outlook.com}
 \date{\today}
 
 \begin{document}
@@ -421,6 +421,23 @@ The mode was chopped at the bottleneck layer and the fifo-depth optimization was
 In addition, we have modified the convolution to fix the BRAM over-utilisation problem for weight storage (\url{https://github.com/Tanawin1701d/hls4ml/commit/f21523ba25b67e429cc411d2b75378817aeb2cf4}).
 \end{sloppypar}
 
+In this model, the intermediate layer contains $(2 \times 2 \times 16)$ values at \texttt{ap\_fixed<16>}. The wavefront width of DFX Streamer (Magic Streamer) is therefore $16 \times 16 = 256$ bits, and each query requires 4 wavefronts ($2 \times 2$), giving a \textbf{query width of $4 \times 256 = 1024$ bits}.
+
+The number of queries that can be packed into the available memory resources is calculated as follows:
+
+\begin{align*}
+\text{Query width} &= 2 \times 2 \times 16 \times 16\ \text{bits} = 1024\ \text{bits} \\[6pt]
+\text{URAM288 queries} &= \frac{\text{blocks} \times \text{rows} \times \text{bit-width}}{\text{query width}}
+  = \frac{64 \times 4096 \times 64}{1024} = 16384\ \text{queries} \\[6pt]
+\text{BRAM36 queries}  &= \frac{\text{blocks} \times \text{rows} \times \text{bit-width}}{\text{query width}}
+  = \frac{96 \times 512 \times 64}{1024} = 3072\ \text{queries}
+\end{align*}
+
+Therefore, we can pack approximately $16384 + 3072 = 19456 \approx 20000$ queries into DFX Streamer.
+ 
+
+
+
 \subsubsection{Synthesis \& implementation}
 
 \begin{figure}[H]
@@ -512,4 +529,33 @@ Each configuration is shown at full range alongside a zoomed view ($<5000$ queri
 
 \pagebreak 
 
-\end{document} 
+
+
+\subsubsection{Multi-Region (IN-PROGRESS)}
+
+Before modifying the whole system to support the multi DFX region, we would like to do a small experiment to learn how to use it for multi-region. The thing that we consider include:
+
+\begin{enumerate}
+  \item DFX Ctrl IP:
+  \begin{enumerate}
+    \item Explore how to manage the signal for multi-region
+    \item Explore increasing the ICAP3 clock to 200 MHz (the maximum clock rate recommended for ICAP3 on Zync Ultrascale Plus) to increase the transfer rate from $\sim$400 MB/s to $\sim$800 MB/s while maintaining the rest of fabric at 100 MHz (ML + Static region)
+  \end{enumerate}
+
+  \item DFX Manager IP (Magic Sequencer):
+  \begin{enumerate}
+    \item We consider to upgrade bank 1 to support the latency hiding technique but We don't have the certain architecture right now.
+    \item The DFX Manager is right now huge and hard to maintain in Verilog, We might consider to replace it with SystemVerilog. (I think Claude can do this perfectly)
+  \end{enumerate}
+
+  \item DFX Manager IP (Magic Sequencer):
+  \begin{enumerate}
+    \item We need to upgrade the tcl to enable the multi-region connection and DFX Streamer arrangement.
+  \end{enumerate}
+  
+\end{enumerate}
+
+
+\end{document}
+
+
