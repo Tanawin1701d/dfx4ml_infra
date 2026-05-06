@@ -133,13 +133,13 @@ Quantify the actual trends between these parameters so that architectural decisi
 \begin{enumerate}
 
   \item \textbf{Region Size vs. Reconfigure Time} ---
-    The reconfigure time depends on The size of dynamic region (\textbf{not size of model in dynamic region}). The experiment aims to explore the trend of time consumming in varies size of dynamic region
+    The reconfiguration time depends on the size of the dynamic region (\textbf{not the size of the model within the dynamic region}). The experiment aims to explore the trend in reconfiguration time across varying dynamic region sizes.
 
-  \item \textbf{DFX Streamer packing exploration} ---
-    We proposed the optimized way to expand the size of dynamic region as much as possible while keep the BRAM/URAM in static region for DFX Streamer as much as possible as well.
+  \item \textbf{DFX Streamer Packing Exploration} ---
+    We propose an optimised approach to expand the dynamic region as much as possible while retaining as much BRAM/URAM in the static region for the DFX Streamer as possible.
 
   \item \textbf{Latency Hiding Technique (IN PROGRESS)} ---
-    We proposed the technique to hiding the latency by using the double dynamic region method to keep the system executing all the time.
+    We propose a technique to hide latency by using the double dynamic region method to keep the system executing continuously.
 
 
 \end{enumerate}
@@ -155,7 +155,7 @@ With data from all sessions, the aim is to identify the operating point that max
 
 \subsubsection{Problems}
 
-We encounter 2 problems on Vivado and KV260:
+We encountered 2 problems with Vivado and the KV260:
 
 \begin{enumerate}
   \item \textbf{Vivado cannot handle a single large BRAM/URAM array.}
@@ -171,8 +171,8 @@ We encounter 2 problems on Vivado and KV260:
     Vivado cannot map such a monolithic array to physical BRAM/URAM primitives directly.
     The fix is to split \texttt{mainMem} into multiple smaller arrays, each within the 1\,000\,000-bit limit, so that Vivado can infer and place individual BRAM/URAM tiles.
 
-  \item \textbf{Boarder Latency Problem}
-    The old version of DFX Streamer (Magic Streamer) requires one cycle for save the data to BRAM/URAM. The timming does not met. My Assumption is the placement restriction from different Pblock. Fig. \ref{fig:bram_problem} illustrates the SRC signal (green block) which is restricted in dynamic region while the target bram is spread across another region. the Vivado cannot do the fan-out optimization accross the region especially in the dynamic region. Morever, Vivado cannot retimming the path as well.
+  \item \textbf{Border Latency Problem}
+    The old version of DFX Streamer (Magic Streamer) requires one cycle to save data to BRAM/URAM. The timing constraint is not met. The assumption is that placement restrictions across different Pblocks are responsible. Fig.~\ref{fig:bram_problem} illustrates the SRC signal (green block), which is constrained to the dynamic region, while the target BRAM spans another region. Vivado cannot perform fan-out optimisation across regions, especially the dynamic region. Moreover, Vivado cannot retime the path either.
 
     \begin{figure}[H]
       \centering
@@ -185,7 +185,7 @@ We encounter 2 problems on Vivado and KV260:
  
 \subsubsection{DFX Stream Next Gen}
 
-We address the DFX Streamer's problem by fully re-architecture the memory Management System.
+We address the DFX Streamer's problems by fully re-architecting the memory management system.
 
 \begin{figure}[H]
   \centering
@@ -195,16 +195,16 @@ We address the DFX Streamer's problem by fully re-architecture the memory Manage
 \end{figure}
 
 
-First, to address the Vivado error message, we divide the DFX Streamer's memory bank into multiple bank. Each bank have IO with equal to the IO of the ML model's front wrap. However, multiple of 64 bit aligment wrap width is recommended because URAM's bitwidth equal to 64 bit. 
+First, to address the Vivado error, we divide the DFX Streamer's memory into multiple banks. Each bank has I/O equal to the I/O of the ML model's front wrap. However, a wrap width that is a multiple of 64 bits is recommended since the URAM's bit-width is 64 bits.
 
-Moreover, The DFX Streamer will try to pack 4096 entries foreach bank because we aims to maximise the resource usage for each URAM. If we did not pack the entries, the vivado cannot decide to join two Memory bank into into single URAM/BRAM eventhough the block is not accessed at the same time.
+Moreover, the DFX Streamer packs 4096 entries per bank to maximise resource utilisation for each URAM. If entries are not packed, Vivado cannot decide to merge two memory banks into a single URAM/BRAM, even when they are not accessed simultaneously.
 
-Second, to address the latency problem, we do pipelining on the URAM/BRAM data transfer (both load and store). On the store side, we add addition register with equal to wrap size to buffer the data come from the dynamic region. On the other side, we add the addition register with equal to $wrap size x amt of Mem bank$, the pipeline support the back pressure in case the ML model is not ready to receive the data from memory bank.
+Second, to address the latency problem, we pipeline the URAM/BRAM data transfer (both load and store). On the store side, we add an additional register equal to the wrap size to buffer data coming from the dynamic region. On the load side, we add an additional register equal to $\text{wrap size} \times \text{number of memory banks}$; the pipeline supports back-pressure in case the ML model is not ready to receive data from the memory bank.
 
 
 \subsection{DFX Manager Next Gen}
 
-In current experiment session, we used the ML model from HLS4ML's Vitis Unified Backend; therefore we need the AXI-LITE for control the MODEL. We have added two register into BANK 0 of the \texttt{s\_axi\_write} module:
+In the current experiment session, we used the ML model from HLS4ML's Vitis Unified Backend; therefore we need AXI-Lite to control the model. We have added two registers to BANK 0 of the \texttt{s\_axi\_write} module:
 
 \begin{itemize}
   \item \textbf{Address DFX\_MAN\_ADDR + \texttt{0x240}} --- \reg{prCtrlAddr}: stores the base address of the PR control IP (AXI-Lite slave of the HLS4ML model).
@@ -213,12 +213,12 @@ In current experiment session, we used the ML model from HLS4ML's Vitis Unified 
 
 Both registers are 32-bit wide (\texttt{GLOB\_ADDR\_WIDTH} / \texttt{GLOB\_DATA\_WIDTH}) and are decoded from address bits~[13:6] in the BANK~0 region (\texttt{write\_addr[15:14] == 2'b00}).
 
-To accurately collect the execution time for each ML, we added the 32 bits register into Bank 1 (\textbf{\texttt{0x4024 + 0x64 * RM\_ID}}) to collect the amount of cycles in the system.
+To accurately collect the execution time for each ML model, we added a 32-bit register to Bank 1 (\textbf{\texttt{0x4024 + 0x64 * RM\_ID}}) to record the number of elapsed cycles in the system.
 
 
 \subsection{DFX Decoupler Controller Next Gen}
 
-For debugging purpose, in the old version, The DFX Controller IP own the DFX decoupler; therefore, it is not possible for PS to bypass the control in some situations. We then redesign the ownership control of the dfx decoupler which is at address \texttt{0xA001\_0000}. The register bit-field definition is shown in Table~\ref{tab:dfx_decoupler_reg}.
+For debugging purposes, in the old version the DFX Controller IP owned the DFX decoupler, making it impossible for the PS to bypass control in some situations. We therefore redesigned the ownership control of the DFX decoupler, located at address \texttt{0xA001\_0000}. The register bit-field definition is shown in Table~\ref{tab:dfx_decoupler_reg}.
 
 \begin{table}[H]
   \centering
@@ -244,14 +244,14 @@ For debugging purpose, in the old version, The DFX Controller IP own the DFX dec
 \pagebreak
 
 
-\section{Temporal HLS4ML's Vitis Modified Backend Modification}
+\section{Temporal HLS4ML Vitis Unified Backend Modification}
 
-To explore multiple design that fit into DFX4ML and KV260, we decided to modify the HLS4ML's Vitis Unified backend to enable the it's interface connected to DFX4ML system. However, we did not want to build full new back-end right now. We want the minimal modification as follow:
+To explore multiple designs that fit into DFX4ML and the KV260, we decided to modify the HLS4ML Vitis Unified backend to enable its interface to connect to the DFX4ML system. However, we did not want to build a full new backend at this stage. We wanted the minimal modifications as follows:
 
 \begin{enumerate}
-  \item the mod backend's intermediate the layer's warp as baremetal bits (not convert back to float32 or other type)
-  \item we use software prediction result from Old Vitis Unified Backend for result checking.
-  \item we use Fifo-Depth optimization from Old Vitis Unfied Backend and manually copy it into the new chopped model
+  \item The modified backend intermediates the layer's wrap as bare-metal bits (without converting back to float32 or another type).
+  \item We use the software prediction result from the old Vitis Unified Backend for result checking.
+  \item We use the FIFO-depth optimisation from the old Vitis Unified Backend and manually copy it into the new chopped model.
 \end{enumerate}
 
 \begin{sloppypar}
@@ -280,15 +280,15 @@ Three parameters are specific to the modified backend:
 
 \begin{description}
   \item[\texttt{input\_flat}]
-    A boolean flag that controls whether the model's input warp is flattened into a 1-D stream of baremetal bits before being passed to the HLS kernel.
-    When \texttt{True}, it is flattened, else \texttt{False} the system convert from float32 to the target tensor.
+    A boolean flag that controls whether the model's input wrap is flattened into a 1-D stream of bare-metal bits before being passed to the HLS kernel.
+    When \texttt{True}, the input is flattened; when \texttt{False}, the system converts from float32 to the target tensor type.
 
   \item[\texttt{output\_flat}]
     The output-side counterpart of \texttt{input\_flat}.
 
   \item[\texttt{package\_as\_xo}]
     When \texttt{True} (bound to \texttt{full\_run}), the backend runs the full new Vitis HLS flow and packages the resulting kernel as an \texttt{.xo} object file ready for linking.
-    When \texttt{False}, it system will follow Vitis HLS ip for vivado flow.
+    When \texttt{False}, the system follows the Vitis HLS IP flow for Vivado.
 \end{description}
 
 \begin{sloppypar}
@@ -360,9 +360,9 @@ Figure~\ref{fig:recon_bar} shows the per-project reconfiguration time and Figure
   \label{fig:recon_scatter}
 \end{figure}
 
-\textbf{Key Takeaway}: As I experiment last year, the ZCU102's reconfigure rate is limited to ~399 MB/sec; therefore, the bottleneck is caused from the ICAP3 port that can be accepted only 32 bits per cycle (4 bytes). So at 100 MHz, the system's rate therefore saturate at 400 MHz (4 bytes * 100 MHz)
+\textbf{Key Takeaway}: As previously observed in experiments on the ZCU102, the reconfiguration rate is limited to $\sim$399\,MB/s; the bottleneck is the ICAP3 port, which accepts only 32 bits per cycle (4 bytes). At 100\,MHz, the throughput therefore saturates at 400\,MB/s (4 bytes $\times$ 100\,MHz).
 
-In addition, the bit file size and reconfigure time did not depend on the amount of used logic cell in the FPGA, it depends on the region size in the fabric.
+In addition, the bitstream file size and reconfiguration time do not depend on the number of used logic cells in the FPGA; they depend only on the region size in the fabric.
  
 \pagebreak
 
@@ -371,16 +371,18 @@ In addition, the bit file size and reconfigure time did not depend on the amount
 
 \subsubsection{Dynamic Region Layout}
 
-To allocate the fabric's resource for both dynamic region and static region.
+We allocate the fabric's resources between the dynamic region and the static region as follows.
 
 \begin{enumerate}
-  \item Static Region: we need it small as much as possible because it is not relevant to the ML workloads. However, we need the on-chip memory as much as possible because we require it for DFX Streamer to hold the intermediate data.
-  \item Dynamic Region: we need it large as much as possible because it is mainly used for ML workloads. However, The large region may invade the static region's URAM/BRAM memory and increase the reconfigure time.
+  \item Static Region: we need it as small as possible since it is not directly involved in ML workloads. However, we require as much on-chip memory as possible, since the DFX Streamer uses it to hold intermediate data.
+  \item Dynamic Region: we need it as large as possible since it is primarily used for ML workloads. However, a larger region may encroach on the static region's URAM/BRAM and increase reconfiguration time.
 \end{enumerate}
 
 
+
+
 As a result, we design the region arrangement shown in Fig.~\ref{fig:packing_layout}.
-We compactise the static region into the right of the fabric which has plenty of URAM/BRAM.
+We compact the static region into the right side of the fabric, which has abundant URAM/BRAM resources.
 Table~\ref{tab:static_mem} summarises the on-chip memory allocated to the static region.
 
 \begin{table}[H]
@@ -400,11 +402,18 @@ Table~\ref{tab:static_mem} summarises the on-chip memory allocated to the static
   \end{tabular}
 \end{table}
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\linewidth]{packing_layout.png}
+  \caption{DFX Streamer packing layout for the dynamic region.}
+  \label{fig:packing_layout}
+\end{figure}
+
 \pagebreak 
 
 \subsubsection{HLS4ML model}
 
-We used the modified HLS4ML's Vitis Unified Backend. With the following ML model (image generated from claude)
+We used the modified HLS4ML Vitis Unified Backend with the following ML model (image generated by Claude).
 
 \begin{figure}[H]
   \centering
@@ -415,7 +424,7 @@ We used the modified HLS4ML's Vitis Unified Backend. With the following ML model
 
 The model generated code and debugger are at \url{https://github.com/Tanawin1701d/hls4ml/blob/VitisUnifiedPartialExp/simple_conv_nn_vitis_unified_exp.py}
 
-The mode was chopped at the bottleneck layer and the fifo-depth optimization was copiled from the Vitis Unified Backend's model. The reuse factor was globally set to 8, but the internal HLS4ML may reconfigure to match the kernel alignment.
+The model was chopped at the bottleneck layer and the FIFO-depth optimisation was copied from the Vitis Unified Backend's model. The reuse factor was globally set to 8, although the internal HLS4ML logic may adjust it to match kernel alignment.
 
 \begin{sloppypar}
 In addition, we have modified the convolution to fix the BRAM over-utilisation problem for weight storage (\url{https://github.com/Tanawin1701d/hls4ml/commit/f21523ba25b67e429cc411d2b75378817aeb2cf4}).
@@ -440,12 +449,7 @@ Therefore, we can pack approximately $16384 + 3072 = 19456 \approx 20000$ querie
 
 \subsubsection{Synthesis \& implementation}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.85\linewidth]{packing_layout.png}
-  \caption{DFX Streamer packing layout for the dynamic region.}
-  \label{fig:packing_layout}
-\end{figure}
+
 
 \begin{figure}[H]
   \centering
@@ -529,30 +533,30 @@ Each configuration is shown at full range alongside a zoomed view ($<5000$ queri
 
 \pagebreak 
 
+ 
 
+\subsection{Multi-Region (IN-PROGRESS)}
 
-\subsubsection{Multi-Region (IN-PROGRESS)}
-
-Before modifying the whole system to support the multi DFX region, we would like to do a small experiment to learn how to use it for multi-region. The thing that we consider include:
+Before modifying the entire system to support multiple DFX regions, we would like to conduct a small experiment to understand how to work with multi-region configurations. The aspects we are considering include:
 
 \begin{enumerate}
   \item DFX Ctrl IP:
   \begin{enumerate}
-    \item Explore how to manage the signal for multi-region
-    \item Explore increasing the ICAP3 clock to 200 MHz (the maximum clock rate recommended for ICAP3 on Zync Ultrascale Plus) to increase the transfer rate from $\sim$400 MB/s to $\sim$800 MB/s while maintaining the rest of fabric at 100 MHz (ML + Static region)
+    \item Explore how to manage signals for multi-region configurations.
+    \item Explore increasing the ICAP3 clock to 200\,MHz (the maximum recommended clock rate for ICAP3 on Zynq UltraScale+) to raise the transfer rate from $\sim$400\,MB/s to $\sim$800\,MB/s, while keeping the rest of the fabric at 100\,MHz (ML and static region).
   \end{enumerate}
 
   \item DFX Manager IP (Magic Sequencer):
   \begin{enumerate}
-    \item We consider to upgrade bank 1 to support the latency hiding technique but We don't have the certain architecture right now.
-    \item The DFX Manager is right now huge and hard to maintain in Verilog, We might consider to replace it with SystemVerilog. (I think Claude can do this perfectly)
+    \item We are considering upgrading bank 1 to support the latency hiding technique, but the architecture has not yet been finalised.
+    \item The DFX Manager is currently large and difficult to maintain in Verilog; we may consider rewriting it in SystemVerilog. (I think Claude can do this perfectly.)
   \end{enumerate}
 
-  \item DFX Manager IP (Magic Sequencer):
+  \item Tcl Scripts (Block Design):
   \begin{enumerate}
-    \item We need to upgrade the tcl to enable the multi-region connection and DFX Streamer arrangement.
+    \item We need to upgrade the Tcl scripts to enable multi-region connections and DFX Streamer arrangement.
   \end{enumerate}
-  
+
 \end{enumerate}
 
 
