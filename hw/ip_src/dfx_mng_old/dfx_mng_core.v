@@ -20,7 +20,10 @@ module DFX_Mng_Core #(
     parameter BANK0_INTR_WIDTH    = 1, /// the interrupt for the sequencer
     parameter BANK0_ROUNDTRIP_WIDTH = 16, /// the round trip counter for the sequencer
 
+    parameter DMA_INIT_TASK_CNT   = 8, //// (reset interrupt + startReadChannel + baseAddr0 + size0) + (startWriteChannel + baseAddr1 + size1)
+    parameter DMA_EXEC_TASK_CNT   = 1,
 
+    parameter PR_CTRL_TASK_CNT    = 2  //// (set batch_size + ap_start)
 ) (
     input wire clk,
     input wire reset,

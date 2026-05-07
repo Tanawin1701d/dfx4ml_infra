@@ -85,10 +85,12 @@ module DFX_Mng_Core #(
     input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_store_mask_write_val   , input  wire  b1_store_mask_write_req,
     input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask_write_val, input  wire  b1_complete_mask_write_req,
 
-    input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_par_complete_mask_write_val, input  wire  b1_par_complete_mask_write_req
+    input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_par_complete_mask_write_val, input  wire  b1_par_complete_mask_write_req,
 
 
-
+    ////////////
+    output reg [DMA_INIT_TASK_CNT  -1:0]    dmaInitTask,
+    output reg [PR_CTRL_TASK_CNT   -1:0]    prCtrlTask
 
 
 
@@ -130,6 +132,7 @@ localparam STATE_EXEC_FIN_SYNC           = 4'b1001;
 /////////////////////////////////////////////
 ////// STATE MACHINE  ///////////////////////
 /////////////////////////////////////////////
+
 
 
 
@@ -299,6 +302,28 @@ always@( posedge clk) begin
                 if (all_sync)begin b0_recon_state <= STATE_RECON_SHUTDOWN; end
             end
         endcase
+    end
+
+    // exec state
+    if (~nreset)begin
+        b0_exec_state <= STATE_EXEC_SHUTDOWN;
+    end else if (b0_control_cmd_write_req && (b0_control_cmd_write_val == CTRL_CLEAR)) begin
+        b0_exec_state <= STATE_EXEC_SHUTDOWN;
+        dmaInitTask   <= 0;
+        prCtrlTask    <= 0;
+    end else begin
+        case (b0_exec_state)
+            STATE_EXEC_SHUTDOWN: begin
+                if (b0_main_state == STATE_MAIN_PROCESS)begin // main start we then start
+                    b0_exec_state <= STATE_EXEC_INITIALIZE_PR_CTRL;
+                    prCtrlTask    <= 1;
+                end
+            end
+
+
+        endcase
+
+
     end
 
 
