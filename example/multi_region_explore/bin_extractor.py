@@ -9,6 +9,10 @@ from datetime import datetime
 VIVADO_PRJ_DIR = Path(__file__).parent / "vivado_prj"
 EXPORT_DIR     = Path(__file__).parent / "export"
 EXPORT_HW_DIR  = EXPORT_DIR / "hw"
+EXPORT_SW_DIR  = EXPORT_DIR / "sw"
+
+SRC_SW_DIR     = Path(__file__).parent / "sw"
+SRC_NOTEBOOK   = Path(__file__).parent / "test.ipynb"
 
 PRJ_NAME = "multi_explore"
 RUNS_DIR = VIVADO_PRJ_DIR / f"{PRJ_NAME}.runs"
@@ -115,6 +119,17 @@ def copy_dfx_ctrl_cfg(hw_dir: Path, log: logging.Logger, copied: list[Path]) -> 
         log.error(f"DFX controller config not found: {DFX_CTRL_SRC}")
 
 
+def copy_sw_and_notebook(log: logging.Logger, copied: list[Path]) -> None:
+    EXPORT_SW_DIR.mkdir(parents=True, exist_ok=True)
+    for src in sorted(SRC_SW_DIR.iterdir()):
+        if src.is_file():
+            safe_copy(src, EXPORT_SW_DIR / src.name, log, copied)
+    if SRC_NOTEBOOK.exists():
+        safe_copy(SRC_NOTEBOOK, EXPORT_DIR / SRC_NOTEBOOK.name, log, copied)
+    else:
+        log.warning(f"Notebook not found: {SRC_NOTEBOOK}")
+
+
 def copy_partial_bitstreams(
     runs: dict[int, Path],
     hw_dir: Path,
@@ -190,6 +205,7 @@ def main() -> None:
     copy_partial_bitstreams(runs, EXPORT_HW_DIR, log, copied)
     copy_hwh_files(EXPORT_HW_DIR, log, copied)
     copy_dfx_ctrl_cfg(EXPORT_HW_DIR, log, copied)
+    copy_sw_and_notebook(log, copied)
 
     save_manifest(copied)
     log.info(f"Manifest saved: {len(copied)} file(s) tracked")
