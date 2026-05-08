@@ -32,7 +32,7 @@ module DFX_Mng_Core #(
     output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_read_val,
     output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_read_val,
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_read_val,
-    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_rm_ip_addr_read_val,
+    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_read_val,
     output wire                             b0_intr_ena_read_val,
     output wire                             b0_intr_status_read_val,
     //////// BANK 0 WRITE
@@ -43,7 +43,7 @@ module DFX_Mng_Core #(
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_write_val        , input wire b0_load_offset_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_write_val       , input wire b0_store_offset_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        , input wire b0_dma_ip_addr_write_req,
-    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_rm_ip_addr_write_val         , input wire b0_rm_ip_addr_write_req,
+    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val        , input wire b0_pr_ip_addr_write_req,
     input wire                             b0_intr_ena_write_val           , input wire b0_intr_ena_write_req,
     //////// BANK 1 READ
     input  wire                                   b1_read_indexer_req,
@@ -55,7 +55,8 @@ module DFX_Mng_Core #(
     output reg [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_read_val,
     output reg [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_read_val,
     output reg [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_read_val,
-    output reg [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_select_read_val,
+    output reg [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_recon_select_read_val,
+    output reg [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_exec_select_read_val,
     output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_read_val,
     output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_read_val,
     output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_read_val,
@@ -70,7 +71,8 @@ module DFX_Mng_Core #(
     input  wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_write_val , input  wire  b1_dma_des_size_write_req,
     input  wire [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_write_val   , input  wire  b1_prof_recon_write_req,
     input  wire [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_write_val    , input  wire  b1_prof_exec_write_req,
-    input  wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_select_write_val , input  wire  b1_vs_rm_select_write_req,
+    input  wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_recon_select_write_val , input  wire  b1_vs_rm_recon_select_write_req,
+    input  wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_exec_select_write_val , input  wire  b1_vs_rm_exec_select_write_req,
     input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_write_val    , input  wire  b1_load_mask_write_req,
     input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_write_val   , input  wire  b1_store_mask_write_req,
     input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_write_val, input  wire  b1_complete_mask_write_req,
@@ -155,7 +157,6 @@ reg [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query;
 reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query;
 reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter;
 reg [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr;
-reg [GLOB_ADDR_WIDTH     -1: 0] b0_rm_ip_addr;
 reg                             b0_intr_ena;
 reg                             b0_intr_status;
 /////////////////////////////////////////////
@@ -165,17 +166,18 @@ reg                             b0_intr_status;
 
 reg  [BANK1_INDEX_WIDTH-1 : 0] b1_read_indexer;
 
-reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_src_addr   [BANK1_ROWS-1: 0];
-reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_src_size   [BANK1_ROWS-1: 0];
-reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_des_addr   [BANK1_ROWS-1: 0];
-reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_des_size   [BANK1_ROWS-1: 0];
-reg [BANK1_PROFILE_RECON_WIDTH-1 : 0] b1_prof_recon     [BANK1_ROWS-1: 0];
-reg [BANK1_PROFILE_EXEC_WIDTH-1  : 0] b1_prof_exec      [BANK1_ROWS-1: 0];
-reg [BANK1_RM_SELECT_WIDTH-1     : 0] b1_vs_rm_select   [BANK1_ROWS-1: 0];
-reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_load_mask      [BANK1_ROWS-1: 0];
-reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_store_mask     [BANK1_ROWS-1: 0];
-reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask  [BANK1_ROWS-1: 0];
-reg [BANK1_INDEX_WIDTH-1         : 0] b1_next_session   [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_src_addr      [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_src_size      [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_des_addr      [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_des_size      [BANK1_ROWS-1: 0];
+reg [BANK1_PROFILE_RECON_WIDTH-1 : 0] b1_prof_recon        [BANK1_ROWS-1: 0];
+reg [BANK1_PROFILE_EXEC_WIDTH-1  : 0] b1_prof_exec         [BANK1_ROWS-1: 0];
+reg [BANK1_RM_SELECT_WIDTH-1     : 0] b1_vs_rm_recon_select[BANK1_ROWS-1: 0];
+reg [BANK1_RM_SELECT_WIDTH-1     : 0] b1_vs_rm_exec_select [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_load_mask         [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_store_mask        [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask     [BANK1_ROWS-1: 0];
+reg [BANK1_INDEX_WIDTH-1         : 0] b1_next_session      [BANK1_ROWS-1: 0];
 
 /////////////////////////////////////////////
 ////// system wire    ///////////////////////
@@ -188,7 +190,7 @@ assign dfx_stream_load_reset  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_ex
 assign dfx_stream_store_init  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
 assign dfx_stream_load_init   = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
 
-assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_select_write_val: 0;
+assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_recon_select_write_val: 0;
 
 /////////////////////////////////////////////
 ////// PROCEDURE   //////////////////////////
@@ -205,7 +207,8 @@ assign b0_cur_query_read_val          = b0_cur_query;
 assign b0_amt_query_read_val          = b0_amt_query;
 assign b0_amt_query_per_iter_read_val = b0_amt_query_per_iter;
 assign b0_dma_ip_addr_read_val        = b0_dma_ip_addr;
-assign b0_rm_ip_addr_read_val         = b0_rm_ip_addr;
+assign b0_pr_ip_addr_read_val        = b0_dma_ip_addr;
+
 assign b0_intr_ena_read_val           = b0_intr_ena;
 assign b0_intr_status_read_val        = b0_intr_status;
 
@@ -217,7 +220,8 @@ if (ps_b0_writable && b0_last_session_write_req       )begin b0_last_session    
 if (ps_b0_writable && b0_amt_query_write_req          )begin b0_amt_query          <= b0_amt_query_write_val;         end
 if (ps_b0_writable && b0_amt_query_per_iter_write_req )begin b0_amt_query_per_iter <= b0_amt_query_per_iter_write_val;end
 if (ps_b0_writable && b0_dma_ip_addr_write_req        )begin b0_dma_ip_addr        <= b0_dma_ip_addr_write_val;       end
-if (ps_b0_writable && b0_rm_ip_addr_write_req         )begin b0_rm_ip_addr         <= b0_rm_ip_addr_write_val;        end
+if (ps_b0_writable && b0_pr_ip_addr_write_req        )begin b0_dma_ip_addr        <= b0_pr_ip_addr_write_val;       end
+
 
 if      (!nreset)                                begin b0_intr_ena <= 0;                     end
 else if (ps_b0_writable && b0_intr_ena_write_req)begin b0_intr_ena <= b0_intr_ena_write_val; end
@@ -240,7 +244,8 @@ always@(posedge clk) begin
     b1_dma_des_size_read_val  <= b1_dma_des_size [b1_read_indexer];
     b1_prof_recon_read_val    <= b1_prof_recon   [b1_read_indexer];
     b1_prof_exec_read_val     <= b1_prof_exec    [b1_read_indexer];
-    b1_vs_rm_select_read_val  <= b1_vs_rm_select [b1_read_indexer];
+    b1_vs_rm_exec_select_read_val  <= b1_vs_rm_exec_select [b1_read_indexer];
+    b1_vs_rm_exec_select_read_val  <= b1_vs_rm_exec_select [b1_read_indexer];
     b1_load_mask_read_val     <= b1_load_mask    [b1_read_indexer];
     b1_store_mask_read_val    <= b1_store_mask   [b1_read_indexer];
     b1_complete_mask_read_val <= b1_complete_mask[b1_read_indexer];
@@ -248,17 +253,18 @@ always@(posedge clk) begin
 
     if (b0_main_state == STATE_MAIN_SHUTDOWN) begin
 
-        if (b1_dma_src_addr_write_req)  begin b1_dma_src_addr[b1_write_indexer_val]  <= b1_dma_src_addr_write_val; end
-        if (b1_dma_src_size_write_req)  begin b1_dma_src_size[b1_write_indexer_val]  <= b1_dma_src_size_write_val; end
-        if (b1_dma_des_addr_write_req)  begin b1_dma_des_addr[b1_write_indexer_val]  <= b1_dma_des_addr_write_val; end
-        if (b1_dma_des_size_write_req)  begin b1_dma_des_size[b1_write_indexer_val]  <= b1_dma_des_size_write_val; end
-        if (b1_prof_recon_write_req)    begin b1_prof_recon[b1_write_indexer_val]    <= b1_prof_recon_write_val;   end
-        if (b1_prof_exec_write_req)     begin b1_prof_exec[b1_write_indexer_val]     <= b1_prof_exec_write_val;    end
-        if (b1_vs_rm_select_write_req)  begin b1_vs_rm_select[b1_write_indexer_val]  <= b1_vs_rm_select_write_val; end
-        if (b1_load_mask_write_req)     begin b1_load_mask[b1_write_indexer_val]     <= b1_load_mask_write_val;    end
-        if (b1_store_mask_write_req)    begin b1_store_mask[b1_write_indexer_val]    <= b1_store_mask_write_val;   end
-        if (b1_complete_mask_write_req) begin b1_complete_mask[b1_write_indexer_val] <= b1_complete_mask_write_val; end
-        if (b1_next_session_write_req)  begin b1_next_session[b1_write_indexer_val]  <= b1_next_session_write_val; end
+        if (b1_dma_src_addr_write_req)       begin b1_dma_src_addr[b1_write_indexer_val]  <= b1_dma_src_addr_write_val; end
+        if (b1_dma_src_size_write_req)       begin b1_dma_src_size[b1_write_indexer_val]  <= b1_dma_src_size_write_val; end
+        if (b1_dma_des_addr_write_req)       begin b1_dma_des_addr[b1_write_indexer_val]  <= b1_dma_des_addr_write_val; end
+        if (b1_dma_des_size_write_req)       begin b1_dma_des_size[b1_write_indexer_val]  <= b1_dma_des_size_write_val; end
+        if (b1_prof_recon_write_req)         begin b1_prof_recon[b1_write_indexer_val]    <= b1_prof_recon_write_val;   end
+        if (b1_prof_exec_write_req)          begin b1_prof_exec[b1_write_indexer_val]     <= b1_prof_exec_write_val;    end
+        if (b1_vs_rm_exec_select_write_req)  begin b1_vs_rm_exec_select[b1_write_indexer_val]  <= b1_vs_rm_exec_select_write_val; end
+        if (b1_vs_rm_exec_select_write_req)  begin b1_vs_rm_exec_select[b1_write_indexer_val]  <= b1_vs_rm_exec_select_write_val; end
+        if (b1_load_mask_write_req)          begin b1_load_mask[b1_write_indexer_val]     <= b1_load_mask_write_val;    end
+        if (b1_store_mask_write_req)         begin b1_store_mask[b1_write_indexer_val]    <= b1_store_mask_write_val;   end
+        if (b1_complete_mask_write_req)      begin b1_complete_mask[b1_write_indexer_val] <= b1_complete_mask_write_val; end
+        if (b1_next_session_write_req)       begin b1_next_session[b1_write_indexer_val]  <= b1_next_session_write_val; end
 
     end else if (b0_main_state == STATE_MAIN_PROCESS) begin
 
