@@ -1,122 +1,119 @@
 module DFX_Mng_Core #(
 
     // ADDRESS & DATA
-    parameter GLOB_ADDR_WIDTH = 32, // Address width for AXI interface
-    parameter GLOB_DATA_WIDTH = 32, // Data width for AXI interface
-
+    parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
+    parameter GLOB_DATA_WIDTH     = 32, // Data width for AXI interface
+    // BANK 0
     parameter BANK0_CONTROL_WIDTH = 4,
     parameter BANK0_STATE_BIT_LEN = 4,
     parameter BANK0_QUERY_BIT_LEN = 32,
-
-
-
-    parameter BANK1_INDEX_WIDTH            =  3, // 2 ^ 2 = 4 slots
-    parameter BANK1_DATA_ADDR_WIDTH         = 32, // <---- DATA FROM DMA START ADDR
-    parameter BANK1_DATA_SIZE_WIDTH         = 26,
-    parameter BANK1_RM_SELECT_WIDTH         = 2, // it should be n(vs) x n(rm perslot)
-    parameter BANK1_PROFILE_RECON_WIDTH    = 32, // <---- PROFILER RECON
-    parameter BANK1_PROFILE_EXEC_WIDTH     = 32, // <---- PROFILER EXEC
+    // BANK 1
+    parameter BANK1_INDEX_WIDTH          =  3, // 2 ^ 2 = 4 slots
+    parameter BANK1_DATA_ADDR_WIDTH      = 32, // <---- DATA FROM DMA START ADDR
+    parameter BANK1_DATA_SIZE_WIDTH      = 26,
+    parameter BANK1_RM_SELECT_WIDTH      = 2, // it should be n(vs) x n(rm perslot)
+    parameter BANK1_PROFILE_RECON_WIDTH  = 32, // <---- PROFILER RECON
+    parameter BANK1_PROFILE_EXEC_WIDTH   = 32, // <---- PROFILER EXEC
     parameter BANK1_DATA_POOL_MASK_WIDTH =  8, // <---- MASK OF MGS and DMA
-
+    // DMA CONTROL PARAMETER
     parameter DMA_INIT_TASK_CNT   = 8, //// (reset interrupt + startReadChannel + baseAddr0 + size0) + (startWriteChannel + baseAddr1 + size1)
     parameter DMA_EXEC_TASK_CNT   = 1,
-
+    // PR  CONTROL PARAMETER
     parameter PR_CTRL_TASK_CNT    = 2  //// (set batch_size + ap_start)
 ) (
     input wire clk,
     input wire nreset,
-
-    //////// BANK 0
-
+    //////// BANK 0 READ
     output wire [BANK0_STATE_BIT_LEN -1: 0] b0_main_state_read_val,
     output wire [BANK0_STATE_BIT_LEN -1: 0] b0_recon_state_read_val,
     output wire [BANK0_STATE_BIT_LEN -1: 0] b0_exec_state_read_val,
     output wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_read_val,
+    output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query_read_val,
     output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_read_val,
     output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_read_val,
-    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_read_val,
-    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_accum_read_val,
-    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_read_val,
-    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_accum_read_val,
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_read_val,
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_rm_ip_addr_read_val,
     output wire                             b0_intr_ena_read_val,
     output wire                             b0_intr_status_read_val,
-
+    //////// BANK 0 WRITE
     input wire [BANK0_CONTROL_WIDTH -1: 0] b0_control_cmd_write_val        , input wire b0_control_cmd_write_req,
     input wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_write_val       , input wire b0_last_session_write_req,
     input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_write_val          , input wire b0_amt_query_write_req,
     input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_write_val , input wire b0_amt_query_per_iter_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_write_val        , input wire b0_load_offset_write_req,
-    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_accum_write_val  , input wire b0_load_offset_accum_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_write_val       , input wire b0_store_offset_write_req,
-    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_accum_write_val , input wire b0_store_offset_accum_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        , input wire b0_dma_ip_addr_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_rm_ip_addr_write_val         , input wire b0_rm_ip_addr_write_req,
     input wire                             b0_intr_ena_write_val           , input wire b0_intr_ena_write_req,
-    //////// BANK 1
-
-    //////////// BANK 1 read data
+    //////// BANK 1 READ
     input  wire                                   b1_read_indexer_req,
     input  wire [BANK1_INDEX_WIDTH-1         : 0] b1_read_indexer_val,
 
-    output reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_src_addr_read_val,
-    output reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_src_size_read_val,
-    output reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_des_addr_read_val,
-    output reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_des_size_read_val,
-    output reg [BANK1_PROFILE_RECON_WIDTH-1 : 0] b1_prof_recon_read_val,
-    output reg [BANK1_PROFILE_EXEC_WIDTH-1  : 0] b1_prof_exec_read_val,
-    output reg [BANK1_RM_SELECT_WIDTH-1     : 0] b1_vs_rm_select_read_val,
-    output reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_load_mask_read_val,
-    output reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_store_mask_read_val,
-    output reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask_read_val,
+    output reg [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_read_val,
+    output reg [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_read_val,
+    output reg [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_des_addr_read_val,
+    output reg [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_read_val,
+    output reg [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_read_val,
+    output reg [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_read_val,
+    output reg [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_select_read_val,
+    output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_read_val,
+    output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_read_val,
+    output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_read_val,
+    output reg [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_read_val,
 
-    //////////// BANK 1 write data
+    //////////// BANK 1 WRITE
     input  wire [BANK1_INDEX_WIDTH-1         : 0] b1_write_indexer_val,
 
-    input  wire [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_src_addr_write_val , input  wire  b1_dma_src_addr_write_req,
-    input  wire [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_src_size_write_val , input  wire  b1_dma_src_size_write_req,
-    input  wire [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_des_addr_write_val , input  wire  b1_dma_des_addr_write_req,
-    input  wire [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_des_size_write_val , input  wire  b1_dma_des_size_write_req,
-    input  wire [BANK1_PROFILE_RECON_WIDTH-1 : 0] b1_prof_recon_write_val   , input  wire  b1_prof_recon_write_req,
-    input  wire [BANK1_PROFILE_EXEC_WIDTH-1  : 0] b1_prof_exec_write_val    , input  wire  b1_prof_exec_write_req,
-    input  wire [BANK1_RM_SELECT_WIDTH-1     : 0] b1_vs_rm_select_write_val , input  wire  b1_vs_rm_select_write_req,
-    input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_load_mask_write_val    , input  wire  b1_load_mask_write_req,
-    input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_store_mask_write_val   , input  wire  b1_store_mask_write_req,
-    input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask_write_val, input  wire  b1_complete_mask_write_req,
+    input  wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_write_val , input  wire  b1_dma_src_addr_write_req,
+    input  wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_write_val , input  wire  b1_dma_src_size_write_req,
+    input  wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_des_addr_write_val , input  wire  b1_dma_des_addr_write_req,
+    input  wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_write_val , input  wire  b1_dma_des_size_write_req,
+    input  wire [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_write_val   , input  wire  b1_prof_recon_write_req,
+    input  wire [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_write_val    , input  wire  b1_prof_exec_write_req,
+    input  wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_select_write_val , input  wire  b1_vs_rm_select_write_req,
+    input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_write_val    , input  wire  b1_load_mask_write_req,
+    input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_write_val   , input  wire  b1_store_mask_write_req,
+    input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_write_val, input  wire  b1_complete_mask_write_req,
+    input  wire [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_write_val , input  wire  b1_next_session_write_req,
 
     input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_par_complete_mask_write_val, input  wire  b1_par_complete_mask_write_req,
 
+    //////////// DMA and PR ctrl
+    output reg [DMA_INIT_TASK_CNT  -1:0]    dma_init_task,
+    input  wire[DMA_INIT_TASK_CNT  -1:0]    dma_fin_task,
 
-    ////////////
-    output reg [DMA_INIT_TASK_CNT  -1:0]    dmaInitTask,
-    output reg [PR_CTRL_TASK_CNT   -1:0]    prCtrlTask
+    output reg [PR_CTRL_TASK_CNT   -1:0]    pr_ctrl_task,
+    input  wire[PR_CTRL_TASK_CNT   -1:0]    pr_ctrl_fin_task,
 
+    //////////// MGS Communication
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_store_reset,
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_load_reset,
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_store_init,
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_load_init,
 
+    input  wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_fin,
 
-
-
-
-
-
+    //////////// DFX Ctrl
+    output wire[BANK1_RM_SELECT_WIDTH     -1: 0] dfx_rm_program,
+    input  wire[BANK1_RM_SELECT_WIDTH     -1: 0] dfx_rm_nreset
 
 );
 
 localparam BANK1_ROWS = 1 << BANK1_INDEX_WIDTH;
 
-localparam CTRL_CLEAR            = 4'b0000;
-localparam CTRL_SHUTDOWN         = 4'b0001;
-localparam CTRL_START            = 4'b0010;
+localparam CTRL_CLEAR                    = 4'b0000;
+localparam CTRL_SHUTDOWN                 = 4'b0001;
+localparam CTRL_START                    = 4'b0010;
 
-localparam STATE_MAIN_SHUTDOWN     = 4'b0000;
-localparam STATE_MAIN_PROCESS      = 4'b0001;
-localparam STATE_MAIN_PRE_SHUTDOWN = 4'b0010;
+localparam STATE_MAIN_SHUTDOWN           = 4'b0000;
+localparam STATE_MAIN_PROCESS            = 4'b0001;
+localparam STATE_MAIN_PRE_SHUTDOWN       = 4'b0010;
 
-localparam STATE_RECON_SHUTDOWN     = 4'b0000;
-localparam STATE_RECON_REPROG       = 4'b0001;
-localparam STATE_RECON_W4SLAVERESET = 4'b0010;
-localparam STATE_RECON_W4SLAVEOP    = 4'b0011;
-localparam STATE_RECON_FIN_SYNC     = 4'b0100;
+localparam STATE_RECON_SHUTDOWN          = 4'b0000;
+localparam STATE_RECON_REPROG            = 4'b0001;
+localparam STATE_RECON_W4SLAVERESET      = 4'b0010;
+localparam STATE_RECON_W4SLAVEOP         = 4'b0011;
+localparam STATE_RECON_FIN_SYNC          = 4'b0100;
 
 localparam STATE_EXEC_SHUTDOWN           = 4'b0000;
 localparam STATE_EXEC_INITIALIZE_PR_CTRL = 4'b0001; // initialize PR-controlled IP (set batch_size + ap_start)
@@ -129,18 +126,23 @@ localparam STATE_EXEC_TRIGGERING         = 4'b0111;
 localparam STATE_EXEC_WAIT4FIN           = 4'b1000;
 localparam STATE_EXEC_FIN_SYNC           = 4'b1001;
 
+///////////// task for dma
+localparam DMA_TASK_RESET_INTR_BEG = 0; // reset the interrupt signal task
+localparam DMA_TASK_RESET_INTR_END = 1; // reset the interrupt signal
+localparam DMA_TASK_LOAD_TASK_BEG  = 2;  // load task begin
+localparam DMA_TASK_LOAD_TASK_END  = 4;  // load task end
+localparam DMA_TASK_STORE_TASK_BEG = 5; // store task begin
+localparam DMA_TASK_STORE_TASK_END = 7; // store task end
+
+///////////// task for PR ctrl IP
+localparam PR_CTRL_TASK_BATCH_SIZE = 0; // write BATCH_SIZE to IP offset 0x10
+localparam PR_CTRL_TASK_AP_START   = 1; // write ap_start (0x01) to IP offset 0x00
+
+
+
 /////////////////////////////////////////////
 ////// STATE MACHINE  ///////////////////////
 /////////////////////////////////////////////
-
-
-
-
-/////////////////////////////////////////////
-////// system wire    ///////////////////////
-/////////////////////////////////////////////
-wire all_sync = (b0_recon_state == STATE_RECON_FIN_SYNC) &&  (b0_exec_state == STATE_EXEC_FIN_SYNC);
-
 
 /////////////////////////////////////////////
 ////// BANK 0 MEM  //////////////////////////
@@ -149,34 +151,13 @@ reg [BANK0_STATE_BIT_LEN -1: 0] b0_main_state;
 reg [BANK0_STATE_BIT_LEN -1: 0] b0_recon_state;
 reg [BANK0_STATE_BIT_LEN -1: 0] b0_exec_state;
 reg [BANK1_INDEX_WIDTH   -1: 0] b0_last_session;
+reg [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query;
 reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query;
 reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter;
-reg [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset; // it stores the size in memory that will be offset in each group of session run for data input load
-reg [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_accum; // it stores the size in memory that will be offset in each group of session run for data input load
-reg [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset; // it stores the size in memory that will be offset in each group of session run for data input store
-reg [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_accum; // it stores the size in memory that will be offset in each group of session run for data input store
 reg [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr;
 reg [GLOB_ADDR_WIDTH     -1: 0] b0_rm_ip_addr;
 reg                             b0_intr_ena;
 reg                             b0_intr_status;
-
-assign b0_main_state_read_val         = b0_main_state;
-assign b0_recon_state_read_val        = b0_recon_state;
-assign b0_exec_state_read_val         = b0_exec_state;
-assign b0_last_session_read_val       = b0_last_session;
-assign b0_amt_query_read_val          = b0_amt_query;
-assign b0_amt_query_per_iter_read_val = b0_amt_query_per_iter;
-assign b0_load_offset_read_val        = b0_load_offset;
-assign b0_load_offset_accum_read_val  = b0_load_offset_accum;
-assign b0_store_offset_read_val       = b0_store_offset;
-assign b0_store_offset_accum_read_val = b0_store_offset_accum;
-assign b0_dma_ip_addr_read_val        = b0_dma_ip_addr;
-assign b0_rm_ip_addr_read_val         = b0_rm_ip_addr;
-assign b0_intr_ena_read_val           = b0_intr_ena;
-assign b0_intr_status_read_val        = b0_intr_status;
-
-
-
 /////////////////////////////////////////////
 ////// BANK 1 MEM  //////////////////////////
 /////////////////////////////////////////////
@@ -196,55 +177,121 @@ reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_store_mask     [BANK1_ROWS-1: 0];
 reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask  [BANK1_ROWS-1: 0];
 reg [BANK1_INDEX_WIDTH-1         : 0] b1_next_session   [BANK1_ROWS-1: 0];
 
+/////////////////////////////////////////////
+////// system wire    ///////////////////////
+/////////////////////////////////////////////
+wire all_sync = (b0_recon_state == STATE_RECON_FIN_SYNC) &&  (b0_exec_state == STATE_EXEC_FIN_SYNC);
 
+
+assign dfx_stream_store_reset = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_load_mask_read_val : 0;
+assign dfx_stream_load_reset  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_load_mask_read_val : 0;
+assign dfx_stream_store_init  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
+assign dfx_stream_load_init   = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
+
+assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_select_write_val: 0;
 
 /////////////////////////////////////////////
 ////// PROCEDURE   //////////////////////////
 /////////////////////////////////////////////
+
+/////////////////////////////////////////////
+////// BANK 0 REG  //////////////////////////
+/////////////////////////////////////////////
+assign b0_main_state_read_val         = b0_main_state;
+assign b0_recon_state_read_val        = b0_recon_state;
+assign b0_exec_state_read_val         = b0_exec_state;
+assign b0_last_session_read_val       = b0_last_session;
+assign b0_cur_query_read_val          = b0_cur_query;
+assign b0_amt_query_read_val          = b0_amt_query;
+assign b0_amt_query_per_iter_read_val = b0_amt_query_per_iter;
+assign b0_dma_ip_addr_read_val        = b0_dma_ip_addr;
+assign b0_rm_ip_addr_read_val         = b0_rm_ip_addr;
+assign b0_intr_ena_read_val           = b0_intr_ena;
+assign b0_intr_status_read_val        = b0_intr_status;
+
+wire ps_b0_writable = b0_main_state == STATE_MAIN_SHUTDOWN;
+
+always@(posedge clk)begin
+
+if (ps_b0_writable && b0_last_session_write_req       )begin b0_last_session       <= b0_last_session_write_val;      end
+if (ps_b0_writable && b0_amt_query_write_req          )begin b0_amt_query          <= b0_amt_query_write_val;         end
+if (ps_b0_writable && b0_amt_query_per_iter_write_req )begin b0_amt_query_per_iter <= b0_amt_query_per_iter_write_val;end
+if (ps_b0_writable && b0_dma_ip_addr_write_req        )begin b0_dma_ip_addr        <= b0_dma_ip_addr_write_val;       end
+if (ps_b0_writable && b0_rm_ip_addr_write_req         )begin b0_rm_ip_addr         <= b0_rm_ip_addr_write_val;        end
+
+if      (!nreset)                                begin b0_intr_ena <= 0;                     end
+else if (ps_b0_writable && b0_intr_ena_write_req)begin b0_intr_ena <= b0_intr_ena_write_val; end
+
+
+end
+
+
 
 
 /////////////////////////////////////////////
 ////// BANK 1 MEM  //////////////////////////
 /////////////////////////////////////////////
 
+always@(posedge clk) begin
 
-
-
-always@( posedge clk) begin
-
-    b1_dma_src_addr_read_val  <= b1_dma_src_addr[ b1_read_indexer];
-    b1_dma_src_size_read_val  <= b1_dma_src_size[ b1_read_indexer];
-    b1_dma_des_addr_read_val  <= b1_dma_des_addr[ b1_read_indexer];
-    b1_dma_des_size_read_val  <= b1_dma_des_size[ b1_read_indexer];
-    b1_prof_recon_read_val    <= b1_prof_recon[ b1_read_indexer];
-    b1_prof_exec_read_val     <= b1_prof_exec[ b1_read_indexer];
-    b1_vs_rm_select_read_val  <= b1_vs_rm_select[ b1_read_indexer];
-    b1_load_mask_read_val     <= b1_load_mask[ b1_read_indexer];
-    b1_store_mask_read_val    <= b1_store_mask[ b1_read_indexer];
-    b1_complete_mask_read_val <= b1_complete_mask[ b1_read_indexer];
+    b1_dma_src_addr_read_val  <= b1_dma_src_addr [b1_read_indexer];
+    b1_dma_src_size_read_val  <= b1_dma_src_size [b1_read_indexer];
+    b1_dma_des_addr_read_val  <= b1_dma_des_addr [b1_read_indexer];
+    b1_dma_des_size_read_val  <= b1_dma_des_size [b1_read_indexer];
+    b1_prof_recon_read_val    <= b1_prof_recon   [b1_read_indexer];
+    b1_prof_exec_read_val     <= b1_prof_exec    [b1_read_indexer];
+    b1_vs_rm_select_read_val  <= b1_vs_rm_select [b1_read_indexer];
+    b1_load_mask_read_val     <= b1_load_mask    [b1_read_indexer];
+    b1_store_mask_read_val    <= b1_store_mask   [b1_read_indexer];
+    b1_complete_mask_read_val <= b1_complete_mask[b1_read_indexer];
+    b1_next_session_read_val  <= b1_next_session [b1_read_indexer];
 
     if (b0_main_state == STATE_MAIN_SHUTDOWN) begin
 
-        if (b1_dma_src_addr_write_req)  begin b1_dma_src_addr[b1_write_indexer_val]  <=     b1_dma_src_addr_write_val; end
-        if (b1_dma_src_size_write_req)  begin b1_dma_src_size[b1_write_indexer_val]  <=     b1_dma_src_size_write_val; end
-        if (b1_dma_des_addr_write_req)  begin b1_dma_des_addr[b1_write_indexer_val]  <=     b1_dma_des_addr_write_val; end
-        if (b1_dma_des_size_write_req)  begin b1_dma_des_size[b1_write_indexer_val]  <=     b1_dma_des_size_write_val; end
-        if (b1_prof_recon_write_req)    begin b1_prof_recon[b1_write_indexer_val]    <=     b1_prof_recon_write_val;   end
-        if (b1_prof_exec_write_req)     begin b1_prof_exec[b1_write_indexer_val]     <=     b1_prof_exec_write_val;    end
-        if (b1_vs_rm_select_write_req)  begin b1_vs_rm_select[b1_write_indexer_val]  <=     b1_vs_rm_select_write_val; end
-        if (b1_load_mask_write_req)     begin b1_load_mask[b1_write_indexer_val]     <=     b1_load_mask_write_val;    end
-        if (b1_store_mask_write_req)    begin b1_store_mask[b1_write_indexer_val]    <=     b1_store_mask_write_val;   end
-        if (b1_complete_mask_write_req) begin b1_complete_mask[b1_write_indexer_val] <=    b1_complete_mask_write_val; end
+        if (b1_dma_src_addr_write_req)  begin b1_dma_src_addr[b1_write_indexer_val]  <= b1_dma_src_addr_write_val; end
+        if (b1_dma_src_size_write_req)  begin b1_dma_src_size[b1_write_indexer_val]  <= b1_dma_src_size_write_val; end
+        if (b1_dma_des_addr_write_req)  begin b1_dma_des_addr[b1_write_indexer_val]  <= b1_dma_des_addr_write_val; end
+        if (b1_dma_des_size_write_req)  begin b1_dma_des_size[b1_write_indexer_val]  <= b1_dma_des_size_write_val; end
+        if (b1_prof_recon_write_req)    begin b1_prof_recon[b1_write_indexer_val]    <= b1_prof_recon_write_val;   end
+        if (b1_prof_exec_write_req)     begin b1_prof_exec[b1_write_indexer_val]     <= b1_prof_exec_write_val;    end
+        if (b1_vs_rm_select_write_req)  begin b1_vs_rm_select[b1_write_indexer_val]  <= b1_vs_rm_select_write_val; end
+        if (b1_load_mask_write_req)     begin b1_load_mask[b1_write_indexer_val]     <= b1_load_mask_write_val;    end
+        if (b1_store_mask_write_req)    begin b1_store_mask[b1_write_indexer_val]    <= b1_store_mask_write_val;   end
+        if (b1_complete_mask_write_req) begin b1_complete_mask[b1_write_indexer_val] <= b1_complete_mask_write_val; end
+        if (b1_next_session_write_req)  begin b1_next_session[b1_write_indexer_val]  <= b1_next_session_write_val; end
 
     end else if (b0_main_state == STATE_MAIN_PROCESS) begin
 
+        //// partial update complete mask
         if (b1_par_complete_mask_write_req) begin
-            b1_complete_mask[b1_write_indexer_val] <= (b1_complete_mask_read_val |
+            b1_complete_mask[b1_write_indexer_val] <= (b1_complete_mask[b1_write_indexer_val] |
                                                        b1_par_complete_mask_write_val);
         end
 
-    end
+        //// partial update recon profiler
+        if ( (b0_recon_state == STATE_RECON_REPROG      ) |
+             (b0_recon_state == STATE_RECON_W4SLAVERESET) |
+             (b0_recon_state == STATE_RECON_W4SLAVEOP   )
+        )begin
+            b1_prof_recon[b1_write_indexer_val]    <= b1_prof_recon[b1_write_indexer_val] + 1;
+        end
+        //// partial update exec profiler
+        if (    (b0_exec_state == STATE_EXEC_INITIALIZE_PR_CTRL) |
+                (b0_exec_state == STATE_EXEC_CLEAR_MGS)          |
+                (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)     |
+                (b0_exec_state == STATE_EXEC_INITIALIZE_DMA)     |
+                (b0_exec_state == STATE_EXEC_SET_DMA_LOAD)       |
+                (b0_exec_state == STATE_EXEC_SET_DMA_STORE)      |
+                (b0_exec_state == STATE_EXEC_TRIGGERING)         |
+                (b0_exec_state == STATE_EXEC_WAIT4FIN)            )begin
 
+           b1_prof_exec[b1_write_indexer_val] <= b1_prof_exec[b1_write_indexer_val] + 1;
+        end
+
+    end else if (b0_main_state == STATE_MAIN_PRE_SHUTDOWN)begin
+        b1_dma_src_addr[b1_write_indexer_val] <= b1_dma_src_addr_read_val + b1_dma_src_size_read_val;
+        b1_dma_des_addr[b1_write_indexer_val] <= b1_dma_des_addr_read_val + b1_dma_des_size_read_val;
+    end
 end
 
 
@@ -257,14 +304,15 @@ always@( posedge clk) begin
         b0_exec_state   <= STATE_EXEC_SHUTDOWN;
         b0_intr_status  <= 0;
         b1_read_indexer <= 0;
+        b0_cur_query    <= 0;
     end else if (b0_control_cmd_write_req) begin
         //  master command from PS
         case(b0_control_cmd_write_val)
             CTRL_CLEAR: begin
                 b0_main_state   <= STATE_MAIN_SHUTDOWN;
                 b0_exec_state   <= STATE_MAIN_PRE_SHUTDOWN;
-                b0_intr_status  <= 0;
                 b1_read_indexer <= 0;
+                b0_cur_query    <= 0;
             end
             CTRL_SHUTDOWN: begin
                 b0_main_state  <= STATE_MAIN_SHUTDOWN; // we don't reset recon and exec state due to debuggability
@@ -275,10 +323,40 @@ always@( posedge clk) begin
                 b0_exec_state   <= STATE_EXEC_SHUTDOWN;
                 b0_intr_status  <= 0;
                 b1_read_indexer <= 0;
+                b0_cur_query    <= 0;
             end
         endcase
     end else begin
-        /// handle case (STATE_MAIN_PROCESS/ STATE_MAIN_PRE_SHUTDOWN)
+        case(b0_main_state)
+            STATE_MAIN_SHUTDOWN:begin
+                if (b1_read_indexer_req)begin
+                    b1_read_indexer <= b1_read_indexer_val;
+                end
+                b0_cur_query    <= 0;
+            end
+            STATE_MAIN_PROCESS:begin
+                if (all_sync)begin
+                    b0_main_state <= STATE_MAIN_PRE_SHUTDOWN;
+                end
+            end
+            STATE_MAIN_PRE_SHUTDOWN: begin
+                b0_main_state   <= STATE_MAIN_PROCESS;
+                b1_read_indexer <= b1_next_session_read_val;
+                if (b0_last_session_read_val == b1_read_indexer) begin   /// each batch is finish
+                    //// auto restart if amt query is not fin yet
+                    b0_cur_query <= b0_cur_query + b0_amt_query_per_iter;
+                    if ( (b0_cur_query + b0_amt_query_per_iter) == b0_amt_query)begin
+                        b0_main_state <= STATE_MAIN_SHUTDOWN;
+                        if (b0_intr_ena)begin
+                            b0_intr_status <= 1;
+                        end
+                    end
+
+                end
+            end
+
+
+        endcase
 
 
     end
@@ -296,8 +374,16 @@ always@( posedge clk) begin
                 end
             end
             STATE_RECON_REPROG      : begin b0_recon_state <= STATE_RECON_W4SLAVERESET; end
-            STATE_RECON_W4SLAVERESET: begin b0_recon_state <= STATE_RECON_W4SLAVEOP   ; end
-            STATE_RECON_W4SLAVEOP   : begin b0_recon_state <= STATE_RECON_FIN_SYNC    ; end
+            STATE_RECON_W4SLAVERESET: begin
+                if (dfx_rm_nreset != 0) begin
+                    b0_recon_state <= STATE_RECON_W4SLAVEOP;
+                end
+            end
+            STATE_RECON_W4SLAVEOP   : begin
+                if (dfx_rm_nreset == 0) begin
+                    b0_recon_state <= STATE_RECON_FIN_SYNC;
+                end
+             end
             STATE_RECON_FIN_SYNC    : begin
                 if (all_sync)begin b0_recon_state <= STATE_RECON_SHUTDOWN; end
             end
@@ -307,29 +393,85 @@ always@( posedge clk) begin
     // exec state
     if (~nreset)begin
         b0_exec_state <= STATE_EXEC_SHUTDOWN;
+        dma_init_task <= 0;
+        pr_ctrl_task  <= 0;
     end else if (b0_control_cmd_write_req && (b0_control_cmd_write_val == CTRL_CLEAR)) begin
         b0_exec_state <= STATE_EXEC_SHUTDOWN;
-        dmaInitTask   <= 0;
-        prCtrlTask    <= 0;
+        dma_init_task <= 0;
+        pr_ctrl_task  <= 0;
     end else begin
         case (b0_exec_state)
             STATE_EXEC_SHUTDOWN: begin
                 if (b0_main_state == STATE_MAIN_PROCESS)begin // main start we then start
                     b0_exec_state <= STATE_EXEC_INITIALIZE_PR_CTRL;
-                    prCtrlTask    <= 1;
+                    pr_ctrl_task    <= 1;
                 end
             end
-
-
+            STATE_EXEC_INITIALIZE_PR_CTRL: begin
+                if (pr_ctrl_fin_task[PR_CTRL_TASK_AP_START]) begin
+                     b0_exec_state <= STATE_EXEC_CLEAR_MGS;
+                     pr_ctrl_task <= 0;
+                end else if (pr_ctrl_fin_task != 0) begin
+                     pr_ctrl_task <= pr_ctrl_task << 1;
+                end
+            end
+            STATE_EXEC_CLEAR_MGS: begin
+                b0_exec_state <= STATE_EXEC_INITIALIZE_MGS;
+            end
+            STATE_EXEC_INITIALIZE_MGS: begin
+                b0_exec_state <= STATE_EXEC_INITIALIZE_DMA;
+                dma_init_task <= 1;
+            end
+            STATE_EXEC_INITIALIZE_DMA: begin
+                if (dma_fin_task[DMA_TASK_RESET_INTR_END])begin
+                    if (b1_load_mask_read_val[0])begin
+                        b0_exec_state <= STATE_EXEC_SET_DMA_LOAD;
+                        dma_init_task <= 1 << DMA_TASK_LOAD_TASK_BEG;
+                    end else if (b1_store_mask_read_val[0]) begin
+                        b0_exec_state <= STATE_EXEC_SET_DMA_STORE;
+                        dma_init_task <= 1 << DMA_TASK_STORE_TASK_BEG;
+                    end else begin
+                        b0_exec_state <= STATE_EXEC_TRIGGERING;
+                        dma_init_task <= 0;
+                    end
+                end else if (dma_fin_task != 0) begin
+                    dma_init_task <= dma_init_task << 1;
+                end
+            end
+            STATE_EXEC_SET_DMA_LOAD: begin
+                if (dma_fin_task[DMA_TASK_LOAD_TASK_END])begin
+                    if(b1_store_mask_read_val[0]) begin
+                        b0_exec_state <= STATE_EXEC_SET_DMA_STORE;
+                        dma_init_task <= 1 << DMA_TASK_STORE_TASK_BEG;
+                    end else begin
+                        b0_exec_state <= STATE_EXEC_TRIGGERING;
+                        dma_init_task <= 0;
+                    end
+                end else if (dma_fin_task != 0) begin
+                    dma_init_task <= dma_init_task << 1;
+                end
+            end
+            STATE_EXEC_SET_DMA_STORE: begin
+                if (dma_fin_task[DMA_TASK_STORE_TASK_END])begin
+                    b0_exec_state <= STATE_EXEC_TRIGGERING;
+                    dma_init_task <= 0;
+                end else if (dma_fin_task != 0) begin
+                    dma_init_task <= dma_init_task << 1;
+                end
+            end
+            STATE_EXEC_TRIGGERING: begin
+                b0_exec_state <= STATE_EXEC_WAIT4FIN;
+            end
+            STATE_EXEC_WAIT4FIN: begin
+                if (b1_store_mask_read_val == b1_complete_mask_read_val) begin
+                     b0_exec_state <= STATE_RECON_FIN_SYNC;
+                end
+            end
+            STATE_RECON_FIN_SYNC: begin
+                if (all_sync)begin b0_exec_state <= STATE_EXEC_SHUTDOWN; end
+            end
         endcase
-
-
     end
-
-
-
-
-
 end
 
 
