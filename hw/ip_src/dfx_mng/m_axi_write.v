@@ -1,4 +1,4 @@
-module m_axi_write #(
+module M_AXI_WRITE #(
      // ADDRESS & DATA
     parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
     parameter GLOB_DATA_WIDTH     = 32, // Data width for AXI interface
@@ -19,7 +19,7 @@ module m_axi_write #(
     parameter PR_CTRL_TASK_CNT    = 2  //// (set batch_size + ap_start)
 )(
     input  wire                   clk,
-    input  wire                   reset,
+    input  wire                   nreset,
 
     // AXI Lite Write Address Channel
     output  reg [GLOB_ADDR_WIDTH-1:0]  M_AXI_AWADDR, ///// actually it is wire
@@ -114,9 +114,9 @@ control main state machine
 
 reg[3:0] state;
 
-always @(posedge clk or negedge reset) begin
+always @(posedge clk or negedge nreset) begin
 
-    if (~reset)begin
+    if (~nreset)begin
         state = STATUS_IDLE;
     end else begin
         case(state)

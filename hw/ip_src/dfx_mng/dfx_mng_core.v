@@ -43,8 +43,8 @@ module DFX_Mng_Core #(
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val        , input wire b0_pr_ip_addr_write_req,
     input wire                             b0_intr_ena_write_val           , input wire b0_intr_ena_write_req,
     //////// BANK 1 READ
-    input  wire                                   b1_read_indexer_req,
-    input  wire [BANK1_INDEX_WIDTH-1         : 0] b1_read_indexer_val,
+    input  wire                                    b1_read_indexer_req,
+    input  wire [GLOB_ADDR_WIDTH            -1: 0] b1_read_address_val,
 
     output reg [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_read_val,
     output reg [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_read_val,
@@ -60,7 +60,7 @@ module DFX_Mng_Core #(
     output reg [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_read_val,
 
     //////////// BANK 1 WRITE
-    input  wire [BANK1_INDEX_WIDTH-1         : 0] b1_write_indexer_val,
+    input  wire [GLOB_ADDR_WIDTH-1         : 0] b1_write_address_val,
 
     input  wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_write_val , input  wire  b1_dma_src_addr_write_req,
     input  wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_write_val , input  wire  b1_dma_src_size_write_req,
@@ -74,8 +74,6 @@ module DFX_Mng_Core #(
     input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_write_val   , input  wire  b1_store_mask_write_req,
     input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_write_val, input  wire  b1_complete_mask_write_req,
     input  wire [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_write_val , input  wire  b1_next_session_write_req,
-
-    input  wire [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_par_complete_mask_write_val, input  wire  b1_par_complete_mask_write_req,
 
     //////////// DMA and PR ctrl
     output reg [DMA_INIT_TASK_CNT  -1:0]    dma_init_task,
@@ -177,9 +175,13 @@ reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask     [BANK1_ROWS-1: 0];
 reg [BANK1_INDEX_WIDTH-1         : 0] b1_next_session      [BANK1_ROWS-1: 0];
 
 /////////////////////////////////////////////
-////// system wire    ///////////////////////
+////// system wire & register   /////////////
 /////////////////////////////////////////////
+
 wire all_sync = (b0_recon_state == STATE_RECON_FIN_SYNC) &&  (b0_exec_state == STATE_EXEC_FIN_SYNC);
+
+wire [BANK1_INDEX_WIDTH-1 :0] b1_read_indexer_val  = b1_read_address_val [6+:BANK1_INDEX_WIDTH];
+wire [BANK1_INDEX_WIDTH-1 :0] b1_write_indexer_val = b1_write_address_val[6+:BANK1_INDEX_WIDTH];
 
 
 assign dfx_stream_store_reset = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_load_mask_read_val : 0;
@@ -188,6 +190,9 @@ assign dfx_stream_store_init  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_ex
 assign dfx_stream_load_init   = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
 
 assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_recon_select_write_val: 0;
+wire dfx_rm_nreset_current = (dfx_rm_nreset & b1_vs_rm_recon_select_write_val) != 0;
+
+
 
 /////////////////////////////////////////////
 ////// PROCEDURE   //////////////////////////
@@ -266,10 +271,7 @@ always@(posedge clk) begin
     end else if (b0_main_state == STATE_MAIN_PROCESS) begin
 
         //// partial update complete mask
-        if (b1_par_complete_mask_write_req) begin
-            b1_complete_mask[b1_write_indexer_val] <= (b1_complete_mask[b1_write_indexer_val] |
-                                                       b1_par_complete_mask_write_val);
-        end
+        b1_complete_mask[b1_write_indexer_val] <= (b1_complete_mask[b1_write_indexer_val] | dfx_stream_fin);
 
         //// partial update recon profiler
         if ( (b0_recon_state == STATE_RECON_REPROG      ) |
@@ -333,7 +335,7 @@ always@( posedge clk) begin
         case(b0_main_state)
             STATE_MAIN_SHUTDOWN:begin
                 if (b1_read_indexer_req)begin
-                    b1_read_indexer <= b1_read_indexer_val;
+                    b1_read_indexer <= b1_read_indexer_val[6 +: BANK1_INDEX_WIDTH];
                 end
                 b0_cur_query    <= 0;
             end
@@ -378,12 +380,12 @@ always@( posedge clk) begin
             end
             STATE_RECON_REPROG      : begin b0_recon_state <= STATE_RECON_W4SLAVERESET; end
             STATE_RECON_W4SLAVERESET: begin
-                if (dfx_rm_nreset != 0) begin
+                if (~dfx_rm_nreset_current) begin
                     b0_recon_state <= STATE_RECON_W4SLAVEOP;
                 end
             end
             STATE_RECON_W4SLAVEOP   : begin
-                if (dfx_rm_nreset == 0) begin
+                if (dfx_rm_nreset_current) begin
                     b0_recon_state <= STATE_RECON_FIN_SYNC;
                 end
              end

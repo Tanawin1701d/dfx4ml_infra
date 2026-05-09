@@ -1,7 +1,7 @@
 
 
 
-module s_axi_read #(
+module S_AXI_READ #(
 
 // ADDRESS & DATA
     parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
@@ -39,35 +39,35 @@ module s_axi_read #(
     output wire                         S_AXI_RVALID,
     input  wire                         S_AXI_RREADY,
 
-    output  reg[GLOB_ADDR_WIDTH-1:0]         read_addr,   //// when connect to dfx_core req, you must indice the read_addr[13:6]
-    output  reg                              read_req,           // actually it is a wire
+    output  reg[GLOB_ADDR_WIDTH-1:0]         b1_read_address_val,   //// when connect to dfx_core req, you must indice the read_addr[13:6]
+    output  reg                              b1_read_indexer_req,           // actually it is a wire
     ////// bank1 interconnect
 
-    input wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_read_val,
-    input wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_read_val,
-    input wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_des_addr_read_val,
-    input wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_read_val,
-    input wire [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_read_val,
-    input wire [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_read_val,
-    input wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_recon_select_read_val,
-    input wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_exec_select_read_val,
-    input wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_read_val,
-    input wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_read_val,
-    input wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_read_val,
-    input wire [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_read_val,
+    input wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_send_val,
+    input wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_send_val,
+    input wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_des_addr_send_val,
+    input wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_send_val,
+    input wire [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_send_val,
+    input wire [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_send_val,
+    input wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_recon_select_send_val,
+    input wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_exec_select_send_val,
+    input wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_send_val,
+    input wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_send_val,
+    input wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_send_val,
+    input wire [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_send_val,
 
     ////// bank0 interconnect
-    input wire [BANK0_STATE_BIT_LEN -1: 0] b0_main_state_read_val,
-    input wire [BANK0_STATE_BIT_LEN -1: 0] b0_recon_state_read_val,
-    input wire [BANK0_STATE_BIT_LEN -1: 0] b0_exec_state_read_val,
-    input wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_read_val,
-    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query_read_val,
-    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_read_val,
-    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_read_val,
-    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_read_val,
-    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_read_val,
-    input wire                             b0_intr_ena_read_val,
-    input wire                             b0_intr_status_read_val
+    input wire [BANK0_STATE_BIT_LEN -1: 0] b0_main_state_send_val,
+    input wire [BANK0_STATE_BIT_LEN -1: 0] b0_recon_state_send_val,
+    input wire [BANK0_STATE_BIT_LEN -1: 0] b0_exec_state_send_val,
+    input wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_send_val,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query_send_val,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_send_val,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_send_val,
+    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_send_val,
+    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_send_val,
+    input wire                             b0_intr_ena_send_val,
+    input wire                             b0_intr_status_send_val
 
 
 
@@ -85,19 +85,19 @@ reg[2:0]            state; // State variable for FSM
 always @(posedge clk or negedge nreset ) begin
     if (~nreset) begin
         state <= ST_IDLE;
-        read_req <= 0;
+        b1_read_indexer_req <= 0;
     end else begin
         case (state)
             ST_IDLE: begin
                 if (S_AXI_ARVALID) begin ///// address is comming response immediately
                     state <= ST_READDATA;
-                    read_addr <= S_AXI_ARADDR;
-                    read_req  <= 1;
+                    b1_read_address_val <= S_AXI_ARADDR;
+                    b1_read_indexer_req  <= 1;
                 end
             end
             ST_READFETCH: begin
                 state     <= ST_READDATA;
-                read_req  <= 0;
+                b1_read_indexer_req  <= 0;
             end
             ST_READDATA: begin
                 if (S_AXI_RREADY) begin ///// send data response immediately
@@ -120,46 +120,46 @@ assign S_AXI_ARREADY = (state == ST_IDLE) && S_AXI_ARVALID; // Ready to accept r
 assign S_AXI_RRESP   = 2'b00;
 assign S_AXI_RVALID  = (state == ST_READDATA);
 
-assign ext_bank1_out_index = read_addr[BANK1_INDEX_WIDTH+6-1:6]; // Extracting index from address bits 5 and 4
+assign ext_bank1_out_index = b1_read_address_val[BANK1_INDEX_WIDTH+6-1:6]; // Extracting index from address bits 5 and 4
 
 always @(*) begin
 
     S_AXI_RDATA       = 0; // Default case for unsupported addresses
 
     if (state == ST_READDATA)begin
-        if (read_addr[15:14] == 2'b00) begin
+        if (b1_read_address_val[15:14] == 2'b00) begin
 
-            case (read_addr[13:6]) // Address bits 13 to 6 determine the slot
+            case (b1_read_address_val[13:6]) // Address bits 13 to 6 determine the slot
                 8'h00:   begin S_AXI_RDATA = 0                             ; end
-                8'h01:   begin S_AXI_RDATA = b0_main_state_read_val        ; end
-                8'h02:   begin S_AXI_RDATA = b0_recon_state_read_val       ; end
-                8'h03:   begin S_AXI_RDATA = b0_exec_state_read_val        ; end
-                8'h04:   begin S_AXI_RDATA = b0_last_session_read_val      ; end
-                8'h05:   begin S_AXI_RDATA = b0_cur_query_read_val         ; end
-                8'h06:   begin S_AXI_RDATA = b0_amt_query_read_val         ; end
-                8'h07:   begin S_AXI_RDATA = b0_amt_query_per_iter_read_val; end
-                8'h08:   begin S_AXI_RDATA = b0_dma_ip_addr_read_val       ; end
-                8'h09:   begin S_AXI_RDATA = b0_pr_ip_addr_read_val        ; end
-                8'h0A:   begin S_AXI_RDATA = b0_intr_ena_read_val          ; end
-                8'h0B:   begin S_AXI_RDATA = b0_intr_status_read_val       ; end
+                8'h01:   begin S_AXI_RDATA = b0_main_state_send_val        ; end
+                8'h02:   begin S_AXI_RDATA = b0_recon_state_send_val       ; end
+                8'h03:   begin S_AXI_RDATA = b0_exec_state_send_val        ; end
+                8'h04:   begin S_AXI_RDATA = b0_last_session_send_val      ; end
+                8'h05:   begin S_AXI_RDATA = b0_cur_query_send_val         ; end
+                8'h06:   begin S_AXI_RDATA = b0_amt_query_send_val         ; end
+                8'h07:   begin S_AXI_RDATA = b0_amt_query_per_iter_send_val; end
+                8'h08:   begin S_AXI_RDATA = b0_dma_ip_addr_send_val       ; end
+                8'h09:   begin S_AXI_RDATA = b0_pr_ip_addr_send_val        ; end
+                8'h0A:   begin S_AXI_RDATA = b0_intr_ena_send_val          ; end
+                8'h0B:   begin S_AXI_RDATA = b0_intr_status_send_val       ; end
                 default: begin S_AXI_RDATA = 0                             ; end
             endcase
 
-        end else if (read_addr[15:14] == 2'b01) begin
+        end else if (b1_read_address_val[15:14] == 2'b01) begin
 
-            case (read_addr[5: 2])
-                4'b0000:  begin S_AXI_RDATA = b1_dma_src_addr_read_val       ; end
-                4'b0001:  begin S_AXI_RDATA = b1_dma_src_size_read_val       ; end
-                4'b0010:  begin S_AXI_RDATA = b1_dma_des_addr_read_val       ; end
-                4'b0011:  begin S_AXI_RDATA = b1_dma_des_size_read_val       ; end
-                4'b0100:  begin S_AXI_RDATA = b1_prof_recon_read_val         ; end
-                4'b0101:  begin S_AXI_RDATA = b1_prof_exec_read_val          ; end
-                4'b0110:  begin S_AXI_RDATA = b1_vs_rm_recon_select_read_val ; end
-                4'b0111:  begin S_AXI_RDATA = b1_vs_rm_exec_select_read_val  ; end
-                4'b1000:  begin S_AXI_RDATA = b1_load_mask_read_val          ; end
-                4'b1001:  begin S_AXI_RDATA = b1_store_mask_read_val         ; end
-                4'b1010:  begin S_AXI_RDATA = b1_complete_mask_read_val      ; end
-                4'b1011:  begin S_AXI_RDATA = b1_next_session_read_val       ; end
+            case (b1_read_address_val[5: 2])
+                4'b0000:  begin S_AXI_RDATA = b1_dma_src_addr_send_val       ; end
+                4'b0001:  begin S_AXI_RDATA = b1_dma_src_size_send_val       ; end
+                4'b0010:  begin S_AXI_RDATA = b1_dma_des_addr_send_val       ; end
+                4'b0011:  begin S_AXI_RDATA = b1_dma_des_size_send_val       ; end
+                4'b0100:  begin S_AXI_RDATA = b1_prof_recon_send_val         ; end
+                4'b0101:  begin S_AXI_RDATA = b1_prof_exec_send_val          ; end
+                4'b0110:  begin S_AXI_RDATA = b1_vs_rm_recon_select_send_val ; end
+                4'b0111:  begin S_AXI_RDATA = b1_vs_rm_exec_select_send_val  ; end
+                4'b1000:  begin S_AXI_RDATA = b1_load_mask_send_val          ; end
+                4'b1001:  begin S_AXI_RDATA = b1_store_mask_send_val         ; end
+                4'b1010:  begin S_AXI_RDATA = b1_complete_mask_send_val      ; end
+                4'b1011:  begin S_AXI_RDATA = b1_next_session_send_val       ; end
 
             endcase
 

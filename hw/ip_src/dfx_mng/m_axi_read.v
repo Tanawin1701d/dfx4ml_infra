@@ -1,10 +1,10 @@
-module m_axi_read #(
+module M_AXI_READ #(
     parameter GLOB_ADDR_WIDTH = 32,
     parameter GLOB_DATA_WIDTH = 32
 )(
 
 input wire clk,
-input  wire reset,
+input  wire nreset,
 
 // Read Address Channel
 output  wire [GLOB_ADDR_WIDTH-1:0]  M_AXI_ARADDR,

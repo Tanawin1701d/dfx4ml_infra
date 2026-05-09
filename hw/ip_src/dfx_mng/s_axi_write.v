@@ -1,4 +1,4 @@
-module s_axi_write #(
+module S_AXI_WRITE #(
     // ADDRESS & DATA
     parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
     parameter GLOB_DATA_WIDTH     = 32, // Data width for AXI interface
@@ -34,7 +34,7 @@ module s_axi_write #(
     output wire                      S_AXI_BVALID,
     input  wire                      S_AXI_BREADY,
 
-    output reg [GLOB_ADDR_WIDTH    -1: 0] write_addr,
+    output reg [GLOB_ADDR_WIDTH    -1: 0] b1_write_address_val,
 
     //// bank0 interconnect
     output wire [BANK0_CONTROL_WIDTH -1: 0] b0_control_cmd_send_val        , output reg b0_control_cmd_send_req,       // actually it is wire but we want to put it into always block
@@ -84,12 +84,12 @@ always @(posedge clk or negedge nreset ) begin
 
     if (~nreset) begin
         state <= ST_IDLE;
-        write_addr <= 0;
+        b1_write_address_val <= 0;
     end else begin
         case (state)
             ST_IDLE: begin
                 if (S_AXI_AWVALID) begin
-                    write_addr <= S_AXI_AWADDR;
+                    b1_write_address_val <= S_AXI_AWADDR;
                     state <= ST_DATA;
                 end
             end
@@ -183,9 +183,9 @@ always @(*) begin
 
 
     if (state == ST_DATA) begin
-        case (write_addr[15:14])
+        case (b1_write_address_val[15:14])
             2'b00: begin
-                case (write_addr[13:6]) // Address bits 13 to 6 determine the slot
+                case (b1_write_address_val[13:6]) // Address bits 13 to 6 determine the slot
 
                     8'h00: begin b0_control_cmd_send_req        = 1; end
                     // 8'h01:       main state
@@ -204,7 +204,7 @@ always @(*) begin
             end
 
             2'b01: begin
-                case (write_addr[5:2]) // Address bits 5 to 2 determine the slot
+                case (b1_write_address_val[5:2]) // Address bits 5 to 2 determine the slot
                     4'b0000: begin b1_dma_src_addr_send_req       = 1; end
                     4'b0001: begin b1_dma_src_size_send_req       = 1; end
                     4'b0010: begin b1_dma_des_addr_send_req       = 1; end
