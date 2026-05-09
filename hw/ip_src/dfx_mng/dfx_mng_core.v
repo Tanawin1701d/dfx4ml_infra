@@ -1,5 +1,4 @@
 module DFX_Mng_Core #(
-
     // ADDRESS & DATA
     parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
     parameter GLOB_DATA_WIDTH     = 32, // Data width for AXI interface
@@ -40,8 +39,6 @@ module DFX_Mng_Core #(
     input wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_write_val       , input wire b0_last_session_write_req,
     input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_write_val          , input wire b0_amt_query_write_req,
     input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_write_val , input wire b0_amt_query_per_iter_write_req,
-    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_write_val        , input wire b0_load_offset_write_req,
-    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_write_val       , input wire b0_store_offset_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        , input wire b0_dma_ip_addr_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val        , input wire b0_pr_ip_addr_write_req,
     input wire                             b0_intr_ena_write_val           , input wire b0_intr_ena_write_req,
