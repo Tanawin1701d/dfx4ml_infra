@@ -277,3 +277,120 @@ class DFX_Mng:
         self.print_main_status()
         self.print_slot_data()
         print("-------------------------------")
+
+    # =============================================
+    # ===== test ==================================
+    # =============================================
+
+    def test_reg_readback(self):
+        """
+        Shut down the IP, write test patterns to every R/W register,
+        read back, and verify each value matches (applying the hardware
+        register width mask where the register is narrower than 32 bits).
+
+        NOTE: this test is destructive — all writable registers are
+        overwritten. Call clear_engine() / re-initialise after if needed.
+
+        Returns True if every check passes, False otherwise.
+        """
+        failures = []
+
+        def check(name, wrote, got, mask=0xFFFFFFFF):
+            expected = wrote & mask
+            actual   = got   & mask
+            ok       = (expected == actual)
+            tag      = "PASS" if ok else "FAIL"
+            print(f"  [{tag}] {name:<46}  wrote={hex(expected):<12}  got={hex(actual):<12}")
+            if not ok:
+                failures.append((name, expected, actual))
+
+        # ---- step 1: force SHUTDOWN ----------------------------------------
+        print("[test] issuing SHUTDOWN command ...")
+        self.shutdown_engine()
+        if self.get_main_state() != 0:
+            print("[test] ERROR: MAIN_STATE is not SHUTDOWN — aborting test")
+            return False
+        print("[test] IP confirmed in SHUTDOWN state\n")
+
+        # ---- step 2: Bank 0 R/W registers ----------------------------------
+        print("[test] ===== Bank 0 R/W registers =====")
+
+        self.set_last_session(0x5)
+        check("REG_LAST_SESSION",       0x5,        self.get_last_session(),       mask=0x7)
+
+        self.set_amt_query(0xDEADBEEF)
+        check("REG_AMT_QUERY",          0xDEADBEEF, self.get_amt_query())
+
+        self.set_amt_query_per_iter(0xCAFEBABE)
+        check("REG_AMT_QUERY_PER_ITER", 0xCAFEBABE, self.get_amt_query_per_iter())
+
+        self.set_dma_ip_addr(0x12345678)
+        check("REG_DMA_IP_ADDR",        0x12345678, self.get_dma_ip_addr())
+
+        self.set_pr_ip_addr(0x87654321)
+        check("REG_PR_IP_ADDR",         0x87654321, self.get_pr_ip_addr())
+
+        self.set_intr_ena(0x1)
+        check("REG_INTR_ENA",           0x1,        self.get_intr_ena(),           mask=0x1)
+
+        # ---- step 3: Bank 1 slot registers ---------------------------------
+        print(f"\n[test] ===== Bank 1 slot registers (0..{self.LIM_AMT_SLOT - 1}) =====")
+
+        for s in range(self.LIM_AMT_SLOT):
+            print(f"\n  -- slot {s} --")
+
+            src_addr      = (0xA0000000 | (s << 16)) & 0xFFFFFFFF
+            src_size      = (0x00100000 | (s <<  8)) & 0x3FFFFFF   # 26-bit
+            des_addr      = (0xB0000000 | (s << 16)) & 0xFFFFFFFF
+            des_size      = (0x00200000 | (s <<  8)) & 0x3FFFFFF   # 26-bit
+            prof_recon    = (0xAABBCC00 | s)         & 0xFFFFFFFF
+            prof_exec     = (0x11223300 | s)         & 0xFFFFFFFF
+            rm_recon_sel  = (s + 1) & 0x3                          # 2-bit
+            rm_exec_sel   = (s + 2) & 0x3                          # 2-bit
+            load_mask     = (0xAA | s)  & 0xFF                     # 8-bit
+            store_mask    = (0x55 | s)  & 0xFF                     # 8-bit
+            complete_mask = (0x33 | s)  & 0xFF                     # 8-bit
+            next_session  = (s + 1) % self.LIM_AMT_SLOT            # 3-bit, linked-list chain
+
+            self.set_slot(self.SLOT_DMA_SRC_ADDR,    s, src_addr)
+            self.set_slot(self.SLOT_DMA_SRC_SIZE,    s, src_size)
+            self.set_slot(self.SLOT_DMA_DES_ADDR,    s, des_addr)
+            self.set_slot(self.SLOT_DMA_DES_SIZE,    s, des_size)
+            self.set_slot(self.SLOT_PROF_RECON,      s, prof_recon)
+            self.set_slot(self.SLOT_PROF_EXEC,       s, prof_exec)
+            self.set_slot(self.SLOT_VS_RM_RECON_SEL, s, rm_recon_sel)
+            self.set_slot(self.SLOT_VS_RM_EXEC_SEL,  s, rm_exec_sel)
+            self.set_slot(self.SLOT_LOAD_MASK,       s, load_mask)
+            self.set_slot(self.SLOT_STORE_MASK,      s, store_mask)
+            self.set_slot(self.SLOT_COMPLETE_MASK,   s, complete_mask)
+            self.set_slot(self.SLOT_NEXT_SESSION,    s, next_session)
+
+            (rb_src_addr, rb_src_size, rb_des_addr, rb_des_size,
+             rb_prof_recon, rb_prof_exec, rb_rm_recon_sel, rb_rm_exec_sel,
+             rb_load_mask, rb_store_mask, rb_complete_mask,
+             rb_next_session) = self.get_slot(s)
+
+            check(f"slot[{s}] SLOT_DMA_SRC_ADDR",    src_addr,      rb_src_addr)
+            check(f"slot[{s}] SLOT_DMA_SRC_SIZE",    src_size,      rb_src_size,     mask=0x3FFFFFF)
+            check(f"slot[{s}] SLOT_DMA_DES_ADDR",    des_addr,      rb_des_addr)
+            check(f"slot[{s}] SLOT_DMA_DES_SIZE",    des_size,      rb_des_size,     mask=0x3FFFFFF)
+            check(f"slot[{s}] SLOT_PROF_RECON",      prof_recon,    rb_prof_recon)
+            check(f"slot[{s}] SLOT_PROF_EXEC",       prof_exec,     rb_prof_exec)
+            check(f"slot[{s}] SLOT_VS_RM_RECON_SEL", rm_recon_sel,  rb_rm_recon_sel, mask=0x3)
+            check(f"slot[{s}] SLOT_VS_RM_EXEC_SEL",  rm_exec_sel,   rb_rm_exec_sel,  mask=0x3)
+            check(f"slot[{s}] SLOT_LOAD_MASK",       load_mask,     rb_load_mask,    mask=0xFF)
+            check(f"slot[{s}] SLOT_STORE_MASK",      store_mask,    rb_store_mask,   mask=0xFF)
+            check(f"slot[{s}] SLOT_COMPLETE_MASK",   complete_mask, rb_complete_mask,mask=0xFF)
+            check(f"slot[{s}] SLOT_NEXT_SESSION",    next_session,  rb_next_session, mask=0x7)
+
+        # ---- step 4: summary -----------------------------------------------
+        total  = 6 + self.LIM_AMT_SLOT * 12
+        passed = total - len(failures)
+        print(f"\n[test] ===== Result: {passed}/{total} passed =====")
+        if failures:
+            print("[test] FAILED registers:")
+            for name, exp, got in failures:
+                print(f"         {name}: expected={hex(exp)}, got={hex(got)}")
+        else:
+            print("[test] All registers PASSED")
+        return len(failures) == 0
