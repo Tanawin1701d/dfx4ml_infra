@@ -152,6 +152,7 @@ reg [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query;
 reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query;
 reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter;
 reg [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr;
+reg [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr;
 reg                             b0_intr_ena;
 reg                             b0_intr_status;
 /////////////////////////////////////////////
@@ -209,7 +210,7 @@ assign b0_cur_query_read_val          = b0_cur_query;
 assign b0_amt_query_read_val          = b0_amt_query;
 assign b0_amt_query_per_iter_read_val = b0_amt_query_per_iter;
 assign b0_dma_ip_addr_read_val        = b0_dma_ip_addr;
-assign b0_pr_ip_addr_read_val        = b0_dma_ip_addr;
+assign b0_pr_ip_addr_read_val        = b0_pr_ip_addr;
 
 assign b0_intr_ena_read_val           = b0_intr_ena;
 assign b0_intr_status_read_val        = b0_intr_status;
@@ -222,7 +223,7 @@ if (ps_b0_writable && b0_last_session_write_req       )begin b0_last_session    
 if (ps_b0_writable && b0_amt_query_write_req          )begin b0_amt_query          <= b0_amt_query_write_val;         end
 if (ps_b0_writable && b0_amt_query_per_iter_write_req )begin b0_amt_query_per_iter <= b0_amt_query_per_iter_write_val;end
 if (ps_b0_writable && b0_dma_ip_addr_write_req        )begin b0_dma_ip_addr        <= b0_dma_ip_addr_write_val;       end
-if (ps_b0_writable && b0_pr_ip_addr_write_req        )begin b0_dma_ip_addr        <= b0_pr_ip_addr_write_val;       end
+if (ps_b0_writable && b0_pr_ip_addr_write_req         )begin b0_pr_ip_addr         <= b0_pr_ip_addr_write_val;       end
 
 
 if      (!nreset)                                begin b0_intr_ena <= 0;                     end
@@ -246,7 +247,7 @@ always@(posedge clk) begin
     b1_dma_des_size_read_val  <= b1_dma_des_size [b1_read_indexer];
     b1_prof_recon_read_val    <= b1_prof_recon   [b1_read_indexer];
     b1_prof_exec_read_val     <= b1_prof_exec    [b1_read_indexer];
-    b1_vs_rm_exec_select_read_val  <= b1_vs_rm_exec_select [b1_read_indexer];
+    b1_vs_rm_recon_select_read_val <= b1_vs_rm_recon_select[b1_read_indexer];
     b1_vs_rm_exec_select_read_val  <= b1_vs_rm_exec_select [b1_read_indexer];
     b1_load_mask_read_val     <= b1_load_mask    [b1_read_indexer];
     b1_store_mask_read_val    <= b1_store_mask   [b1_read_indexer];
@@ -261,7 +262,7 @@ always@(posedge clk) begin
         if (b1_dma_des_size_write_req)       begin b1_dma_des_size[b1_write_indexer_val]  <= b1_dma_des_size_write_val; end
         if (b1_prof_recon_write_req)         begin b1_prof_recon[b1_write_indexer_val]    <= b1_prof_recon_write_val;   end
         if (b1_prof_exec_write_req)          begin b1_prof_exec[b1_write_indexer_val]     <= b1_prof_exec_write_val;    end
-        if (b1_vs_rm_exec_select_write_req)  begin b1_vs_rm_exec_select[b1_write_indexer_val]  <= b1_vs_rm_exec_select_write_val; end
+        if (b1_vs_rm_recon_select_write_req) begin b1_vs_rm_recon_select[b1_write_indexer_val] <= b1_vs_rm_recon_select_write_val; end
         if (b1_vs_rm_exec_select_write_req)  begin b1_vs_rm_exec_select[b1_write_indexer_val]  <= b1_vs_rm_exec_select_write_val; end
         if (b1_load_mask_write_req)          begin b1_load_mask[b1_write_indexer_val]     <= b1_load_mask_write_val;    end
         if (b1_store_mask_write_req)         begin b1_store_mask[b1_write_indexer_val]    <= b1_store_mask_write_val;   end
@@ -335,7 +336,7 @@ always@( posedge clk) begin
         case(b0_main_state)
             STATE_MAIN_SHUTDOWN:begin
                 if (b1_read_indexer_req)begin
-                    b1_read_indexer <= b1_read_indexer_val[6 +: BANK1_INDEX_WIDTH];
+                    b1_read_indexer <= b1_read_indexer_val;
                 end
                 b0_cur_query    <= 0;
             end
@@ -469,10 +470,10 @@ always@( posedge clk) begin
             end
             STATE_EXEC_WAIT4FIN: begin
                 if (b1_store_mask_read_val == b1_complete_mask_read_val) begin
-                     b0_exec_state <= STATE_RECON_FIN_SYNC;
+                     b0_exec_state <= STATE_EXEC_FIN_SYNC;
                 end
             end
-            STATE_RECON_FIN_SYNC: begin
+            STATE_EXEC_FIN_SYNC: begin
                 if (all_sync)begin b0_exec_state <= STATE_EXEC_SHUTDOWN; end
             end
         endcase

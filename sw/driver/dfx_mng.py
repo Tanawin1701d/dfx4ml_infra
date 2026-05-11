@@ -15,9 +15,9 @@ class DFX_Mng:
         self.offset  = offset
         self.host_ip = host_ip
         # Bit Layout start bit
-        self.BL_COL_ST  =  2 
-        self.BL_ROW_ST  =  6 
-        self.BL_BNK_ST  = 14 
+        self.BL_COL_ST  =  2
+        self.BL_ROW_ST  =  6
+        self.BL_BNK_ST  = 14
         # Bit Layout size
         self.BIT_COL_SZ = 4
         self.BIT_ROW_SZ = 8
@@ -25,35 +25,37 @@ class DFX_Mng:
         # |-- BIT_BNK_SZ --|-- BIT_ROW_SZ --|-- BIT_COL_SZ --|
 
         # bank 0 register address meta
-        # ==                  (bankId, rowIdx, colIdx)
-        self.REG_CTRL         = (0, 0, 0)
-        self.REG_ST           = (0, 1, 0)
-        self.REG_MAINCNT      = (0, 2, 0)
-        self.REG_ENDCNT       = (0, 3, 0)
-        self.REG_DMA_ADDR     = (0, 4, 0)
-        self.REG_DFX_ADDR     = (0, 5, 0)
-        self.REG_INTR_ENA     = (0, 6, 0)
-        self.REG_INTR         = (0, 7, 0)
-        self.REG_ROUND_TRIP   = (0, 8, 0)
-        self.REG_PR_CTRL_ADDR = (0, 9, 0)
-        self.REG_BATCH_SIZE   = (0,10, 0)
+        # == (bankId, rowIdx, colIdx)
+        self.REG_CTRL               = (0, 0x00, 0)  # write only
+        self.REG_MAIN_STATE         = (0, 0x01, 0)  # read only
+        self.REG_RECON_STATE        = (0, 0x02, 0)  # read only
+        self.REG_EXEC_STATE         = (0, 0x03, 0)  # read only
+        self.REG_LAST_SESSION       = (0, 0x04, 0)  # read/write (writable in SHUTDOWN)
+        self.REG_CUR_QUERY          = (0, 0x05, 0)  # read only
+        self.REG_AMT_QUERY          = (0, 0x06, 0)  # read/write (writable in SHUTDOWN)
+        self.REG_AMT_QUERY_PER_ITER = (0, 0x07, 0)  # read/write (writable in SHUTDOWN)
+        self.REG_DMA_IP_ADDR        = (0, 0x08, 0)  # read/write (writable in SHUTDOWN)
+        self.REG_PR_IP_ADDR         = (0, 0x09, 0)  # read/write (writable in SHUTDOWN)
+        self.REG_INTR_ENA           = (0, 0x0A, 0)  # read/write (writable in SHUTDOWN)
+        self.REG_INTR_STATUS        = (0, 0x0B, 0)  # read only
 
-        #### the row must be change to match the slot
-        ######(bankId, rowIdx(row can vary), colIdx)
-        self.SLOT_SRC_ADDR    = (1,0,0)
-        self.SLOT_SRC_SIZE    = (1,0,1)
-        self.SLOT_DES_ADDR    = (1,0,2)
-        self.SLOT_DES_SIZE    = (1,0,3)
-        self.SLOT_STATUS      = (1,0,4)
-        self.SLOT_PROF        = (1,0,5)
-        self.SLOT_LD_MASK     = (1,0,6)
-        self.SLOT_ST_MASK     = (1,0,7)
-        self.SLOT_STINTR_MASK = (1,0,8)
-        self.SLOT_PROF_EXEC   = (1,0,9)
+        # bank 1 slot field address meta
+        # rowIdx is replaced by slot_idx at call time via gen_addr_for_slot
+        # == (bankId, rowIdx(slot_idx), colIdx)
+        self.SLOT_DMA_SRC_ADDR    = (1, 0, 0x0)
+        self.SLOT_DMA_SRC_SIZE    = (1, 0, 0x1)
+        self.SLOT_DMA_DES_ADDR    = (1, 0, 0x2)
+        self.SLOT_DMA_DES_SIZE    = (1, 0, 0x3)
+        self.SLOT_PROF_RECON      = (1, 0, 0x4)
+        self.SLOT_PROF_EXEC       = (1, 0, 0x5)
+        self.SLOT_VS_RM_RECON_SEL = (1, 0, 0x6)
+        self.SLOT_VS_RM_EXEC_SEL  = (1, 0, 0x7)
+        self.SLOT_LOAD_MASK       = (1, 0, 0x8)
+        self.SLOT_STORE_MASK      = (1, 0, 0x9)
+        self.SLOT_COMPLETE_MASK   = (1, 0, 0xA)
+        self.SLOT_NEXT_SESSION    = (1, 0, 0xB)
 
-
-
-        self.LIM_AMT_SLOT = 4 ### limit amount slot
+        self.LIM_AMT_SLOT = 4
 
     def read(self, addr):
         return self.host_ip.read(self.offset + addr)
@@ -63,7 +65,7 @@ class DFX_Mng:
 
     def gen_addr(self, bank_id, row_idx, col_idx):
         return (bank_id << self.BL_BNK_ST) | (row_idx << self.BL_ROW_ST) | (col_idx << self.BL_COL_ST)
-    
+
     def gen_addr_for_slot(self, slot_t, slot_idx):
         return self.gen_addr(slot_t[0], slot_idx, slot_t[2])
 
@@ -71,107 +73,98 @@ class DFX_Mng:
     # ===== getter ================================
     # =============================================
 
-    def get_status(self):
-        return self.read(self.gen_addr(*self.REG_ST))
-    def get_main_cnt(self):
-        return self.read(self.gen_addr(*self.REG_MAINCNT))
-    def get_end_cnt(self):
-        return self.read(self.gen_addr(*self.REG_ENDCNT))
-    def get_dma_addr(self):
-        return self.read(self.gen_addr(*self.REG_DMA_ADDR))
-    def get_dfx_addr(self):
-        return self.read(self.gen_addr(*self.REG_DFX_ADDR))
+    def get_main_state(self):
+        return self.read(self.gen_addr(*self.REG_MAIN_STATE))
+    def get_recon_state(self):
+        return self.read(self.gen_addr(*self.REG_RECON_STATE))
+    def get_exec_state(self):
+        return self.read(self.gen_addr(*self.REG_EXEC_STATE))
+    def get_last_session(self):
+        return self.read(self.gen_addr(*self.REG_LAST_SESSION))
+    def get_cur_query(self):
+        return self.read(self.gen_addr(*self.REG_CUR_QUERY))
+    def get_amt_query(self):
+        return self.read(self.gen_addr(*self.REG_AMT_QUERY))
+    def get_amt_query_per_iter(self):
+        return self.read(self.gen_addr(*self.REG_AMT_QUERY_PER_ITER))
+    def get_dma_ip_addr(self):
+        return self.read(self.gen_addr(*self.REG_DMA_IP_ADDR))
+    def get_pr_ip_addr(self):
+        return self.read(self.gen_addr(*self.REG_PR_IP_ADDR))
     def get_intr_ena(self):
         return self.read(self.gen_addr(*self.REG_INTR_ENA))
-    def get_intr(self):
-        return self.read(self.gen_addr(*self.REG_INTR))
-    def get_round_trip(self):
-        return self.read(self.gen_addr(*self.REG_ROUND_TRIP))
-    def get_pr_ctrl_addr(self):
-        return self.read(self.gen_addr(*self.REG_PR_CTRL_ADDR))
-    def get_batch_size(self):
-        return self.read(self.gen_addr(*self.REG_BATCH_SIZE))
+    def get_intr_status(self):
+        return self.read(self.gen_addr(*self.REG_INTR_STATUS))
 
     def get_slot(self, slot_idx):
 
-        addr_src_addr  = self.gen_addr_for_slot(self.SLOT_SRC_ADDR, slot_idx)
-        addr_src_sz    = self.gen_addr_for_slot(self.SLOT_SRC_SIZE, slot_idx)
-        addr_des_addr  = self.gen_addr_for_slot(self.SLOT_DES_ADDR, slot_idx)
-        addr_des_sz    = self.gen_addr_for_slot(self.SLOT_DES_SIZE, slot_idx)
-        addr_status    = self.gen_addr_for_slot(self.SLOT_STATUS, slot_idx)
-        addr_prof      = self.gen_addr_for_slot(self.SLOT_PROF, slot_idx)
-        addr_ld_mask   = self.gen_addr_for_slot(self.SLOT_LD_MASK, slot_idx)
-        addr_st_mask   = self.gen_addr_for_slot(self.SLOT_ST_MASK, slot_idx)
-        addr_st_intr   = self.gen_addr_for_slot(self.SLOT_STINTR_MASK, slot_idx)
-        addr_prof_exec = self.gen_addr_for_slot(self.SLOT_PROF_EXEC, slot_idx)
+        addr_src_addr      = self.gen_addr_for_slot(self.SLOT_DMA_SRC_ADDR,    slot_idx)
+        addr_src_size      = self.gen_addr_for_slot(self.SLOT_DMA_SRC_SIZE,    slot_idx)
+        addr_des_addr      = self.gen_addr_for_slot(self.SLOT_DMA_DES_ADDR,    slot_idx)
+        addr_des_size      = self.gen_addr_for_slot(self.SLOT_DMA_DES_SIZE,    slot_idx)
+        addr_prof_recon    = self.gen_addr_for_slot(self.SLOT_PROF_RECON,      slot_idx)
+        addr_prof_exec     = self.gen_addr_for_slot(self.SLOT_PROF_EXEC,       slot_idx)
+        addr_rm_recon_sel  = self.gen_addr_for_slot(self.SLOT_VS_RM_RECON_SEL, slot_idx)
+        addr_rm_exec_sel   = self.gen_addr_for_slot(self.SLOT_VS_RM_EXEC_SEL,  slot_idx)
+        addr_load_mask     = self.gen_addr_for_slot(self.SLOT_LOAD_MASK,       slot_idx)
+        addr_store_mask    = self.gen_addr_for_slot(self.SLOT_STORE_MASK,      slot_idx)
+        addr_complete_mask = self.gen_addr_for_slot(self.SLOT_COMPLETE_MASK,   slot_idx)
+        addr_next_session  = self.gen_addr_for_slot(self.SLOT_NEXT_SESSION,    slot_idx)
 
-        data_src_addr  = self.read(addr_src_addr)
-        data_src_sz    = self.read(addr_src_sz)
-        data_des_addr  = self.read(addr_des_addr)
-        data_des_sz    = self.read(addr_des_sz)
-        data_status    = self.read(addr_status)
-        data_prof      = self.read(addr_prof)
-        data_ld_mask   = self.read(addr_ld_mask)
-        data_st_mask   = self.read(addr_st_mask)
-        data_st_intr   = self.read(addr_st_intr)
-        data_prof_exec = self.read(addr_prof_exec)
+        data_src_addr      = self.read(addr_src_addr)
+        data_src_size      = self.read(addr_src_size)
+        data_des_addr      = self.read(addr_des_addr)
+        data_des_size      = self.read(addr_des_size)
+        data_prof_recon    = self.read(addr_prof_recon)
+        data_prof_exec     = self.read(addr_prof_exec)
+        data_rm_recon_sel  = self.read(addr_rm_recon_sel)
+        data_rm_exec_sel   = self.read(addr_rm_exec_sel)
+        data_load_mask     = self.read(addr_load_mask)
+        data_store_mask    = self.read(addr_store_mask)
+        data_complete_mask = self.read(addr_complete_mask)
+        data_next_session  = self.read(addr_next_session)
 
-        return data_src_addr, data_src_sz, data_des_addr, data_des_sz, data_status, data_prof, \
-        data_ld_mask, data_st_mask, data_st_intr, data_prof_exec
-        
+        return (data_src_addr, data_src_size, data_des_addr, data_des_size,
+                data_prof_recon, data_prof_exec, data_rm_recon_sel, data_rm_exec_sel,
+                data_load_mask, data_store_mask, data_complete_mask, data_next_session)
 
     # =============================================
     # ===== setter ================================
     # =============================================
 
-    def set_control(self, value): #### status registesr will be neglect
+    def set_control(self, value):
         return self.write(self.gen_addr(*self.REG_CTRL), value)
-    # def setMainCnt(self, value):
-    #     return self.write(self.gen_addr(*self.REG_MAINCNT), value)
-    def set_end_cnt(self, value):
-        return self.write(self.gen_addr(*self.REG_ENDCNT), value)
-    def set_dma_addr(self, value):
-        return self.write(self.gen_addr(*self.REG_DMA_ADDR), value)
-    def set_dfx_addr(self, value):
-        return self.write(self.gen_addr(*self.REG_DFX_ADDR), value)
+    def set_last_session(self, value):
+        return self.write(self.gen_addr(*self.REG_LAST_SESSION), value)
+    def set_amt_query(self, value):
+        return self.write(self.gen_addr(*self.REG_AMT_QUERY), value)
+    def set_amt_query_per_iter(self, value):
+        return self.write(self.gen_addr(*self.REG_AMT_QUERY_PER_ITER), value)
+    def set_dma_ip_addr(self, value):
+        return self.write(self.gen_addr(*self.REG_DMA_IP_ADDR), value)
+    def set_pr_ip_addr(self, value):
+        return self.write(self.gen_addr(*self.REG_PR_IP_ADDR), value)
     def set_intr_ena(self, value):
         return self.write(self.gen_addr(*self.REG_INTR_ENA), value)
-    def set_intr(self, value):
-        return self.write(self.gen_addr(*self.REG_INTR), value)
-    def set_round_trip(self, value):
-        return self.write(self.gen_addr(*self.REG_ROUND_TRIP), value)
-    def set_pr_ctrl_addr(self, value):
-        return self.write(self.gen_addr(*self.REG_PR_CTRL_ADDR), value)
-    def set_batch_size(self, value):
-        return self.write(self.gen_addr(*self.REG_BATCH_SIZE), value)
 
     def set_slot(self, slot_t, slot_idx, value):
-        addr  = self.gen_addr_for_slot(slot_t, slot_idx)
+        addr = self.gen_addr_for_slot(slot_t, slot_idx)
         self.write(addr, value)
 
     def set_whole_slot(self, slot_idx, data_list):
-
-        addr_src_addr  = self.gen_addr_for_slot(self.SLOT_SRC_ADDR, slot_idx)
-        addr_src_sz    = self.gen_addr_for_slot(self.SLOT_SRC_SIZE, slot_idx)
-        addr_des_addr  = self.gen_addr_for_slot(self.SLOT_DES_ADDR, slot_idx)
-        addr_des_sz    = self.gen_addr_for_slot(self.SLOT_DES_SIZE, slot_idx)
-        addr_status    = self.gen_addr_for_slot(self.SLOT_STATUS, slot_idx)
-        addr_prof      = self.gen_addr_for_slot(self.SLOT_PROF, slot_idx)
-        addr_ld_mask   = self.gen_addr_for_slot(self.SLOT_LD_MASK, slot_idx)
-        addr_st_mask   = self.gen_addr_for_slot(self.SLOT_ST_MASK, slot_idx)
-        addr_st_intr   = self.gen_addr_for_slot(self.SLOT_STINTR_MASK, slot_idx)
-        addr_prof_exec = self.gen_addr_for_slot(self.SLOT_PROF_EXEC, slot_idx)
-
-        self.write(addr_src_addr,  data_list[0])
-        self.write(addr_src_sz,    data_list[1])
-        self.write(addr_des_addr,  data_list[2])
-        self.write(addr_des_sz,    data_list[3])
-        self.write(addr_status,    data_list[4])
-        self.write(addr_prof,      data_list[5])
-        self.write(addr_ld_mask,   data_list[6])
-        self.write(addr_st_mask,   data_list[7])
-        self.write(addr_st_intr,   data_list[8])
-        self.write(addr_prof_exec, data_list[9])
+        # data_list order: [src_addr, src_size, des_addr, des_size,
+        #                   prof_recon, prof_exec, vs_rm_recon_sel, vs_rm_exec_sel,
+        #                   load_mask, store_mask, complete_mask, next_session]
+        fields = [
+            self.SLOT_DMA_SRC_ADDR, self.SLOT_DMA_SRC_SIZE,
+            self.SLOT_DMA_DES_ADDR, self.SLOT_DMA_DES_SIZE,
+            self.SLOT_PROF_RECON,   self.SLOT_PROF_EXEC,
+            self.SLOT_VS_RM_RECON_SEL, self.SLOT_VS_RM_EXEC_SEL,
+            self.SLOT_LOAD_MASK,    self.SLOT_STORE_MASK,
+            self.SLOT_COMPLETE_MASK, self.SLOT_NEXT_SESSION,
+        ]
+        for field, value in zip(fields, data_list):
+            self.write(self.gen_addr_for_slot(field, slot_idx), value)
 
     # =============================================
     # ===== command ===============================
@@ -182,90 +175,103 @@ class DFX_Mng:
         self.set_control(0)
         print("[cmd] clear the engine successfully")
 
-
     def shutdown_engine(self):
         print("[cmd] shutdown the engine")
         self.set_control(1)
         print("[cmd] shutdown successfully")
 
-    def clear_intr(self):
-        print("[cmd] clear the interrupt")
-        self.set_intr(1) # it is write on clear register
-        print("[cmd] clear the interrupt successfully")
-
     def start_engine(self):
         print("[cmd] start the engine")
         self.set_control(2)
-        print("[cmd] start the successfully")
+        print("[cmd] start the engine successfully")
 
     # =============================================
     # ===== debugger ==============================
     # =============================================
 
-    def status_to_str(self, status_idx):
+    def main_state_to_str(self, s):
         mapper = {
-            0:  "SHUTDOWN",
-            1:  "REPROG",
-            2:  "W4SLAVERESET",
-            3:  "W4SLAVEOP",
-            4:  "CLEAR_MGS",
-            5:  "INITIALIZE_MGS",
-            6:  "INITIALIZE_DMA",
-            7:  "SET_DMA_LOAD",
-            8:  "SET_DMA_STORE",
-            9:  "TRIGGERING",
-            10: "WAIT4FIN",
-            11: "INITIALIZE_PR_CTRL",
-            15: "PAUSEONERROR",
+            0: "SHUTDOWN",
+            1: "PROCESS",
+            2: "PRE_SHUTDOWN",
         }
-        return mapper.get(status_idx, "STATUS ERROR")
-        
+        return mapper.get(s, "UNKNOWN")
+
+    def recon_state_to_str(self, s):
+        mapper = {
+            0: "SHUTDOWN",
+            1: "REPROG",
+            2: "W4SLAVERESET",
+            3: "W4SLAVEOP",
+            4: "FIN_SYNC",
+        }
+        return mapper.get(s, "UNKNOWN")
+
+    def exec_state_to_str(self, s):
+        mapper = {
+            0: "SHUTDOWN",
+            1: "INITIALIZE_PR_CTRL",
+            2: "CLEAR_MGS",
+            3: "INITIALIZE_MGS",
+            4: "INITIALIZE_DMA",
+            5: "SET_DMA_LOAD",
+            6: "SET_DMA_STORE",
+            7: "TRIGGERING",
+            8: "WAIT4FIN",
+            9: "FIN_SYNC",
+        }
+        return mapper.get(s, "UNKNOWN")
+
     def print_main_status(self):
 
-
         print("----- MAIN STATUS ------------------")
-        status  = self.get_status()
-        print("--------> STATUS = ", self.status_to_str(status))
-        main_cnt = self.get_main_cnt()
-        print("--------> MAINCNT = ", main_cnt)
-        end_cnt  = self.get_end_cnt()
-        print("--------> ENDCNT  = ", end_cnt)
-        dma_addr = self.get_dma_addr()
-        print("--------> DMAADDR  = ", hex(dma_addr))
-        dfx_addr = self.get_dfx_addr()
-        print("--------> DFXADDR  = ", hex(dfx_addr))
+        main_state = self.get_main_state()
+        print("--------> MAIN_STATE  = ", self.main_state_to_str(main_state))
+        recon_state = self.get_recon_state()
+        print("--------> RECON_STATE = ", self.recon_state_to_str(recon_state))
+        exec_state = self.get_exec_state()
+        print("--------> EXEC_STATE  = ", self.exec_state_to_str(exec_state))
+        last_session = self.get_last_session()
+        print("--------> LAST_SESSION      = ", last_session)
+        cur_query = self.get_cur_query()
+        print("--------> CUR_QUERY         = ", cur_query)
+        amt_query = self.get_amt_query()
+        print("--------> AMT_QUERY         = ", amt_query)
+        amt_query_per_iter = self.get_amt_query_per_iter()
+        print("--------> AMT_QUERY_PER_ITER= ", amt_query_per_iter)
+        dma_ip_addr = self.get_dma_ip_addr()
+        print("--------> DMA_IP_ADDR       = ", hex(dma_ip_addr))
+        pr_ip_addr = self.get_pr_ip_addr()
+        print("--------> PR_IP_ADDR        = ", hex(pr_ip_addr))
         intr_ena = self.get_intr_ena()
-        print("--------> INTR_ENA    = ", hex(intr_ena))
-        intr    = self.get_intr()
-        print("--------> INTR        = ", hex(intr))
-        round_trip = self.get_round_trip()
-        print("--------> ROUND_TRIP  = ", hex(round_trip))
-        pr_ctrl_addr = self.get_pr_ctrl_addr()
-        print("--------> PR_CTRL_ADDR = ", hex(pr_ctrl_addr))
-        batch_size = self.get_batch_size()
-        print("--------> BATCH_SIZE  = ", hex(batch_size))
-
+        print("--------> INTR_ENA          = ", hex(intr_ena))
+        intr_status = self.get_intr_status()
+        print("--------> INTR_STATUS       = ", hex(intr_status))
 
     def print_slot_data(self):
 
         print("----- SLOT DATA ------------------")
 
-        if self.get_status() != 0:
-            print("---------- cannot print slot data due to the system is not in shutdown state")
+        if self.get_main_state() != 0:
+            print("---------- cannot print slot data: system is not in SHUTDOWN state")
             return
 
-        for slot_idx in range (self.LIM_AMT_SLOT):
-            s_addr, s_size, d_addr, d_size, status, prof, data_ld_mask, data_st_mask, data_st_intr, prof_exec = self.get_slot(slot_idx)
+        for slot_idx in range(self.LIM_AMT_SLOT):
+            (s_addr, s_size, d_addr, d_size,
+             prof_recon, prof_exec, rm_recon_sel, rm_exec_sel,
+             load_mask, store_mask, complete_mask, next_session) = self.get_slot(slot_idx)
 
             print(f"------> slot {slot_idx} :")
-            print(f"        srcAddr      : {hex(s_addr)},  srcSize   : {hex(s_size)}")
-            print(f"        desAddr      : {hex(d_addr)},  desSize   : {hex(d_size)}")
-            print(f"        status       : {hex(status)}")
-            print(f"        profileCnt   : {hex(prof)}")
-            print(f"        profileExecCnt: {hex(prof_exec)}")
-            print(f"        loadMask     : {bin(data_ld_mask)}")
-            print(f"        storeMask    : {bin(data_st_mask)}")
-            print(f"        stIntrMask   : {bin(data_st_intr)}")
+            print(f"        srcAddr        : {hex(s_addr)},  srcSize   : {hex(s_size)}")
+            print(f"        desAddr        : {hex(d_addr)},  desSize   : {hex(d_size)}")
+            print(f"        profReconCnt   : {hex(prof_recon)}")
+            print(f"        profExecCnt    : {hex(prof_exec)}")
+            print(f"        vsRmReconSel   : {bin(rm_recon_sel)}")
+            print(f"        vsRmExecSel    : {bin(rm_exec_sel)}")
+            print(f"        loadMask       : {bin(load_mask)}")
+            print(f"        storeMask      : {bin(store_mask)}")
+            print(f"        completeMask   : {bin(complete_mask)}")
+            print(f"        nextSession    : {next_session}")
 
     def print_debug(self):
         self.print_main_status()

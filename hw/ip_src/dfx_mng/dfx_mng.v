@@ -185,7 +185,7 @@ DFX_Mng_Core #(
         .BANK1_DATA_POOL_MASK_WIDTH (BANK1_DATA_POOL_MASK_WIDTH),
         .DMA_INIT_TASK_CNT          (DMA_INIT_TASK_CNT),
         .DMA_EXEC_TASK_CNT          (DMA_EXEC_TASK_CNT),
-        .PR_CTRL_TASK_CNT           (PR_CTRL_TASK_CNT),
+        .PR_CTRL_TASK_CNT           (PR_CTRL_TASK_CNT)
     ) dfx_mng_core (
         .clk    (clk),
         .nreset(nreset),
@@ -322,8 +322,8 @@ M_AXI_WRITE #(
     .M_AXI_BREADY(M_AXI_BREADY),
 
     // dma base addr
-    .b0_dma_ip_addr(b0_dma_ip_addr),
-    .b0_pr_ip_addr (b0_pr_ip_addr),
+    .b0_dma_ip_addr(b0_dma_ip_addr_read_val),
+    .b0_pr_ip_addr (b0_pr_ip_addr_read_val),
 
     // pr ctrl addr and batch size
     .b0_amt_query_per_iter_read_val(b0_amt_query_per_iter_read_val),
@@ -452,8 +452,6 @@ S_AXI_WRITE #(
     .b0_last_session_send_val      (b0_last_session_write_val)      , .b0_last_session_send_req      (b0_last_session_write_req),
     .b0_amt_query_send_val         (b0_amt_query_write_val)         , .b0_amt_query_send_req         (b0_amt_query_write_req),
     .b0_amt_query_per_iter_send_val(b0_amt_query_per_iter_write_val), .b0_amt_query_per_iter_send_req(b0_amt_query_per_iter_write_req),
-    .b0_load_offset_send_val       (b0_load_offset_write_val)       , .b0_load_offset_send_req       (b0_load_offset_write_req),
-    .b0_store_offset_send_val      (b0_store_offset_write_val)      , .b0_store_offset_send_req      (b0_store_offset_write_req),
     .b0_dma_ip_addr_send_val       (b0_dma_ip_addr_write_val)       , .b0_dma_ip_addr_send_req       (b0_dma_ip_addr_write_req),
     .b0_pr_ip_addr_send_val        (b0_pr_ip_addr_write_val)        , .b0_pr_ip_addr_send_req        (b0_pr_ip_addr_write_req),
     .b0_intr_ena_send_val          (b0_intr_ena_write_val)          , .b0_intr_ena_send_req          (b0_intr_ena_write_req),

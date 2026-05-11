@@ -89,13 +89,13 @@ always @(posedge clk or negedge nreset ) begin
     end else begin
         case (state)
             ST_IDLE: begin
-                if (S_AXI_ARVALID) begin ///// address is comming response immediately
-                    state <= ST_READDATA;
+                if (S_AXI_ARVALID) begin
+                    state <= ST_READFETCH;
                     b1_read_address_val <= S_AXI_ARADDR;
                     b1_read_indexer_req  <= 1;
                 end
             end
-            ST_READFETCH: begin
+            ST_READFETCH: begin // one cycle for bank1 registered read to latch the index
                 state     <= ST_READDATA;
                 b1_read_indexer_req  <= 0;
             end
@@ -120,7 +120,7 @@ assign S_AXI_ARREADY = (state == ST_IDLE) && S_AXI_ARVALID; // Ready to accept r
 assign S_AXI_RRESP   = 2'b00;
 assign S_AXI_RVALID  = (state == ST_READDATA);
 
-assign ext_bank1_out_index = b1_read_address_val[BANK1_INDEX_WIDTH+6-1:6]; // Extracting index from address bits 5 and 4
+// ext_bank1_out_index removed — was undeclared and unused
 
 always @(*) begin
 
@@ -130,36 +130,36 @@ always @(*) begin
         if (b1_read_address_val[15:14] == 2'b00) begin
 
             case (b1_read_address_val[13:6]) // Address bits 13 to 6 determine the slot
-                8'h00:   begin S_AXI_RDATA = 0                             ; end
-                8'h01:   begin S_AXI_RDATA = b0_main_state_send_val        ; end
-                8'h02:   begin S_AXI_RDATA = b0_recon_state_send_val       ; end
-                8'h03:   begin S_AXI_RDATA = b0_exec_state_send_val        ; end
-                8'h04:   begin S_AXI_RDATA = b0_last_session_send_val      ; end
-                8'h05:   begin S_AXI_RDATA = b0_cur_query_send_val         ; end
-                8'h06:   begin S_AXI_RDATA = b0_amt_query_send_val         ; end
-                8'h07:   begin S_AXI_RDATA = b0_amt_query_per_iter_send_val; end
-                8'h08:   begin S_AXI_RDATA = b0_dma_ip_addr_send_val       ; end
-                8'h09:   begin S_AXI_RDATA = b0_pr_ip_addr_send_val        ; end
-                8'h0A:   begin S_AXI_RDATA = b0_intr_ena_send_val          ; end
-                8'h0B:   begin S_AXI_RDATA = b0_intr_status_send_val       ; end
-                default: begin S_AXI_RDATA = 0                             ; end
+                8'h00:   begin S_AXI_RDATA = 0                                                                           ; end
+                8'h01:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK0_STATE_BIT_LEN){1'b0}}, b0_main_state_send_val        }; end
+                8'h02:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK0_STATE_BIT_LEN){1'b0}}, b0_recon_state_send_val       }; end
+                8'h03:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK0_STATE_BIT_LEN){1'b0}}, b0_exec_state_send_val        }; end
+                8'h04:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_INDEX_WIDTH  ){1'b0}}, b0_last_session_send_val      }; end
+                8'h05:   begin S_AXI_RDATA =                                                 b0_cur_query_send_val          ; end
+                8'h06:   begin S_AXI_RDATA =                                                 b0_amt_query_send_val          ; end
+                8'h07:   begin S_AXI_RDATA =                                                 b0_amt_query_per_iter_send_val ; end
+                8'h08:   begin S_AXI_RDATA =                                                 b0_dma_ip_addr_send_val        ; end
+                8'h09:   begin S_AXI_RDATA =                                                 b0_pr_ip_addr_send_val         ; end
+                8'h0A:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-1){1'b0}}                  , b0_intr_ena_send_val          }; end
+                8'h0B:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-1){1'b0}}                  , b0_intr_status_send_val       }; end
+                default: begin S_AXI_RDATA = 0                                                                              ; end
             endcase
 
         end else if (b1_read_address_val[15:14] == 2'b01) begin
 
             case (b1_read_address_val[5: 2])
-                4'b0000:  begin S_AXI_RDATA = b1_dma_src_addr_send_val       ; end
-                4'b0001:  begin S_AXI_RDATA = b1_dma_src_size_send_val       ; end
-                4'b0010:  begin S_AXI_RDATA = b1_dma_des_addr_send_val       ; end
-                4'b0011:  begin S_AXI_RDATA = b1_dma_des_size_send_val       ; end
-                4'b0100:  begin S_AXI_RDATA = b1_prof_recon_send_val         ; end
-                4'b0101:  begin S_AXI_RDATA = b1_prof_exec_send_val          ; end
-                4'b0110:  begin S_AXI_RDATA = b1_vs_rm_recon_select_send_val ; end
-                4'b0111:  begin S_AXI_RDATA = b1_vs_rm_exec_select_send_val  ; end
-                4'b1000:  begin S_AXI_RDATA = b1_load_mask_send_val          ; end
-                4'b1001:  begin S_AXI_RDATA = b1_store_mask_send_val         ; end
-                4'b1010:  begin S_AXI_RDATA = b1_complete_mask_send_val      ; end
-                4'b1011:  begin S_AXI_RDATA = b1_next_session_send_val       ; end
+                4'b0000:  begin S_AXI_RDATA = b1_dma_src_addr_send_val                                                               ; end
+                4'b0001:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_DATA_SIZE_WIDTH    ){1'b0}},  b1_dma_src_size_send_val       }; end
+                4'b0010:  begin S_AXI_RDATA =                                                        b1_dma_des_addr_send_val        ; end
+                4'b0011:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_DATA_SIZE_WIDTH    ){1'b0}},  b1_dma_des_size_send_val       }; end
+                4'b0100:  begin S_AXI_RDATA =                                                        b1_prof_recon_send_val          ; end
+                4'b0101:  begin S_AXI_RDATA =                                                        b1_prof_exec_send_val           ; end
+                4'b0110:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_RM_SELECT_WIDTH    ){1'b0}},  b1_vs_rm_recon_select_send_val }; end
+                4'b0111:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_RM_SELECT_WIDTH    ){1'b0}},  b1_vs_rm_exec_select_send_val  }; end
+                4'b1000:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_DATA_POOL_MASK_WIDTH){1'b0}}, b1_load_mask_send_val          }; end
+                4'b1001:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_DATA_POOL_MASK_WIDTH){1'b0}}, b1_store_mask_send_val         }; end
+                4'b1010:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_DATA_POOL_MASK_WIDTH){1'b0}}, b1_complete_mask_send_val      }; end
+                4'b1011:  begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-BANK1_INDEX_WIDTH         ){1'b0}}, b1_next_session_send_val       }; end
 
             endcase
 
