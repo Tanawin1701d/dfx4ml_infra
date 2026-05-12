@@ -20,13 +20,10 @@ proc create_kv260_dfx4ml_design { parentCell \
                                   clk_frq \
                                   rm_index_width \
                                   num_dfx_streamer \
-                                  interface_widths \
-                                  applied_interface_widths \
-                                  amt_rows \
-                                  num_actual_rm\
-                                  input_map_list \
-                                  output_map_list \
-                                  ip_map_list \
+                                  num_dfx_region \
+                                  dfx_streamers_list \
+                                  dfx_regions_list \
+                                  rm_schemetics_list \
                                   test_mode \
 } {
 
@@ -39,13 +36,10 @@ proc create_kv260_dfx4ml_design { parentCell \
                          $clk_frq  \
                          $rm_index_width  \
                          $num_dfx_streamer  \
-                         $interface_widths  \
-                         $applied_interface_widths  \
-                         $amt_rows  \
-                         $num_actual_rm  \
-                         $input_map_list  \
-                         $output_map_list  \
-                         $ip_map_list  \
+                         $num_dfx_region  \
+                         $dfx_streamers_list  \
+                         $dfx_regions_list  \
+                         $rm_schemetics_list  \
                          $test_mode  \
                          $create_new_block
 
@@ -475,7 +469,20 @@ proc create_kv260_dfx4ml_design { parentCell \
     connect_bd_net -net axi_intc_0_irq [get_bd_pins axi_intc_0/irq] [get_bd_pins zynq_ultra_ps_e_0/pl_ps_irq0]
     connect_bd_net -net dfx_unified_0_dfx_intr [get_bd_pins dfx_unified_0/dfx_intr] [get_bd_pins axi_intc_0/intr]
     connect_bd_net -net rst_ps8_0_99M_peripheral_aresetn [get_bd_pins rst_ps8_0_99M/peripheral_aresetn] [get_bd_pins dfx_unified_0/nreset] [get_bd_pins smartconnect_0/aresetn] [get_bd_pins smartconnect_1/aresetn] [get_bd_pins axi_intc_0/s_axi_aresetn]
-    connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins dfx_pr_0_0/clk] [get_bd_pins dfx_unified_0/clk] [get_bd_pins rst_ps8_0_99M/slowest_sync_clk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihpc0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihpc1_fpd_aclk] [get_bd_pins smartconnect_0/aclk] [get_bd_pins smartconnect_1/aclk] [get_bd_pins axi_intc_0/s_axi_aclk]
+    set clk_pins [list \
+        [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] \
+        [get_bd_pins dfx_unified_0/clk] \
+        [get_bd_pins rst_ps8_0_99M/slowest_sync_clk] \
+        [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] \
+        [get_bd_pins zynq_ultra_ps_e_0/saxihpc0_fpd_aclk] \
+        [get_bd_pins zynq_ultra_ps_e_0/saxihpc1_fpd_aclk] \
+        [get_bd_pins smartconnect_0/aclk] \
+        [get_bd_pins smartconnect_1/aclk] \
+        [get_bd_pins axi_intc_0/s_axi_aclk]]
+    for {set r 0} {$r < $num_dfx_region} {incr r} {
+        lappend clk_pins [get_bd_pins dfx_pr_region_${r}_0/clk]
+    }
+    connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 {*}$clk_pins
     connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0] [get_bd_pins rst_ps8_0_99M/ext_reset_in]
 
     # Create address segments
@@ -492,7 +499,12 @@ proc create_kv260_dfx4ml_design { parentCell \
     assign_bd_address -offset 0xA0010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/axi_dfx_decup/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/axi_dfx_reset/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
-    assign_bd_address -offset 0xA0050000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_pr_0_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+    for {set r 0} {$r < $num_dfx_region} {incr r} {
+        set pr_ctrl_offset [format 0x%08X [expr {0xA0050000 + $r * 0x00010000}]]
+        assign_bd_address -offset $pr_ctrl_offset -range 0x00010000 \
+            -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] \
+            [get_bd_addr_segs dfx_pr_region_${r}_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+    }
 
     #source from processor
     assign_bd_address -offset 0xA0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/DFX_Ctrl_B/s_axi_reg/Reg] -force
@@ -500,7 +512,12 @@ proc create_kv260_dfx4ml_design { parentCell \
     assign_bd_address -offset 0xA0010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/axi_dfx_decup/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0020000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/axi_dfx_reset/S_AXI/Reg] -force
     assign_bd_address -offset 0xA0030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_unified_0/dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
-    assign_bd_address -offset 0xA0050000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs dfx_pr_0_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+    for {set r 0} {$r < $num_dfx_region} {incr r} {
+        set pr_ctrl_offset [format 0x%08X [expr {0xA0050000 + $r * 0x00010000}]]
+        assign_bd_address -offset $pr_ctrl_offset -range 0x00010000 \
+            -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] \
+            [get_bd_addr_segs dfx_pr_region_${r}_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+    }
 
     assign_bd_address -offset 0xA0060000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs axi_intc_0/S_AXI/Reg] -force
 

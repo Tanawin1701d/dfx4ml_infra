@@ -125,13 +125,13 @@ wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_read_val;
 wire                             b0_intr_ena_read_val;
 wire                             b0_intr_status_read_val;
     //////// BANK 0 WRITE
-wire [BANK0_CONTROL_WIDTH -1: 0] b0_control_cmd_write_val        ; input wire b0_control_cmd_write_req       ;
-wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_write_val       ; input wire b0_last_session_write_req      ;
-wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_write_val          ; input wire b0_amt_query_write_req         ;
-wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_write_val ; input wire b0_amt_query_per_iter_write_req;
-wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        ; input wire b0_dma_ip_addr_write_req       ;
-wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val         ; input wire b0_pr_ip_addr_write_req        ;
-wire                             b0_intr_ena_write_val           ; input wire b0_intr_ena_write_req          ;
+wire [BANK0_CONTROL_WIDTH -1: 0] b0_control_cmd_write_val        ; wire b0_control_cmd_write_req       ;
+wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_write_val       ; wire b0_last_session_write_req      ;
+wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_write_val          ; wire b0_amt_query_write_req         ;
+wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_write_val ; wire b0_amt_query_per_iter_write_req;
+wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        ; wire b0_dma_ip_addr_write_req       ;
+wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val         ; wire b0_pr_ip_addr_write_req        ;
+wire                             b0_intr_ena_write_val           ; wire b0_intr_ena_write_req          ;
     //////// BANK 1 READ
 wire                         b1_read_indexer_req;
 wire [GLOB_ADDR_WIDTH -1: 0] b1_read_address_val;
