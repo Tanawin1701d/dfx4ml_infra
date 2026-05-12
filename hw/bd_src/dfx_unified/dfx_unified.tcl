@@ -266,36 +266,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   }
 
   set S_AXI_CTRL [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_CTRL ]
-#  set_property -dict [ list \
-#   CONFIG.ADDR_WIDTH {32} \
-#   CONFIG.ARUSER_WIDTH {0} \
-#   CONFIG.AWUSER_WIDTH {0} \
-#   CONFIG.BUSER_WIDTH {0} \
-#   CONFIG.DATA_WIDTH {32} \
-#   CONFIG.FREQ_HZ "$clk_frq" \
-#   CONFIG.HAS_BRESP {1} \
-#   CONFIG.HAS_BURST {1} \
-#   CONFIG.HAS_CACHE {1} \
-#   CONFIG.HAS_LOCK {1} \
-#   CONFIG.HAS_PROT {1} \
-#   CONFIG.HAS_QOS {1} \
-#   CONFIG.HAS_REGION {0} \
-#   CONFIG.HAS_RRESP {1} \
-#   CONFIG.HAS_WSTRB {1} \
-#   CONFIG.ID_WIDTH {1} \
-#   CONFIG.MAX_BURST_LENGTH {256} \
-#   CONFIG.NUM_READ_OUTSTANDING {2} \
-#   CONFIG.NUM_READ_THREADS {1} \
-#   CONFIG.NUM_WRITE_OUTSTANDING {2} \
-#   CONFIG.NUM_WRITE_THREADS {1} \
-#   CONFIG.PROTOCOL {AXI4} \
-#   CONFIG.READ_WRITE_MODE {READ_WRITE} \
-#   CONFIG.RUSER_BITS_PER_BYTE {0} \
-#   CONFIG.RUSER_WIDTH {0} \
-#   CONFIG.SUPPORTS_NARROW_BURST {1} \
-#   CONFIG.WUSER_BITS_PER_BYTE {0} \
-#   CONFIG.WUSER_WIDTH {0} \
-#   ] $S_AXI_CTRL
+
 
   set M_AXI_BS [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M_AXI_BS ]
   set_property -dict [ list \
@@ -601,6 +572,11 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   #             VS rm_decouple → dfx_decup_ctrl_r
   #             VS rm_reset → reset_join_r → dfx_nreset_r port + dfx_rm_nreset_concat
   #             auto-ack (1-bit constant) → VS rm_shutdown_ack
+  # Shared fan-out sources: accumulate all region destinations, connect once after loop
+  set dfx_reset_pins [list [get_bd_pins axi_dfx_reset/gpio_io_o]]
+  set auto_ack_pins  [list [get_bd_pins dfx_b_auto_ack/dout]]
+  set dfx_decup_pins [list [get_bd_pins axi_dfx_decup/gpio_io_o]]
+
   for {set r 0} {$r < $num_dfx_region} {incr r} {
     connect_bd_net -net "dfx_rm_prog_slice_${r}_Dout" \
         [get_bd_pins dfx_rm_prog_slice_${r}/Dout] \
@@ -609,7 +585,6 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
         [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_decouple] \
         [get_bd_pins dfx_decup_ctrl_${r}/decup_dfx_ctrl]
     # vsm_VS_r_rm_reset fans out to: reset_join Op1 + all dfx_nreset_expand In* ports.
-    # All destinations must be in one connect_bd_net call — a BD pin belongs to one net.
     set num_region_rms [lindex $num_rm_per_region $r]
     set rm_reset_pins [list \
         [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_reset] \
@@ -618,43 +593,42 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
       lappend rm_reset_pins [get_bd_pins dfx_nreset_expand_${r}/In${m}]
     }
     connect_bd_net -net "DFX_Ctrl_B_vsm_VS_${r}_rm_reset" {*}$rm_reset_pins
-    connect_bd_net -net "axi_dfx_reset_gpio_io_o_r${r}" \
-        [get_bd_pins axi_dfx_reset/gpio_io_o] [get_bd_pins reset_join_${r}/Op2]
     connect_bd_net -net "reset_join_${r}_Res" \
         [get_bd_pins reset_join_${r}/Res] \
         [get_bd_ports dfx_nreset_${r}]
-    connect_bd_net -net "dfx_b_auto_ack_VS_${r}" \
-        [get_bd_pins dfx_b_auto_ack/dout] \
-        [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_shutdown_ack]
-    connect_bd_net -net "axi_dfx_decup_r${r}" \
-        [get_bd_pins axi_dfx_decup/gpio_io_o] \
-        [get_bd_pins dfx_decup_ctrl_${r}/decup_and_ctrl_ps]
-    connect_bd_net -net "dfx_decup_ctrl_${r}_decup_res" \
-        [get_bd_pins dfx_decup_ctrl_${r}/decup_res] \
-        [get_bd_pins dfx_decoupler_pr_ctrl_${r}/decouple]
     connect_bd_net -net "dfx_nreset_expand_${r}_dout" \
         [get_bd_pins dfx_nreset_expand_${r}/dout] \
         [get_bd_pins dfx_rm_nreset_concat/In${r}]
+    # Accumulate shared fan-out destinations
+    lappend dfx_reset_pins [get_bd_pins reset_join_${r}/Op2]
+    lappend auto_ack_pins  [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_shutdown_ack]
+    lappend dfx_decup_pins [get_bd_pins dfx_decup_ctrl_${r}/decup_and_ctrl_ps]
   }
+
+  # Connect shared fan-out sources to all regions in single calls
+  connect_bd_net -net "axi_dfx_reset_gpio_io_o" {*}$dfx_reset_pins
+  connect_bd_net -net "dfx_b_auto_ack_dout"     {*}$auto_ack_pins
+  connect_bd_net -net "axi_dfx_decup_gpio_io_o" {*}$dfx_decup_pins
 
   connect_bd_net -net dfx_rm_nreset_concat_dout \
       [get_bd_pins dfx_rm_nreset_concat/dout] [get_bd_pins DFX_Mng/dfx_rm_nreset]
 
-  # dma decouple: use region-0 decoupler (DMA is always in region 0 context)
-  connect_bd_net -net dfx_decup_ctrl_0_decup_res_dma \
-      [get_bd_pins dfx_decup_ctrl_0/decup_res] [get_bd_pins dma_hier/decouple]
-
-  # Streamer decoupling: each streamer uses the decoupler of the region it belongs to
-  # (connect per-region decup_res to streamers assigned to that region)
+  # Per-region decup_res fan-out: dfx_decoupler_pr_ctrl + DMA (r=0 only) + streamers.
+  # All destinations in one connect_bd_net call per region.
   for {set r 0} {$r < $num_dfx_region} {incr r} {
+    set decup_pins [list \
+        [get_bd_pins dfx_decup_ctrl_${r}/decup_res] \
+        [get_bd_pins dfx_decoupler_pr_ctrl_${r}/decouple]]
+    if {$r == 0} {
+      lappend decup_pins [get_bd_pins dma_hier/decouple]
+    }
     set region [lindex $dfx_regions_list $r]
     foreach s_idx [dict get $region load_streamers] {
       if {$s_idx > 0} {
-        connect_bd_net -net "dfx_decup_ctrl_${r}_decup_res_ds${s_idx}" \
-            [get_bd_pins dfx_decup_ctrl_${r}/decup_res] \
-            [get_bd_pins Dfx_Streamer_${s_idx}/decup]
+        lappend decup_pins [get_bd_pins Dfx_Streamer_${s_idx}/decup]
       }
     }
+    connect_bd_net -net "dfx_decup_ctrl_${r}_decup_res" {*}$decup_pins
   }
 
   connect_bd_net -net fin_store_concat_0_dout \
@@ -713,12 +687,12 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   connect_bd_net -net clk_0_1   {*}$clk_pins
   connect_bd_net -net reset_0_1 {*}$rst_pins
 
-  # dfx_rm_program fan-out to all slicers
+  # dfx_rm_program fan-out to all slicers — single call
+  set rm_prog_pins [list [get_bd_pins DFX_Mng/dfx_rm_program]]
   for {set r 0} {$r < $num_dfx_region} {incr r} {
-    connect_bd_net -net DFX_Mng_dfx_rm_program \
-        [get_bd_pins DFX_Mng/dfx_rm_program] \
-        [get_bd_pins dfx_rm_prog_slice_${r}/Din]
+    lappend rm_prog_pins [get_bd_pins dfx_rm_prog_slice_${r}/Din]
   }
+  connect_bd_net -net DFX_Mng_dfx_rm_program {*}$rm_prog_pins
 
   # Create address segments
   # Fixed addresses: DFX_Mng self=0x00000000, DFX_Ctrl_B=0x00010000,
