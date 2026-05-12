@@ -37,24 +37,28 @@ proc create_hier_cell_dma_hier { parentCell nameHier } {
   set hier_obj [create_bd_cell -type hier $nameHier]
   current_bd_instance $hier_obj
 
-  # Create interface pins
+  ##------------------------------------------------------------
+  ## STAGE 1: INTERFACE PINS
+  ##------------------------------------------------------------
   create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_LITE
-
   create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M_AXI_DMA_IN
-
   create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M_AXI_DMA_OUT
-
   create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:axis_rtl:1.0 S_AXIS_DS0
-
   create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 M_AXIS_DS0
 
 
-  # Create pins
+  ##------------------------------------------------------------
+  ## STAGE 2: SCALAR PINS
+  ##------------------------------------------------------------
   create_bd_pin -dir I -type clk clk
   create_bd_pin -dir I -type rst nreset
   create_bd_pin -dir O -type intr s2mm_introut
-  create_bd_pin -dir I decouple
+  create_bd_pin -dir I decup_load
+  create_bd_pin -dir I decup_store
 
+  ##------------------------------------------------------------
+  ## STAGE 3: IP INSTANCES
+  ##------------------------------------------------------------
   # Create instance: axi_dma_0, and set properties
   set axi_dma_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 axi_dma_0 ]
   set_property -dict [list \
@@ -83,7 +87,9 @@ TUSER {PRESENT 0 WIDTH 0} TLAST {PRESENT 1 WIDTH 1} TID {PRESENT 0 WIDTH 0} TDES
   ] $dfx_decoupler_1
 
 
-  # Create interface connections
+  ##------------------------------------------------------------
+  ## STAGE 4: INTERFACE CONNECTIONS
+  ##------------------------------------------------------------
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M00_AXI [get_bd_intf_pins S_AXI_LITE] [get_bd_intf_pins axi_dma_0/S_AXI_LITE]
   connect_bd_intf_net -intf_net S_AXIS_DS0_1 [get_bd_intf_pins S_AXIS_DS0] [get_bd_intf_pins dfx_decoupler_0/rp_intf_0]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXIS_MM2S [get_bd_intf_pins dfx_decoupler_1/s_intf_0] [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S]
@@ -92,11 +98,15 @@ TUSER {PRESENT 0 WIDTH 0} TLAST {PRESENT 1 WIDTH 1} TID {PRESENT 0 WIDTH 0} TDES
   connect_bd_intf_net -intf_net dfx_decoupler_0_s_intf_0 [get_bd_intf_pins dfx_decoupler_0/s_intf_0] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
   connect_bd_intf_net -intf_net dfx_decoupler_1_rp_intf_0 [get_bd_intf_pins M_AXIS_DS0] [get_bd_intf_pins dfx_decoupler_1/rp_intf_0]
 
-  # Create port connections
+  ##------------------------------------------------------------
+  ## STAGE 5: NET CONNECTIONS
+  ##------------------------------------------------------------
   connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins axi_dma_0/s2mm_introut] [get_bd_pins s2mm_introut]
   connect_bd_net -net clk_0_1 [get_bd_pins clk] [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] [get_bd_pins axi_dma_0/m_axi_s2mm_aclk] [get_bd_pins dfx_decoupler_0/intf_0_aclk] [get_bd_pins dfx_decoupler_1/intf_0_aclk] [get_bd_pins axi_dma_0/s_axi_lite_aclk]
   connect_bd_net -net reset_0_1 [get_bd_pins nreset] [get_bd_pins dfx_decoupler_0/intf_0_arstn] [get_bd_pins dfx_decoupler_1/intf_0_arstn] [get_bd_pins axi_dma_0/axi_resetn]
-  connect_bd_net -net util_vector_logic_0_Res [get_bd_pins decouple] [get_bd_pins dfx_decoupler_1/decouple] [get_bd_pins dfx_decoupler_0/decouple]
+  connect_bd_net -net dma_decup_store [get_bd_pins decup_store] [get_bd_pins dfx_decoupler_1/decouple]
+  connect_bd_net -net dma_decup_load  [get_bd_pins decup_load]  [get_bd_pins dfx_decoupler_0/decouple]
+
 
   # Restore current instance
   current_bd_instance $oldCurInst
@@ -118,6 +128,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
      set parentCell [get_bd_cells /]
   }
 
+  ##------------------------------------------------------------
+  ## STAGE 1: ARGUMENT PARSING
+  ##------------------------------------------------------------
   # Derive per-streamer width lists from dfx_streamers_list
   set interface_widths         {}
   set applied_interface_widths {}
@@ -137,7 +150,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     incr total_rm $n
   }
 
-  # Validation
+  ##------------------------------------------------------------
+  ## STAGE 2: VALIDATION
+  ##------------------------------------------------------------
   if { $rm_index_width == 0 } {
      catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "rm_index_width is zero"}
      return
@@ -191,8 +206,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   current_bd_instance $parentObj
 
 
-  # Create interface ports
-
+  ##------------------------------------------------------------
+  ## STAGE 3: INTERFACE PORTS
+  ##------------------------------------------------------------
   set M_AXI_DMA_IN [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M_AXI_DMA_IN ]
   set_property -dict [ list \
    CONFIG.ADDR_WIDTH {32} \
@@ -305,7 +321,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
      ] $M_AXIS_DS_PORT
   }
   
-  # Create ports
+  ##------------------------------------------------------------
+  ## STAGE 4: SCALAR PORTS
+  ##------------------------------------------------------------
   set clk [ create_bd_port -dir I -type clk -freq_hz $clk_frq clk ]
   set nreset [ create_bd_port -dir I -type rst nreset ]
   set dfx_intr [ create_bd_port -dir O -type intr dfx_intr ]
@@ -317,10 +335,14 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   set dbg_amt_store_bytes_0 [ create_bd_port -dir O -from 10 -to 0 dbg_amt_store_bytes_0 ]
   set dbg_state_0 [ create_bd_port -dir O -from 3 -to 0 dbg_state_0 ]
 
+  ##------------------------------------------------------------
+  ## STAGE 5: IP INSTANCES
+  ##------------------------------------------------------------
   # Create instance: DFX_Mng, and set properties
   # BANK1_RM_SELECT_WIDTH = total_rm (one bit per global RM, pools all regions)
   set DFX_Mng [ create_bd_cell -type ip -vlnv user.org:user:DFX_Mng:1.0 DFX_Mng ]
   set_property -dict [ list \
+     CONFIG.NUM_REGION                 "$num_dfx_region" \
      CONFIG.BANK1_INDEX_WIDTH          "$rm_index_width" \
      CONFIG.BANK1_RM_SELECT_WIDTH      "$total_rm" \
      CONFIG.BANK1_DATA_POOL_MASK_WIDTH "$num_dfx_streamer" \
@@ -412,12 +434,6 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     ] \
   ] $DFX_Ctrl_B
 
-  set dummy_dfx_mng_hw_plug [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 dummy_dfx_mng_hw_plug ]
-  set_property -dict [list \
-    CONFIG.CONST_VAL {0} \
-    CONFIG.CONST_WIDTH 1 \
-  ] $dummy_dfx_mng_hw_plug
-
   # Create instance: dfx_b_auto_ack, and set properties
   set dfx_b_auto_ack [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 dfx_b_auto_ack ]
   set_property -dict [list \
@@ -474,14 +490,14 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     incr rm_offset $num_region_rms
   }
 
-  # xlconcat: aggregate per-region vsm_VS_r_rm_reset → dfx_rm_nreset
-  # Each VS provides 1-bit rm_reset; replicate M_r times to fill region's bits in dfx_rm_nreset
-  for {set r 0} {$r < $num_dfx_region} {incr r} {
-    set num_region_rms [lindex $num_rm_per_region $r]
-    set nreset_expand_r [ create_bd_cell -type ip \
-        -vlnv xilinx.com:ip:xlconcat:2.1 dfx_nreset_expand_${r} ]
-    set_property CONFIG.NUM_PORTS $num_region_rms $nreset_expand_r
-  }
+#  # xlconcat: aggregate per-region vsm_VS_r_rm_reset → dfx_rm_nreset
+#  # Each VS provides 1-bit rm_reset; replicate M_r times to fill region's bits in dfx_rm_nreset
+#  for {set r 0} {$r < $num_dfx_region} {incr r} {
+#    set num_region_rms [lindex $num_rm_per_region $r]
+#    set nreset_expand_r [ create_bd_cell -type ip \
+#        -vlnv xilinx.com:ip:xlconcat:2.1 dfx_nreset_expand_${r} ]
+#    set_property CONFIG.NUM_PORTS $num_region_rms $nreset_expand_r
+#  }
   set dfx_rm_nreset_concat [ create_bd_cell -type ip \
       -vlnv xilinx.com:ip:xlconcat:2.1 dfx_rm_nreset_concat ]
   set concat_prop_list [list CONFIG.NUM_PORTS $num_dfx_region]
@@ -493,7 +509,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   # Create instance: dma_hier
   create_hier_cell_dma_hier [current_bd_instance .] dma_hier
 
-  # Create interface connections
+  ##------------------------------------------------------------
+  ## STAGE 6: INTERFACE CONNECTIONS
+  ##------------------------------------------------------------
   connect_bd_intf_net -intf_net DFX_Ctrl_0_M_AXI \
       [get_bd_intf_pins DFX_Mng/M_AXI] [get_bd_intf_pins DFX_Ctrl_0_axi_periph/S00_AXI]
   connect_bd_intf_net -intf_net DFX_Ctrl_0_axi_periph_M00_AXI \
@@ -542,8 +560,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
       [get_bd_intf_ports M_AXIS_DS0] [get_bd_intf_pins dma_hier/M_AXIS_DS0]
 
 
-  # Create port connections
-
+  ##------------------------------------------------------------
+  ## STAGE 7: NET CONNECTIONS
+  ##------------------------------------------------------------
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
     connect_bd_net -net DFX_Ctrl_0_dfx_stream_load_init \
         [get_bd_pins DFX_Mng/dfx_stream_load_init] [get_bd_pins Dfx_Streamer_${i}/loadInit_pool]
@@ -585,20 +604,24 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
         [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_decouple] \
         [get_bd_pins dfx_decup_ctrl_${r}/decup_dfx_ctrl]
     # vsm_VS_r_rm_reset fans out to: reset_join Op1 + all dfx_nreset_expand In* ports.
-    set num_region_rms [lindex $num_rm_per_region $r]
-    set rm_reset_pins [list \
-        [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_reset] \
-        [get_bd_pins reset_join_${r}/Op1]]
-    for {set m 0} {$m < $num_region_rms} {incr m} {
-      lappend rm_reset_pins [get_bd_pins dfx_nreset_expand_${r}/In${m}]
-    }
-    connect_bd_net -net "DFX_Ctrl_B_vsm_VS_${r}_rm_reset" {*}$rm_reset_pins
-    connect_bd_net -net "reset_join_${r}_Res" \
-        [get_bd_pins reset_join_${r}/Res] \
-        [get_bd_ports dfx_nreset_${r}]
-    connect_bd_net -net "dfx_nreset_expand_${r}_dout" \
-        [get_bd_pins dfx_nreset_expand_${r}/dout] \
-        [get_bd_pins dfx_rm_nreset_concat/In${r}]
+    #set num_region_rms [lindex $num_rm_per_region $r]
+    #set rm_reset_pins [list \
+    #    [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_reset] \
+    #    [get_bd_pins reset_join_${r}/Op1]]
+    connect_bd_net -net "DFX_Ctrl_B_vsm_VS_${r}_rm_reset" [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_reset] \
+    [get_bd_pins dfx_rm_nreset_concat/In${r}] \
+    [get_bd_pins reset_join_${r}/Op1]
+
+    #for {set m 0} {$m < $num_region_rms} {incr m} {
+    #  lappend rm_reset_pins [get_bd_pins dfx_nreset_expand_${r}/In${m}]
+    #}
+    #connect_bd_net -net "DFX_Ctrl_B_vsm_VS_${r}_rm_reset" {*}$rm_reset_pins
+    #connect_bd_net -net "reset_join_${r}_Res" \
+    #    [get_bd_pins reset_join_${r}/Res] \
+    #    [get_bd_ports dfx_nreset_${r}]
+    #connect_bd_net -net "dfx_nreset_expand_${r}_dout" \
+    #    [get_bd_pins dfx_nreset_expand_${r}/dout] \
+    #    [get_bd_pins dfx_rm_nreset_concat/In${r}]
     # Accumulate shared fan-out destinations
     lappend dfx_reset_pins [get_bd_pins reset_join_${r}/Op2]
     lappend auto_ack_pins  [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_shutdown_ack]
@@ -619,13 +642,19 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     set decup_pins [list \
         [get_bd_pins dfx_decup_ctrl_${r}/decup_res] \
         [get_bd_pins dfx_decoupler_pr_ctrl_${r}/decouple]]
-    if {$r == 0} {
-      lappend decup_pins [get_bd_pins dma_hier/decouple]
-    }
     set region [lindex $dfx_regions_list $r]
-    foreach s_idx [dict get $region load_streamers] {
-      if {$s_idx > 0} {
-        lappend decup_pins [get_bd_pins Dfx_Streamer_${s_idx}/decup]
+    foreach l_idx [dict get $region load_streamers] {
+      if {$l_idx == 0} {
+        lappend decup_pins [get_bd_pins dma_hier/decup_load]
+      } elseif {$l_idx > 0} {
+        lappend decup_pins [get_bd_pins Dfx_Streamer_${l_idx}/decup_load]
+      }
+    }
+    foreach s_idx [dict get $region store_streamers] {
+      if {$s_idx == 0} {
+        lappend decup_pins [get_bd_pins dma_hier/decup_store]
+      } elseif {$s_idx > 0} {
+        lappend decup_pins [get_bd_pins Dfx_Streamer_${s_idx}/decup_store]
       }
     }
     connect_bd_net -net "dfx_decup_ctrl_${r}_decup_res" {*}$decup_pins
@@ -633,9 +662,6 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
 
   connect_bd_net -net fin_store_concat_0_dout \
       [get_bd_pins fin_store_concat_0/dout] [get_bd_pins DFX_Mng/dfx_stream_fin]
-  connect_bd_net -net dummy_dfx_mng_hw_plug_dout \
-      [get_bd_pins dummy_dfx_mng_hw_plug/dout] \
-      [get_bd_pins DFX_Mng/hw_ctrl_start] [get_bd_pins DFX_Mng/hw_intr_clear]
 
   # Build clock and reset pin lists dynamically for axi_periph master ports
   set clk_pins   [list \
@@ -694,7 +720,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   }
   connect_bd_net -net DFX_Mng_dfx_rm_program {*}$rm_prog_pins
 
-  # Create address segments
+  ##------------------------------------------------------------
+  ## STAGE 8: ADDRESS SEGMENTS
+  ##------------------------------------------------------------
   # Fixed addresses: DFX_Mng self=0x00000000, DFX_Ctrl_B=0x00010000,
   #                  DMA=0x00020000, dfx_reset=0x00030000, dfx_decup=0x00040000
   # Per-region PR ctrl starts at 0x00050000, each region 0x00010000 apart
@@ -751,7 +779,9 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   }
 
 
-  # Restore current instance
+  ##------------------------------------------------------------
+  ## STAGE 9: FINALIZE
+  ##------------------------------------------------------------
   current_bd_instance $oldCurInst
 
   validate_bd_design
