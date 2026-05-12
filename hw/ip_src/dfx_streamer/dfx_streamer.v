@@ -11,7 +11,8 @@ module Dfx_Streamer #
 (
     input wire                        clk,
     input wire                        nreset,
-    input wire                        decup,
+    input wire                        decup_store,
+    input wire                        decup_load,
 
     // AXIS Slave Interface   store in terface
     input  wire [ITF_DATA_WIDTH-1:0] S_AXI_TDATA,
@@ -47,15 +48,15 @@ module Dfx_Streamer #
 );
 
     // AXIS Slave Interface   store in terface
-    wire [ITF_DATA_WIDTH-1:0] S_AXI_TDATA_CLEAN  = decup ? 0: S_AXI_TDATA;
-    wire                      S_AXI_TVALID_CLEAN = decup ? 0: S_AXI_TVALID;
+    wire [ITF_DATA_WIDTH-1:0] S_AXI_TDATA_CLEAN  = decup_store ? 0: S_AXI_TDATA;
+    wire                      S_AXI_TVALID_CLEAN = decup_store ? 0: S_AXI_TVALID;
     wire                      S_AXI_TREADY_CLEAN; assign S_AXI_TREADY = S_AXI_TREADY_CLEAN;
-    wire                      S_AXI_TLAST_CLEAN  = decup ? 0: S_AXI_TLAST;
+    wire                      S_AXI_TLAST_CLEAN  = decup_store ? 0: S_AXI_TLAST;
 
     // AXIS Master Interface load interface
     reg [ITF_DATA_WIDTH-1:0]     M_AXI_TDATA_CLEAN; assign M_AXI_TDATA = M_AXI_TDATA_CLEAN;
     reg                          M_AXI_TVALID_CLEAN; assign M_AXI_TVALID = M_AXI_TVALID_CLEAN;
-    wire                         M_AXI_TREADY_CLEAN = decup ? 0: M_AXI_TREADY;
+    wire                         M_AXI_TREADY_CLEAN = decup_load ? 0: M_AXI_TREADY;
     reg                          M_AXI_TLAST_CLEAN; assign M_AXI_TLAST = M_AXI_TLAST_CLEAN;
 
     //// we accept all dfx controller command to make it easier to compute

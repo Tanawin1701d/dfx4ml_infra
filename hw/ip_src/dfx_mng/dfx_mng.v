@@ -2,6 +2,7 @@ module DFX_Mng #(
     // ADDRESS & DATA
     parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
     parameter GLOB_DATA_WIDTH     = 32, // Data width for AXI interface
+    parameter NUM_REGION          = 2,
     // BANK 0
     parameter BANK0_CONTROL_WIDTH = 4,
     parameter BANK0_STATE_BIT_LEN = 4,
@@ -83,7 +84,7 @@ output wire                           M_AXI_BREADY,
 // ==========================================
 
 output wire[BANK1_RM_SELECT_WIDTH     -1: 0] dfx_rm_program, /// former slaveReprog
-input  wire[BANK1_RM_SELECT_WIDTH     -1: 0] dfx_rm_nreset,   /// former nslaveReset
+input  wire[NUM_REGION                -1: 0] dfx_rm_nreset,   /// former nslaveReset
 
 // ==========================================
 // DFX STREAMER Control
@@ -185,7 +186,8 @@ DFX_Mng_Core #(
         .BANK1_DATA_POOL_MASK_WIDTH (BANK1_DATA_POOL_MASK_WIDTH),
         .DMA_INIT_TASK_CNT          (DMA_INIT_TASK_CNT),
         .DMA_EXEC_TASK_CNT          (DMA_EXEC_TASK_CNT),
-        .PR_CTRL_TASK_CNT           (PR_CTRL_TASK_CNT)
+        .PR_CTRL_TASK_CNT           (PR_CTRL_TASK_CNT),
+        .NUM_REGION                 (NUM_REGION)
     ) dfx_mng_core (
         .clk    (clk),
         .nreset(nreset),

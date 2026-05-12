@@ -2,6 +2,8 @@ module DFX_Mng_Core #(
     // ADDRESS & DATA
     parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
     parameter GLOB_DATA_WIDTH     = 32, // Data width for AXI interface
+    parameter NUM_REGION          = 2 ,
+
     // BANK 0
     parameter BANK0_CONTROL_WIDTH = 4,
     parameter BANK0_STATE_BIT_LEN = 4,
@@ -92,11 +94,12 @@ module DFX_Mng_Core #(
 
     //////////// DFX Ctrl
     output wire[BANK1_RM_SELECT_WIDTH     -1: 0] dfx_rm_program,
-    input  wire[BANK1_RM_SELECT_WIDTH     -1: 0] dfx_rm_nreset
+    input  wire[NUM_REGION                -1: 0] dfx_rm_nreset
 
 );
 
-localparam BANK1_ROWS = 1 << BANK1_INDEX_WIDTH;
+localparam BANK1_ROWS       = 1 << BANK1_INDEX_WIDTH;
+localparam SLOTS_PER_REGION = BANK1_RM_SELECT_WIDTH / NUM_REGION;
 
 localparam CTRL_CLEAR                    = 4'b0000;
 localparam CTRL_SHUTDOWN                 = 4'b0001;
@@ -191,7 +194,16 @@ assign dfx_stream_store_init  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_ex
 assign dfx_stream_load_init   = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
 
 assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_recon_select_write_val: 0;
-wire dfx_rm_nreset_current = (dfx_rm_nreset & b1_vs_rm_recon_select_write_val) != 0;
+
+wire [BANK1_RM_SELECT_WIDTH-1:0] dfx_rm_nreset_expand;
+genvar dfx_rm_nreset_i;
+generate
+    for (dfx_rm_nreset_i = 0; dfx_rm_nreset_i < NUM_REGION; dfx_rm_nreset_i = dfx_rm_nreset_i + 1) begin : gen_nreset_expand
+        assign dfx_rm_nreset_expand[dfx_rm_nreset_i*SLOTS_PER_REGION +: SLOTS_PER_REGION] = {SLOTS_PER_REGION{dfx_rm_nreset[dfx_rm_nreset_i]}};
+    end
+endgenerate
+
+wire dfx_rm_nreset_current = (dfx_rm_nreset_expand & b1_vs_rm_recon_select_write_val) != 0;
 
 
 
