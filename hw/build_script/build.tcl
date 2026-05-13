@@ -94,7 +94,7 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
             # Only specify the target partition; other regions are greyboxed
             create_pr_configuration -name config_child_${r}_${m} \
                 -partitions [list "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_${m}_inst_0"] \
-                -greybox_partitions $greybox_list
+                -greyboxs $greybox_list
 
             # Child run inherits static routing from impl_dfx and re-implements only region r
             create_run child_${child_idx}_impl_dfx -parent_run impl_dfx \
