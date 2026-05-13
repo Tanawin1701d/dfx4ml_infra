@@ -6,179 +6,209 @@ proc create_dfx_region_bd { \
     parentCell \
     block_name \
     clk_frq \
-    num_dfx_streamer \
     interface_widths \
-    input_maps \
-    output_maps \
+    rm_config \
     ip_name \
-    rm_id
+    rm_id \
 } {
 
+  ##------------------------------------------------------------
+  ## STAGE 1: ARGUMENT PARSING
+  ##------------------------------------------------------------
+  set load_io_map  [dict get $rm_config load_io_map]
+  set store_io_map [dict get $rm_config store_io_map]
 
+  # Extract streamer indices from io_map pairs {io_idx kernel_idx}
+  set load_idxs {}
+  foreach pair $load_io_map {
+      lappend load_idxs [lindex $pair 0]
+  }
+  set store_idxs {}
+  foreach pair $store_io_map {
+      lappend store_idxs [lindex $pair 0]
+  }
 
+  ##------------------------------------------------------------
+  ## STAGE 2: VALIDATION
+  ##------------------------------------------------------------
+  if { [llength $load_idxs] == 0 && [llength $store_idxs] == 0 } {
+      catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" \
+          "rm_config has empty load_io_map and store_io_map"}
+      return
+  }
 
-#  variable script_folder
-#  variable design_name
+  foreach idx [concat $load_idxs $store_idxs] {
+      if { $idx >= [llength $interface_widths] } {
+          catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" \
+              "streamer index $idx exceeds interface_widths length [llength $interface_widths]"}
+          return
+      }
+      set iw [lindex $interface_widths $idx]
+      if { !($iw != 0 && ($iw & ($iw - 1)) == 0) } {
+          catch {common::send_gid_msg -ssname BD::TCL -id 2094 -severity "ERROR" \
+              "interface_widths\[$idx\] = <$iw> is not a power of two!"}
+          return
+      }
+  }
 
-#  if { $parentCell eq "" } {
-#     set parentCell [get_bd_cells /]
-#  }
-#
-#  # Get object for parentCell
-#  set parentObj [get_bd_cells $parentCell]
-#  if { $parentObj == "" } {
-#     catch {common::send_gid_msg -ssname BD::TCL -id 2090 -severity "ERROR" "Unable to find parent cell <$parentCell>!"}
-#     return
-#  }
-#
-#  # Make sure parentObj is hier blk
-#  set parentType [get_property TYPE $parentObj]
-#  if { $parentType ne "hier" } {
-#     catch {common::send_gid_msg -ssname BD::TCL -id 2091 -severity "ERROR" "Parent <$parentObj> has TYPE = <$parentType>. Expected to be <hier>."}
-#     return
-#  }
-#
-#  # Save current instance; Restore later
-
-#
-#  # Set parent object as current
-#  current_bd_instance $parentObj
-
+  ##------------------------------------------------------------
+  ## STAGE 3: BD INIT
+  ##------------------------------------------------------------
   create_bd_design $block_name
-
   set oldCurInst [current_bd_instance .]
 
-# integrity check
-  if { $num_dfx_streamer == 0 } {
-     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <num_dfx_streamer> is zero"}
-     return
-  }
-  # Check num_dfx_streamer matches array lengths
-  if { $num_dfx_streamer != [llength $interface_widths] } {
-     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "num_dfx_streamer <$num_dfx_streamer> must equal length of interface_widths <[llength $interface_widths]>!"}
-     return
-  }
-
-  for {set i 0} {$i < $num_dfx_streamer} {incr i} {
-     set iw  [lindex $interface_widths $i]         ;# iw      interface width
-     if { !($iw != 0 && ($iw & ($iw - 1)) == 0) } {
-        catch {common::send_gid_msg -ssname BD::TCL -id 2094 -severity "ERROR" "interface_widths\[$i\] = <$iw> is not a power of two!"}
-        return
-     }
-   }
-
-
-
-  # Create interface ports
-  for {set i 0} {$i < $num_dfx_streamer} {incr i} {
-    set M_DS_$i [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 M_DS_$i ]
-
-    set S_DS_$i [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:axis_rtl:1.0 S_DS_$i ]
-    set_property -dict [ list \
-     CONFIG.FREQ_HZ "$clk_frq" \
-     CONFIG.HAS_TKEEP {1} \
-     CONFIG.HAS_TLAST {1} \
-     CONFIG.HAS_TREADY {1} \
-     CONFIG.HAS_TSTRB {0} \
-     CONFIG.LAYERED_METADATA {undef} \
-     CONFIG.TDATA_NUM_BYTES [expr [lindex $interface_widths $i] / 8] \
-     CONFIG.TDEST_WIDTH {0} \
-     CONFIG.TID_WIDTH {0} \
-     CONFIG.TUSER_WIDTH {0} \
-     ] [set S_DS_$i]
+  ##------------------------------------------------------------
+  ## STAGE 4: INTERFACE PORTS
+  ##------------------------------------------------------------
+  # Slave (load) ports — one per streamer index in load_io_map
+  foreach io_idx $load_idxs {
+      set S_DS_${io_idx} [ create_bd_intf_port -mode Slave \
+          -vlnv xilinx.com:interface:axis_rtl:1.0 S_DS_${io_idx} ]
+      set_property -dict [ list \
+          CONFIG.FREQ_HZ          "$clk_frq" \
+          CONFIG.HAS_TKEEP        {1} \
+          CONFIG.HAS_TLAST        {1} \
+          CONFIG.HAS_TREADY       {1} \
+          CONFIG.HAS_TSTRB        {0} \
+          CONFIG.LAYERED_METADATA {undef} \
+          CONFIG.TDATA_NUM_BYTES  [expr {[lindex $interface_widths ${io_idx}] / 8}] \
+          CONFIG.TDEST_WIDTH      {0} \
+          CONFIG.TID_WIDTH        {0} \
+          CONFIG.TUSER_WIDTH      {0} \
+      ] [set S_DS_${io_idx}]
   }
 
-  set S_AXI_LITE_PR_CTRL [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_LITE_PR_CTRL ]
+  # Master (store) ports — one per streamer index in store_io_map
+  foreach io_idx $store_idxs {
+      set M_DS_${io_idx} [ create_bd_intf_port -mode Master \
+          -vlnv xilinx.com:interface:axis_rtl:1.0 M_DS_${io_idx} ]
+  }
+
+  set S_AXI_LITE_PR_CTRL [ create_bd_intf_port -mode Slave \
+      -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI_LITE_PR_CTRL ]
   set_property -dict [ list \
-   CONFIG.ADDR_WIDTH {32} \
-   CONFIG.DATA_WIDTH {32} \
-   CONFIG.FREQ_HZ "$clk_frq" \
-   CONFIG.PROTOCOL {AXI4LITE} \
-   ] $S_AXI_LITE_PR_CTRL
+      CONFIG.ADDR_WIDTH {32} \
+      CONFIG.DATA_WIDTH {32} \
+      CONFIG.FREQ_HZ    "$clk_frq" \
+      CONFIG.PROTOCOL   {AXI4LITE} \
+  ] $S_AXI_LITE_PR_CTRL
 
-  # Create ports
+  ##------------------------------------------------------------
+  ## STAGE 5: SCALAR PORTS
+  ##------------------------------------------------------------
+  # Build ASSOCIATED_BUSIF dynamically from active ports
+  set busif_list {S_AXI_LITE_PR_CTRL}
+  foreach io_idx $load_idxs  { lappend busif_list "S_DS_${io_idx}" }
+  foreach io_idx $store_idxs { lappend busif_list "M_DS_${io_idx}" }
+
   set clk [ create_bd_port -dir I -type clk -freq_hz $clk_frq clk ]
   set_property -dict [ list \
-   CONFIG.ASSOCIATED_BUSIF {M_DS_0:S_M_DS_0:S_DS_0:S_AXI_LITE_PR_CTRL} \
-   CONFIG.ASSOCIATED_RESET {nreset} \
- ] $clk
+      CONFIG.ASSOCIATED_BUSIF  [join $busif_list ":"] \
+      CONFIG.ASSOCIATED_RESET  {nreset} \
+  ] $clk
   set nreset [ create_bd_port -dir I nreset ]
 
-  # Find S_DATA_WIDTH and M_DATA_WIDTH from active (non -1) entries in input/output maps
+  ##------------------------------------------------------------
+  ## STAGE 6: IP INSTANCES
+  ##------------------------------------------------------------
+  # Use the first non-dummy entry for S2M widths; fall back to 32 if all are dummy
   set s2m_s_width 32
-  set s2m_m_width 32
-  for {set i 0} {$i < [llength $input_maps]} {incr i} {
-    if { [lindex $input_maps $i] != -1 } {
-      set s2m_s_width [lindex $interface_widths $i]
-      break
-    }
+  foreach pair $load_io_map {
+      if { [lindex $pair 1] != -1 } {
+          set s2m_s_width [lindex $interface_widths [lindex $pair 0]]
+          break
+      }
   }
-  for {set i 0} {$i < [llength $output_maps]} {incr i} {
-    if { [lindex $output_maps $i] != -1 } {
-      set s2m_m_width [lindex $interface_widths $i]
-      break
-    }
+  set s2m_m_width 32
+  foreach pair $store_io_map {
+      if { [lindex $pair 1] != -1 } {
+          set s2m_m_width [lindex $interface_widths [lindex $pair 0]]
+          break
+      }
   }
 
-  # Create instance: Stream_Single_S2M_0, and set properties
-  set Stream_Single_S2M_0 [ create_bd_cell -type ip -vlnv user.org:user:Stream_Single_S2M:1.0 Stream_Single_S2M_0 ]
+  set Stream_Single_S2M_0 [ create_bd_cell -type ip \
+      -vlnv user.org:user:Stream_Single_S2M:1.0 Stream_Single_S2M_0 ]
   set_property -dict [list \
-    CONFIG.S_DATA_WIDTH "$s2m_s_width" \
-    CONFIG.M_DATA_WIDTH "$s2m_m_width" \
+      CONFIG.S_DATA_WIDTH "$s2m_s_width" \
+      CONFIG.M_DATA_WIDTH "$s2m_m_width" \
   ] $Stream_Single_S2M_0
 
-  # Create instance: AXI_Lite_Shut_0, and set properties
-  set AXI_Lite_Shut_0 [ create_bd_cell -type ip -vlnv user.org:user:AXI_Lite_Shut:1.0 AXI_Lite_Shut_0 ]
+  set AXI_Lite_Shut_0 [ create_bd_cell -type ip \
+      -vlnv user.org:user:AXI_Lite_Shut:1.0 AXI_Lite_Shut_0 ]
 
-  # Create interface connections
-
-  for {set i 0} {$i < [llength $input_maps]} {incr i} {
-    set target_port [lindex $input_maps $i]
-    if { $target_port == -1 } {
-        set Stream_Slave_Dummy_${i} [ create_bd_cell -type ip -vlnv user.org:user:Stream_Slave_Dummy:1.0 Stream_Slave_Dummy_${i} ]
-        set_property -dict [list CONFIG.DATA_WIDTH "[lindex $interface_widths $i]"] [set Stream_Slave_Dummy_${i}]
-        connect_bd_intf_net -intf_net S_DS_${i}_1 [get_bd_intf_ports S_DS_${i}] [get_bd_intf_pins Stream_Slave_Dummy_${i}/S_AXI]
-        connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins Stream_Slave_Dummy_${i}/clk]
-        connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Slave_Dummy_${i}/nreset]
-
-    } else {
-        connect_bd_intf_net -intf_net S_DS_${i}_1 [get_bd_intf_ports S_DS_${i}] [get_bd_intf_pins Stream_Single_S2M_0/S_AXI]
-    }
+  ##------------------------------------------------------------
+  ## STAGE 7: INTERFACE CONNECTIONS
+  ##------------------------------------------------------------
+  foreach pair $load_io_map {
+      set io_idx     [lindex $pair 0]
+      set kernel_idx [lindex $pair 1]
+      if { $kernel_idx == -1 } {
+          set Stream_Slave_Dummy_${io_idx} [ create_bd_cell -type ip \
+              -vlnv user.org:user:Stream_Slave_Dummy:1.0 Stream_Slave_Dummy_${io_idx} ]
+          set_property -dict [list CONFIG.DATA_WIDTH "[lindex $interface_widths ${io_idx}]"] \
+              [set Stream_Slave_Dummy_${io_idx}]
+          connect_bd_intf_net -intf_net S_DS_${io_idx}_1 \
+              [get_bd_intf_ports S_DS_${io_idx}] \
+              [get_bd_intf_pins Stream_Slave_Dummy_${io_idx}/S_AXI]
+          connect_bd_net -net clk_0_1    [get_bd_ports clk]    [get_bd_pins Stream_Slave_Dummy_${io_idx}/clk]
+          connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Slave_Dummy_${io_idx}/nreset]
+      } else {
+          connect_bd_intf_net -intf_net S_DS_${io_idx}_1 \
+              [get_bd_intf_ports S_DS_${io_idx}] \
+              [get_bd_intf_pins Stream_Single_S2M_0/S_AXI]
+      }
   }
 
-  for {set i 0} {$i < [llength $output_maps]} {incr i} {
-    set target_port [lindex $output_maps $i]
-    if { $target_port == -1 } {
-        set Stream_Master_Dummy_$i [ create_bd_cell -type ip -vlnv user.org:user:Stream_Master_Dummy:1.0 Stream_Master_Dummy_$i ]
-        set_property -dict [list CONFIG.DATA_WIDTH "[lindex $interface_widths $i]"] [set Stream_Master_Dummy_${i}]
-        connect_bd_intf_net -intf_net M_DS_${i}_1 [get_bd_intf_pins Stream_Master_Dummy_${i}/M_AXI] [get_bd_intf_ports M_DS_${i}]
-        connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins Stream_Master_Dummy_${i}/clk]
-        connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Master_Dummy_${i}/nreset]
-
-    } else {
-        connect_bd_intf_net -intf_net M_DS_${i}_1 [get_bd_intf_pins Stream_Single_S2M_0/M_AXI] [get_bd_intf_ports M_DS_${i}]
-    }
+  foreach pair $store_io_map {
+      set io_idx     [lindex $pair 0]
+      set kernel_idx [lindex $pair 1]
+      if { $kernel_idx == -1 } {
+          set Stream_Master_Dummy_${io_idx} [ create_bd_cell -type ip \
+              -vlnv user.org:user:Stream_Master_Dummy:1.0 Stream_Master_Dummy_${io_idx} ]
+          set_property -dict [list CONFIG.DATA_WIDTH "[lindex $interface_widths ${io_idx}]"] \
+              [set Stream_Master_Dummy_${io_idx}]
+          connect_bd_intf_net -intf_net M_DS_${io_idx}_1 \
+              [get_bd_intf_pins Stream_Master_Dummy_${io_idx}/M_AXI] \
+              [get_bd_intf_ports M_DS_${io_idx}]
+          connect_bd_net -net clk_0_1    [get_bd_ports clk]    [get_bd_pins Stream_Master_Dummy_${io_idx}/clk]
+          connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Master_Dummy_${io_idx}/nreset]
+      } else {
+          connect_bd_intf_net -intf_net M_DS_${io_idx}_1 \
+              [get_bd_intf_pins Stream_Single_S2M_0/M_AXI] \
+              [get_bd_intf_ports M_DS_${io_idx}]
+      }
   }
 
+  connect_bd_intf_net -intf_net S_AXI_LITE_PR_CTRL_1 \
+      [get_bd_intf_ports S_AXI_LITE_PR_CTRL] \
+      [get_bd_intf_pins AXI_Lite_Shut_0/S_AXI]
 
+  ##------------------------------------------------------------
+  ## STAGE 8: NET CONNECTIONS
+  ##------------------------------------------------------------
+  connect_bd_net -net clk_0_1 \
+      [get_bd_ports clk] \
+      [get_bd_pins Stream_Single_S2M_0/clk] \
+      [get_bd_pins AXI_Lite_Shut_0/clk]
+  connect_bd_net -net nreset_0_1 \
+      [get_bd_ports nreset] \
+      [get_bd_pins Stream_Single_S2M_0/nreset] \
+      [get_bd_pins AXI_Lite_Shut_0/nreset]
 
-  # Connect S_AXI_LITE_PR_CTRL to AXI_Lite_Shut_0
-  connect_bd_intf_net -intf_net S_AXI_LITE_PR_CTRL_1 [get_bd_intf_ports S_AXI_LITE_PR_CTRL] [get_bd_intf_pins AXI_Lite_Shut_0/S_AXI]
+  ##------------------------------------------------------------
+  ## STAGE 9: ADDRESS SEGMENTS
+  ##------------------------------------------------------------
+  assign_bd_address -offset 0x00000000 -range 0x00010000 \
+      -target_address_space [get_bd_addr_spaces S_AXI_LITE_PR_CTRL] \
+      [get_bd_addr_segs AXI_Lite_Shut_0/S_AXI/reg0] -force
 
-  # Create port connections
-  connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins Stream_Single_S2M_0/clk]
-  connect_bd_net -net clk_0_1 [get_bd_ports clk] [get_bd_pins AXI_Lite_Shut_0/clk]
-  connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins Stream_Single_S2M_0/nreset]
-  connect_bd_net -net nreset_0_1 [get_bd_ports nreset] [get_bd_pins AXI_Lite_Shut_0/nreset]
-
-  # Create address segments
-  assign_bd_address -offset 0x00000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXI_LITE_PR_CTRL] [get_bd_addr_segs AXI_Lite_Shut_0/S_AXI/reg0] -force
-
-  # Restore current instance
+  ##------------------------------------------------------------
+  ## STAGE 10: FINALIZE
+  ##------------------------------------------------------------
   current_bd_instance $oldCurInst
 
   validate_bd_design
   save_bd_design
-
   close_bd_design $block_name
 }

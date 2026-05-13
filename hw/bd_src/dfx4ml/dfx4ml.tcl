@@ -9,46 +9,40 @@ proc create_sub_block_design {parentCell \
                               test_mode \
 } {
 
+    ##------------------------------------------------------------
+    ## STAGE 1: ARGUMENT PARSING
+    ##------------------------------------------------------------
     # Derive interface_widths from dfx_streamers_list (load_width in bytes → bits)
     set interface_widths {}
     foreach s $dfx_streamers_list {
         lappend interface_widths [expr {[dict get $s load_width] * 8}]
     }
 
+    ##------------------------------------------------------------
+    ## STAGE 2: PER-REGION RM BD CREATION
+    ##------------------------------------------------------------
     # Create one BD per (region, rm) pair
     for {set r 0} {$r < $num_dfx_region} {incr r} {
-        set region     [lindex $dfx_regions_list $r]
         set region_rms [lindex $rm_schemetics_list $r]
-
-        set load_streamers  [dict get $region load_streamers]
-        set store_streamers [dict get $region store_streamers]
-
-        # Build input_maps / output_maps (length = num_dfx_streamer, -1 = not connected)
-        set input_maps  [lrepeat $num_dfx_streamer -1]
-        foreach s_idx $load_streamers {
-            lset input_maps $s_idx $s_idx
-        }
-        set output_maps [lrepeat $num_dfx_streamer -1]
-        foreach s_idx $store_streamers {
-            lset output_maps $s_idx $s_idx
-        }
 
         for {set m 0} {$m < [llength $region_rms]} {incr m} {
             set block_name "dfx_pr_region_${r}_rm_${m}"
+            set rm_config  [lindex $region_rms $m]
             if {$test_mode == 1} {
                 puts "create dfx_region $block_name for testing"
                 create_dfx_region_bd $parentCell $block_name $clk_frq \
-                    $num_dfx_streamer $interface_widths \
-                    $input_maps $output_maps "" $m
+                    $interface_widths $rm_config "" $m
             } else {
                 puts "create dfx_region $block_name (user mode)"
                 create_dfx_region_user_bd $parentCell $block_name $clk_frq \
-                    $num_dfx_streamer $interface_widths \
-                    $input_maps $output_maps "" $m
+                    $interface_widths $rm_config "" $m
             }
         }
     }
 
+    ##------------------------------------------------------------
+    ## STAGE 3: UNIFIED BD CREATION
+    ##------------------------------------------------------------
     create_dfx_unified_bd $parentCell $clk_frq $rm_index_width \
         $num_dfx_streamer $num_dfx_region \
         $dfx_streamers_list $dfx_regions_list $rm_schemetics_list
@@ -69,6 +63,9 @@ proc create_dfx4ml_design { parentCell \
 
     # input argument checking is delegated to create_sub_block_design / create_dfx_unified_bd
 
+    ##------------------------------------------------------------
+    ## STAGE 1: SUB-BLOCK DISPATCH
+    ##------------------------------------------------------------
     create_sub_block_design $parentCell \
         $clk_frq \
         $rm_index_width \
@@ -79,6 +76,9 @@ proc create_dfx4ml_design { parentCell \
         $rm_schemetics_list \
         $test_mode
 
+    ##------------------------------------------------------------
+    ## STAGE 2: TOP-LEVEL BD INIT
+    ##------------------------------------------------------------
     # Create dfx4ml top-level block design
     if {$create_new_block} {
         create_bd_design "dfx4ml"
@@ -97,6 +97,9 @@ proc create_dfx4ml_design { parentCell \
         CONFIG.LOCK_PROPAGATE  {0} \
     ] $dfx_unified_0
 
+    ##------------------------------------------------------------
+    ## STAGE 3: PR REGION CONTAINERS AND CONNECTIONS
+    ##------------------------------------------------------------
     # Create one PR container per region and connect its streamers
     for {set r 0} {$r < $num_dfx_region} {incr r} {
         set region     [lindex $dfx_regions_list $r]
@@ -151,6 +154,9 @@ proc create_dfx4ml_design { parentCell \
             [get_bd_pins dfx_pr_region_${r}_0/nreset]
     }
 
+    ##------------------------------------------------------------
+    ## STAGE 4: FINALIZE
+    ##------------------------------------------------------------
     save_bd_design
     close_bd_design dfx4ml
 }
