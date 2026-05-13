@@ -448,11 +448,11 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     CONFIG.C_GPIO_WIDTH {1} \
   ] $axi_dfx_reset
 
-  # 2-bit output: [1]=PS decoupler value, [0]=source-select (1=DFX ctrl, 0=PS)
+  # (1+num_dfx_region)-bit output: [num_dfx_region:1]=PS decoupler value per region, [0]=source-select (1=DFX ctrl, 0=PS)
   set axi_dfx_decup [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_dfx_decup ]
   set_property -dict [list \
     CONFIG.C_ALL_OUTPUTS {1} \
-    CONFIG.C_GPIO_WIDTH {2} \
+    CONFIG.C_GPIO_WIDTH [expr {1 + $num_dfx_region}] \
   ] $axi_dfx_decup
 
   set icapWrap_0 [ create_bd_cell -type ip -vlnv user.org:user:icapWrap:1.0 icapWrap_0 ]
@@ -465,6 +465,10 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
 
     set dfx_decup_ctrl_r [ create_bd_cell -type ip \
         -vlnv user.org:user:dfx_decup_ctrl:1.0 dfx_decup_ctrl_${r} ]
+    set_property -dict [list \
+        CONFIG.REGION_IDX $r \
+        CONFIG.NUM_REGION $num_dfx_region] \
+        $dfx_decup_ctrl_r
 
     set dfx_decoupler_pr_ctrl_r [ create_bd_cell -type ip \
         -vlnv xilinx.com:ip:dfx_decoupler:1.0 dfx_decoupler_pr_ctrl_${r} ]
@@ -611,14 +615,15 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     connect_bd_net -net "DFX_Ctrl_B_vsm_VS_${r}_rm_reset" [get_bd_pins DFX_Ctrl_B/vsm_VS_${r}_rm_reset] \
     [get_bd_pins dfx_rm_nreset_concat/In${r}] \
     [get_bd_pins reset_join_${r}/Op1]
+    connect_bd_net -net "reset_join_${r}_Res" \
+        [get_bd_pins reset_join_${r}/Res] \
+        [get_bd_ports dfx_nreset_${r}]
 
     #for {set m 0} {$m < $num_region_rms} {incr m} {
     #  lappend rm_reset_pins [get_bd_pins dfx_nreset_expand_${r}/In${m}]
     #}
     #connect_bd_net -net "DFX_Ctrl_B_vsm_VS_${r}_rm_reset" {*}$rm_reset_pins
-    #connect_bd_net -net "reset_join_${r}_Res" \
-    #    [get_bd_pins reset_join_${r}/Res] \
-    #    [get_bd_ports dfx_nreset_${r}]
+
     #connect_bd_net -net "dfx_nreset_expand_${r}_dout" \
     #    [get_bd_pins dfx_nreset_expand_${r}/dout] \
     #    [get_bd_pins dfx_rm_nreset_concat/In${r}]
