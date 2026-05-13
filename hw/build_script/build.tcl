@@ -94,7 +94,7 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
             # Only specify the target partition; other regions are greyboxed
             create_pr_configuration -name config_child_${r}_${m} \
                 -partitions [list "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_${m}_inst_0"] \
-                -greyboxs $greybox_list
+                -greyboxes $greybox_list
 
             # Child run inherits static routing from impl_dfx and re-implements only region r
             create_run child_${child_idx}_impl_dfx -parent_run impl_dfx \
@@ -111,6 +111,10 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
     puts "get xdc file ..."
     add_files -fileset constrs_1 $xdc_path
     set_property target_constrs_file $xdc_path [current_fileset -constrset]
+    # Pblock add_cells_to_pblock requires the design to be linked first.
+    # PROCESSING_ORDER LATE causes Vivado to defer read_xdc to the
+    # opt_design phase (after link_design), where PR cells are visible.
+    set_property PROCESSING_ORDER LATE [get_files $xdc_path]
 }
 
 
