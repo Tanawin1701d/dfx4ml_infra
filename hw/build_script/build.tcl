@@ -69,27 +69,38 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
         -flow {Vivado Implementation 2023} -pr_config config_parent -dfx_mode STANDARD
     set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true [get_runs impl_dfx]
 
-    # Child runs: one per (region, rm_m) for m > 0, other regions stay at rm_0
+    # Child runs: one per (region r, rm m) for m > 0.
+    # Non-target regions are declared as greybox — Vivado treats them as empty
+    # placeholders and does not re-implement them.  The resulting partial
+    # bitstream only writes frames belonging to region r, so it is composable
+    # with any other region's partial at runtime (same static DCP base).
     set child_idx 0
     for {set r 0} {$r < $num_dfx_region} {incr r} {
         set region_rms     [lindex $rm_schemetics_list $r]
         set num_region_rms [llength $region_rms]
+
+        # m starts at 1 — rm_0 is already covered by the parent run above
         for {set m 1} {$m < $num_region_rms} {incr m} {
             incr child_idx
-            set child_partitions [list]
+
+            # Collect all other regions as greyboxes (no RM needed for them)
+            set greybox_list [list]
             for {set rr 0} {$rr < $num_dfx_region} {incr rr} {
-                if {$rr == $r} {
-                    lappend child_partitions \
-                        "dfx4ml_i/dfx_pr_region_${rr}_0:dfx_pr_region_${rr}_rm_${m}_inst_0"
-                } else {
-                    lappend child_partitions \
-                        "dfx4ml_i/dfx_pr_region_${rr}_0:dfx_pr_region_${rr}_rm_0_inst_0"
+                if {$rr != $r} {
+                    lappend greybox_list "dfx4ml_i/dfx_pr_region_${rr}_0"
                 }
             }
+
+            # Only specify the target partition; other regions are greyboxed
             create_pr_configuration -name config_child_${r}_${m} \
-                -partitions $child_partitions
+                -partitions [list "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_${m}_inst_0"] \
+                -greybox_partitions $greybox_list
+
+            # Child run inherits static routing from impl_dfx and re-implements only region r
             create_run child_${child_idx}_impl_dfx -parent_run impl_dfx \
                 -flow {Vivado Implementation 2023} -pr_config config_child_${r}_${m}
+
+            # Enable .bin output for ICAP loading at runtime
             set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true \
                 [get_runs child_${child_idx}_impl_dfx]
         }
@@ -110,10 +121,10 @@ proc syn_and_impl { num_core dfx_regions_list rm_schemetics_list } {
 
     set run_list [list impl_dfx]
     set num_dfx_region [llength $dfx_regions_list]
+    set child_idx 0
     for {set r 0} {$r < $num_dfx_region} {incr r} {
         set region_rms     [lindex $rm_schemetics_list $r]
         set num_region_rms [llength $region_rms]
-        set child_idx 0
         for {set m 1} {$m < $num_region_rms} {incr m} {
             incr child_idx
             lappend run_list child_${child_idx}_impl_dfx

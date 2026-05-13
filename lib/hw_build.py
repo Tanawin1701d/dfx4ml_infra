@@ -82,6 +82,7 @@ class HwBuildHelper:
         self.total_rm          = sum(self.num_rm_per_region)
 
         # Validation
+
         if rm_index_width <= 0:
             raise ValueError("rm_index_width must be positive")
 
@@ -101,6 +102,10 @@ class HwBuildHelper:
             raise ValueError(
                 f"len(rm_schemetics) ({len(rm_schemetics)}) must equal "
                 f"len(dfx_regions) ({self.num_dfx_region})")
+
+        if len(set(self.num_rm_per_region)) > 1:
+            raise ValueError(
+                f"all regions must have the same number of RMs, got: {self.num_rm_per_region}")
 
         required_region_keys = {"load_streamers", "store_streamers"}
         for r, region in enumerate(dfx_regions):

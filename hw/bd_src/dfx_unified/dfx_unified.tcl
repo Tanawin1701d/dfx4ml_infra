@@ -587,7 +587,8 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   connect_bd_net -net Dfx_Streamer_1_dbg_state \
       [get_bd_pins Dfx_Streamer_1/dbg_state] [get_bd_ports dbg_state_0]
 
-  # dfx_intr port is left undriven; connect here when DFX_Mng exposes an interrupt output
+  connect_bd_net -net DFX_Mng_dfx_intr \
+      [get_bd_pins DFX_Mng/dfx_intr] [get_bd_ports dfx_intr]
   connect_bd_net -net axi_dma_0_s2mm_introut \
       [get_bd_pins dma_hier/s2mm_introut] [get_bd_pins fin_store_concat_0/In0]
 
