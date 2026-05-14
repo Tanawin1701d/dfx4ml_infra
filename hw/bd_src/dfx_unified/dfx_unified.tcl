@@ -748,7 +748,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
       -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] \
       [get_bd_addr_segs axi_dfx_decup/S_AXI/Reg] -force
   for {set r 0} {$r < $num_dfx_region} {incr r} {
-    set pr_offset [format "0x%08X" [expr {0x00060000 + $r * 0x00010000}]]
+    set pr_offset [format "0x%08X" [expr {0x00050000 + $r * 0x00010000}]]
     assign_bd_address -offset $pr_offset -range 0x00010000 \
         -target_address_space [get_bd_addr_spaces DFX_Mng/M_AXI] \
         [get_bd_addr_segs M_AXI_LITE_PR_CTRL_${r}/Reg] -force
@@ -778,7 +778,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
       -target_address_space [get_bd_addr_spaces S_AXI_CTRL] \
       [get_bd_addr_segs axi_dfx_decup/S_AXI/Reg] -force
   for {set r 0} {$r < $num_dfx_region} {incr r} {
-    set pr_offset [format "0x%08X" [expr {0x00060000 + $r * 0x00010000}]]
+    set pr_offset [format "0x%08X" [expr {0x00050000 + $r * 0x00010000}]]
     assign_bd_address -offset $pr_offset -range 0x00010000 \
         -target_address_space [get_bd_addr_spaces S_AXI_CTRL] \
         [get_bd_addr_segs M_AXI_LITE_PR_CTRL_${r}/Reg] -force

@@ -16,21 +16,24 @@ class DFX_Unified_Driver(DefaultIP):
     PR_RESET_OFFSET  = 0x2_0000
     DMA_OFFSET       = 0x3_0000
     DFX_MNG_OFFSET   = 0x4_0000
-    PR_CTRL_BASE     = 0x6_0000  # region r lives at PR_CTRL_BASE + r * PR_CTRL_STRIDE
+    PR_CTRL_BASE     = 0x5_0000  # region r lives at PR_CTRL_BASE + r * PR_CTRL_STRIDE
     PR_CTRL_STRIDE   = 0x1_0000
 
-    def __init__(self, description, num_pr_region=1):
+    # Set by gen_dfx_unified_driver() in sw_build.py; defaults serve single-region builds.
+    NUM_PR_REGION = NUM_PR_REGION_VAL
+    LIM_AMT_SLOT  = LIM_AMT_SLOT_VAL
+
+    def __init__(self, description):
         super().__init__(description=description)
 
-        self.dfx_mng  = DFX_Mng (self, self.DFX_MNG_OFFSET)
+        self.dfx_mng  = DFX_Mng (self, self.DFX_MNG_OFFSET, self.LIM_AMT_SLOT)
         self.dfx_ctrl = DFX_Ctrl(self, self.DFX_CTRL_OFFSET)
         self.dfx_dma  = DFX_Dma (self, self.DMA_OFFSET)
         self.dfx_man  = DFX_Man (self, self.PR_RESET_OFFSET, self.PR_DECUP_OFFSET)
 
-        self.num_pr_region = num_pr_region
         self._pr_ctrl = [
             Pr_Ctrl(self, self.PR_CTRL_BASE + r * self.PR_CTRL_STRIDE)
-            for r in range(num_pr_region)
+            for r in range(self.NUM_PR_REGION)
         ]
 
     # --- per-region accessors ---
@@ -48,5 +51,3 @@ class DFX_Unified_Driver(DefaultIP):
     @property
     def pr_ctrl(self):
         return self.get_pr_ctrl(0)
-
-    bindto = ['user.org:user:dfx_unified:1.0']

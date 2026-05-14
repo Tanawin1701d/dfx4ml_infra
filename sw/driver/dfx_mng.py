@@ -9,7 +9,7 @@ import re
 
 class DFX_Mng:
 
-    def __init__(self, host_ip, offset):
+    def __init__(self, host_ip, offset, lmt_amt_slot):
 
         # meta data
         self.offset  = offset
@@ -55,7 +55,7 @@ class DFX_Mng:
         self.SLOT_COMPLETE_MASK   = (1, 0, 0xA)
         self.SLOT_NEXT_SESSION    = (1, 0, 0xB)
 
-        self.LIM_AMT_SLOT = 4
+        self.LIM_AMT_SLOT = lmt_amt_slot
 
     def read(self, addr):
         return self.host_ip.read(self.offset + addr)

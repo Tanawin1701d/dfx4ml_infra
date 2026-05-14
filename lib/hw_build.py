@@ -277,6 +277,7 @@ class HwBuildHelper:
                 else:
                     new_lines.append(line)
             elif 'FULLNAME="/dfx_unified_0"' in line and '<MODULE' in line:
+                # convert the dfx_unified bd to ip that PYNQ can be recognized
                 line = ('    <MODULE COREREVISION="1" FULLNAME="/dfx_unified_0" '
                         'HWVERSION="1.0" INSTANCE="dfx_unified_0" IPTYPE="PERIPHERAL" '
                         'IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="dfx_unified" '
@@ -301,26 +302,22 @@ class HwBuildHelper:
                                              self.VIVADO_PRJ_FOLDER_NAME + ".runs")
 
         # Collect partial bitstreams.
-        # Parent impl run (impl_dfx) holds rm_0 partials for ALL regions.
-        # Child runs hold rm_m (m>0) partials for each region in order:
-        #   child_1 = (region_0, rm_1), child_2 = (region_0, rm_2), ...
-        #   then (region_1, rm_1), (region_1, rm_2), ...
+        # Every (region, rm) pair gets its own child run (child_0, child_1, ...),
+        # iterating regions then RMs in order — matching syn_and_impl in build.tcl.
+        # impl_dfx is the static parent run only; partials come exclusively from child runs.
         child_idx = 0
         for region_idx, region_rms in enumerate(self.rm_schemetics):
             for rm_idx in range(len(region_rms)):
-                if rm_idx == 0:
-                    impl_folder_path = os.path.join(run_folder_path, self.IMPLEMENTATION_NAME)
-                else:
-                    child_idx += 1
-                    impl_folder_path = os.path.join(
-                        run_folder_path,
-                        self.CHILD_IMPL_TEMPLATE_NAME.format(idx=child_idx))
+                impl_folder_path = os.path.join(
+                    run_folder_path,
+                    self.CHILD_IMPL_TEMPLATE_NAME.format(idx=child_idx))
 
                 par_bin_path = os.path.join(
                     impl_folder_path,
                     self.PAR_BIN_TEMPLATE_NAME.format(r=region_idx, m=rm_idx))
                 new_name = f"region_{region_idx}_rm_{rm_idx}.bin"
                 shutil.copy(par_bin_path, os.path.join(out_hw_folder_path, new_name))
+                child_idx += 1
 
         # Full bitstream
         full_bin_path    = os.path.join(run_folder_path, self.IMPLEMENTATION_NAME, self.FULL_BIN_NAME)
