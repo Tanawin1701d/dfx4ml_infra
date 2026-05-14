@@ -63,8 +63,10 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
         lappend parent_partitions \
             "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_0_inst_0"
     }
+    puts "DEBUG: create_pr_configuration -name config_parent -partitions $parent_partitions"
     create_pr_configuration -name config_parent -partitions $parent_partitions
 
+    puts "DEBUG: create_run impl_dfx -parent_run synth_1 -flow {Vivado Implementation 2023} -pr_config config_parent -dfx_mode STANDARD"
     create_run impl_dfx -parent_run synth_1 \
         -flow {Vivado Implementation 2023} -pr_config config_parent -dfx_mode STANDARD
     set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true [get_runs impl_dfx]
@@ -74,36 +76,37 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
     # placeholders and does not re-implement them.  The resulting partial
     # bitstream only writes frames belonging to region r, so it is composable
     # with any other region's partial at runtime (same static DCP base).
+
     set child_idx 0
     for {set r 0} {$r < $num_dfx_region} {incr r} {
-        set region_rms     [lindex $rm_schemetics_list $r]
-        set num_region_rms [llength $region_rms]
+        set region_rms [lindex $rm_schemetics_list $r]
+        set num_rms    [llength $region_rms]
 
-        # m starts at 1 — rm_0 is already covered by the parent run above
-        for {set m 1} {$m < $num_region_rms} {incr m} {
-            incr child_idx
-
-            # Collect all other regions as greyboxes (no RM needed for them)
+        # create config for each rm
+        for {set rm 0} {$rm < $num_rms} {incr rm} {
             set greybox_list [list]
-            for {set rr 0} {$rr < $num_dfx_region} {incr rr} {
-                if {$rr != $r} {
-                    lappend greybox_list "dfx4ml_i/dfx_pr_region_${rr}_0"
+            for {set grey_rg_id 0} {$grey_rg_id < $num_dfx_region} {incr grey_rg_id} {
+                if {$grey_rg_id != $r} {
+                    lappend greybox_list "dfx4ml_i/dfx_pr_region_${grey_rg_id}_0"
                 }
             }
-
-            # Only specify the target partition; other regions are greyboxed
-            create_pr_configuration -name config_child_${r}_${m} \
-                -partitions [list "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_${m}_inst_0"] \
+            set partitions_list [list "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_${rm}_inst_0"]
+            puts "DEBUG: create_pr_configuration -name config_child_${r}_${rm} -partitions $partitions_list -greyboxes $greybox_list"
+            create_pr_configuration -name config_child_${r}_${rm} \
+                -partitions $partitions_list \
                 -greyboxes $greybox_list
 
             # Child run inherits static routing from impl_dfx and re-implements only region r
+            puts "DEBUG: create_run child_${child_idx}_impl_dfx -parent_run impl_dfx -flow {Vivado Implementation 2023} -pr_config config_child_${r}_${rm}"
             create_run child_${child_idx}_impl_dfx -parent_run impl_dfx \
-                -flow {Vivado Implementation 2023} -pr_config config_child_${r}_${m}
+                -flow {Vivado Implementation 2023} -pr_config config_child_${r}_${rm}
 
             # Enable .bin output for ICAP loading at runtime
             set_property STEPS.WRITE_BITSTREAM.ARGS.BIN_FILE true \
                 [get_runs child_${child_idx}_impl_dfx]
+            incr child_idx
         }
+
     }
 
     current_run [get_runs impl_dfx]
@@ -114,7 +117,7 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
     # Pblock add_cells_to_pblock requires the design to be linked first.
     # PROCESSING_ORDER LATE causes Vivado to defer read_xdc to the
     # opt_design phase (after link_design), where PR cells are visible.
-    set_property PROCESSING_ORDER LATE [get_files $xdc_path]
+    #set_property PROCESSING_ORDER LATE [get_files $xdc_path]
 }
 
 
@@ -129,9 +132,10 @@ proc syn_and_impl { num_core dfx_regions_list rm_schemetics_list } {
     for {set r 0} {$r < $num_dfx_region} {incr r} {
         set region_rms     [lindex $rm_schemetics_list $r]
         set num_region_rms [llength $region_rms]
-        for {set m 1} {$m < $num_region_rms} {incr m} {
-            incr child_idx
+        for {set rm 0} {$rm < $num_region_rms} {incr rm} {
+            puts "DEBUG: Adding child run to list: child_${child_idx}_impl_dfx (region $r, RM $rm)"
             lappend run_list child_${child_idx}_impl_dfx
+            incr child_idx
         }
     }
     launch_runs {*}$run_list -to_step write_bitstream -jobs $num_core

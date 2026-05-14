@@ -8,24 +8,24 @@ import subprocess
 import re
 
 class DFX_Man:
+    # axi_dfx_decup GPIO bit layout (write-only, mirrored in host_ip._decup_shadow):
+    #   bit[0]        : ctrl_sel  — 0=PS controls decoupler, 1=DFX ctrl controls
+    #   bit[region+1] : ps_decup_val for that region
 
     def __init__(self, host_ip, offset_reset, offset_decup):
-
-        self.host_ip      = host_ip
-        self.offset_reset = offset_reset
-        self.offset_decup = offset_decup
-        self.ps_decup_val = 0
-        self._ctrl_sel    = 0  # software mirror of GPIO[0]: 0=PS controls, 1=DFX ctrl controls
+        self.host_ip        = host_ip
+        self.offset_reset   = offset_reset
+        self.offset_decup   = offset_decup
+        self._decup_shadow  = 0  # local mirror; write-only HW register
 
 
     # --- internal helper ---
 
     def _write_decup(self):
-        # GPIO[1] = ps_decup_val, GPIO[0] = _ctrl_sel (write-only register, tracked in SW)
-        self.host_ip.write(self.offset_decup, (self.ps_decup_val << 1) | self._ctrl_sel)
+        self.host_ip.write(self.offset_decup, self._decup_shadow)
 
 
-    # --- reset ---
+    # --- reset (global) ---
 
     def hold_reset(self):
         print("[man] hold reset pr region")
@@ -38,36 +38,36 @@ class DFX_Man:
         print("[man] release reset pr region successfully")
 
 
-    # --- ownership ---
+    # --- ownership (ctrl_sel bit[0], global) ---
 
     def grant_decoupler_to_dfx_ctrl(self):
-        """Hand decoupler control to the DFX controller (ctrl_sel=1)."""
-        self._ctrl_sel = 1
+        self._decup_shadow |= 0x1
         self._write_decup()
 
     def grant_decoupler_to_ps(self):
-        """Reclaim decoupler control to PS (ctrl_sel=0)."""
-        self._ctrl_sel = 0
+        self._decup_shadow &= ~0x1
         self._write_decup()
 
 
-    # --- decoupler ---
+    # --- decoupler (per-region bit[region+1]) ---
 
-    def hold_decup(self):
-        print("[man] decup pr region")
-        self.ps_decup_val = 1
+    def hold_decup(self, region=0):
+        print(f"[man] decup pr region {region}")
+        self._decup_shadow |= (1 << (region + 1))
         self._write_decup()
-        print("[man] decup pr region successfully")
+        print(f"[man] decup pr region {region} successfully")
 
-    def release_decup(self):
-        print("[man] release decup pr region")
-        self.ps_decup_val = 0
+    def release_decup(self, region=0):
+        print(f"[man] release decup pr region {region}")
+        self._decup_shadow &= ~(1 << (region + 1))
         self._write_decup()
-        print("[man] release decup pr region successfully")
+        print(f"[man] release decup pr region {region} successfully")
 
 
     # --- state query ---
 
-    @property
-    def is_decoupled(self):
-        return bool(self._ctrl_sel) or bool(self.ps_decup_val)
+    def is_decoupled(self, region=0):
+        shadow   = self._decup_shadow
+        ctrl_sel = shadow & 0x1
+        ps_decup = (shadow >> (region + 1)) & 0x1
+        return bool(ctrl_sel) or bool(ps_decup)
