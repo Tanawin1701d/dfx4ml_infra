@@ -36,9 +36,8 @@ class SwBuildHelper:
             if os.path.exists(driver_dst):
                 shutil.rmtree(driver_dst)
             shutil.copytree(driver_src, driver_dst)
-
-        # Stamp build-time constants into the copied dfx_unified driver
-        self._configure_unified_driver(os.path.join(driver_dst, "dfx_unified.py"))
+            # Stamp build-time constants into the copied dfx_unified driver
+            self._configure_unified_driver(os.path.join(driver_dst, "dfx_unified.py"))
 
         # Copy myTest.ipynb as test.ipynb
         shutil.copy(test_src, test_dst)
