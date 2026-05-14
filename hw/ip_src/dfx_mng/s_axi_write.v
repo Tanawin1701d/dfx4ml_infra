@@ -41,8 +41,6 @@ module S_AXI_WRITE #(
     output wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_send_val       , output reg b0_last_session_send_req,      // actually it is wire but we want to put it into always block
     output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_send_val          , output reg b0_amt_query_send_req,         // actually it is wire but we want to put it into always block
     output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_send_val , output reg b0_amt_query_per_iter_send_req,// actually it is wire but we want to put it into always block
-    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_load_offset_send_val        , output reg b0_load_offset_send_req,       // actually it is wire but we want to put it into always block
-    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_store_offset_send_val       , output reg b0_store_offset_send_req,      // actually it is wire but we want to put it into always block
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_send_val        , output reg b0_dma_ip_addr_send_req,       // actually it is wire but we want to put it into always block
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_send_val         , output reg b0_pr_ip_addr_send_req,        // actually it is wire but we want to put it into always block
     output wire                             b0_intr_ena_send_val           , output reg b0_intr_ena_send_req,          // actually it is wire but we want to put it into always block
@@ -144,11 +142,9 @@ assign b0_control_cmd_send_val        = S_AXI_WDATA[BANK0_CONTROL_WIDTH -1: 0];
 assign b0_last_session_send_val       = S_AXI_WDATA[BANK1_INDEX_WIDTH   -1: 0];
 assign b0_amt_query_send_val          = S_AXI_WDATA[BANK0_QUERY_BIT_LEN -1: 0];
 assign b0_amt_query_per_iter_send_val = S_AXI_WDATA[BANK0_QUERY_BIT_LEN -1: 0];
-assign b0_load_offset_send_val        = S_AXI_WDATA[GLOB_ADDR_WIDTH     -1: 0];
-assign b0_store_offset_send_val       = S_AXI_WDATA[GLOB_ADDR_WIDTH     -1: 0];
 assign b0_dma_ip_addr_send_val        = S_AXI_WDATA[GLOB_ADDR_WIDTH     -1: 0];
 assign b0_pr_ip_addr_send_val         = S_AXI_WDATA[GLOB_ADDR_WIDTH     -1: 0];
-assign b0_intr_ena_send_val           = S_AXI_WDATA;
+assign b0_intr_ena_send_val           = S_AXI_WDATA[0];
 
 
 
@@ -161,8 +157,6 @@ always @(*) begin
     b0_last_session_send_req       = 0;
     b0_amt_query_send_req          = 0;
     b0_amt_query_per_iter_send_req = 0;
-    b0_load_offset_send_req        = 0;
-    b0_store_offset_send_req       = 0;
     b0_dma_ip_addr_send_req        = 0;
     b0_pr_ip_addr_send_req         = 0;
     b0_intr_ena_send_req           = 0;
@@ -182,7 +176,7 @@ always @(*) begin
     b1_next_session_send_req       = 0;
 
 
-    if (state == ST_DATA) begin
+    if (state == ST_DATA && S_AXI_WVALID) begin
         case (b1_write_address_val[15:14])
             2'b00: begin
                 case (b1_write_address_val[13:6]) // Address bits 13 to 6 determine the slot

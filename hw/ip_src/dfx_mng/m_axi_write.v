@@ -117,27 +117,27 @@ reg[3:0] state;
 always @(posedge clk or negedge nreset) begin
 
     if (~nreset)begin
-        state = STATUS_IDLE;
+        state <= STATUS_IDLE;
     end else begin
         case(state)
             STATUS_IDLE: begin
-                if ( (dma_init_task != 0) | (pr_ctrl_task != 0)) begin state = STATUS_WADDR; end
+                if ( (dma_init_task != 0) | (pr_ctrl_task != 0)) begin state <= STATUS_WADDR; end
             end
             STATUS_WADDR: begin
-                if (M_AXI_AWREADY) begin state = STATUS_WDATA; end
+                if (M_AXI_AWREADY) begin state <= STATUS_WDATA; end
             end
             STATUS_WDATA: begin
-                if (M_AXI_WREADY) begin state = STATUS_RESP; end
+                if (M_AXI_WREADY) begin state <= STATUS_RESP; end
             end
             STATUS_RESP: begin
-                if (M_AXI_BVALID) begin state = STATUS_UNLOCK; end
+                if (M_AXI_BVALID) begin state <= STATUS_UNLOCK; end
             end
             STATUS_UNLOCK: begin
-                state = STATUS_IDLE;
+                state <= STATUS_IDLE;
             end
 
             default: begin
-                state = STATUS_IDLE;
+                state <= STATUS_IDLE;
             end
         endcase
     end

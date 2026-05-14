@@ -148,6 +148,11 @@ class DFX_Mng:
         return self.write(self.gen_addr(*self.REG_INTR_ENA), value)
 
     def set_slot(self, slot_t, slot_idx, value):
+        if slot_t == self.SLOT_VS_RM_EXEC_SEL and bin(value).count('1') > 1:
+            raise ValueError(
+                f"[slot {slot_idx}] vs_rm_exec_sel={bin(value)}: HW only programs one PR region "
+                f"per session — only one bit may be set at a time"
+            )
         addr = self.gen_addr_for_slot(slot_t, slot_idx)
         self.write(addr, value)
 
@@ -164,7 +169,7 @@ class DFX_Mng:
             self.SLOT_COMPLETE_MASK, self.SLOT_NEXT_SESSION,
         ]
         for field, value in zip(fields, data_list):
-            self.write(self.gen_addr_for_slot(field, slot_idx), value)
+            self.set_slot(field, slot_idx, value)
 
     # =============================================
     # ===== command ===============================
@@ -181,6 +186,9 @@ class DFX_Mng:
         print("[cmd] shutdown successfully")
 
     def start_engine(self):
+        if not self.validate_query_config():
+            print("[cmd] start aborted — fix query config first")
+            return
         print("[cmd] start the engine")
         self.set_control(2)
         print("[cmd] start the engine successfully")
@@ -209,51 +217,80 @@ class DFX_Mng:
 
     def exec_state_to_str(self, s):
         mapper = {
-            0: "SHUTDOWN",
-            1: "INITIALIZE_PR_CTRL",
-            2: "CLEAR_MGS",
-            3: "INITIALIZE_MGS",
-            4: "INITIALIZE_DMA",
-            5: "SET_DMA_LOAD",
-            6: "SET_DMA_STORE",
-            7: "TRIGGERING",
-            8: "WAIT4FIN",
-            9: "FIN_SYNC",
+            0:  "SHUTDOWN",
+            1:  "PR_CTRL_REQ_SKIP_CHECK",
+            2:  "INITIALIZE_PR_CTRL",
+            3:  "CLEAR_MGS",
+            4:  "INITIALIZE_MGS",
+            5:  "INITIALIZE_DMA",
+            6:  "SET_DMA_LOAD",
+            7:  "SET_DMA_STORE",
+            8:  "TRIGGERING",
+            9:  "WAIT4FIN",
+            10: "FIN_SYNC",
         }
         return mapper.get(s, "UNKNOWN")
 
-    def print_main_status(self):
+    def validate_query_config(self):
+        """Returns True if amt_query will terminate cleanly (divisible by amt_query_per_iter)."""
+        amt      = self.get_amt_query()
+        per_iter = self.get_amt_query_per_iter()
+        print(f"[query check] amt={amt}  per_iter={per_iter}")
+        if per_iter == 0:
+            print("[query check] FAIL — per_iter is zero")
+            return False
+        if amt % per_iter != 0:
+            needed = amt + (per_iter - amt % per_iter)
+            print(f"[query check] FAIL — {amt} % {per_iter} = {amt % per_iter}  (nearest valid: {needed})")
+            return False
+        print(f"[query check] OK — {amt // per_iter} iteration(s)")
+        return True
 
-        print("----- MAIN STATUS ------------------")
-        main_state = self.get_main_state()
-        print("--------> MAIN_STATE  = ", self.main_state_to_str(main_state))
-        recon_state = self.get_recon_state()
-        print("--------> RECON_STATE = ", self.recon_state_to_str(recon_state))
-        exec_state = self.get_exec_state()
-        print("--------> EXEC_STATE  = ", self.exec_state_to_str(exec_state))
-        last_session = self.get_last_session()
-        print("--------> LAST_SESSION      = ", last_session)
-        cur_query = self.get_cur_query()
-        print("--------> CUR_QUERY         = ", cur_query)
-        amt_query = self.get_amt_query()
-        print("--------> AMT_QUERY         = ", amt_query)
+    def print_main_status(self):
+        main_state         = self.get_main_state()
+        recon_state        = self.get_recon_state()
+        exec_state         = self.get_exec_state()
+        last_session       = self.get_last_session()
+        cur_query          = self.get_cur_query()
+        amt_query          = self.get_amt_query()
         amt_query_per_iter = self.get_amt_query_per_iter()
-        print("--------> AMT_QUERY_PER_ITER= ", amt_query_per_iter)
-        dma_ip_addr = self.get_dma_ip_addr()
-        print("--------> DMA_IP_ADDR       = ", hex(dma_ip_addr))
-        pr_ip_addr = self.get_pr_ip_addr()
-        print("--------> PR_IP_ADDR        = ", hex(pr_ip_addr))
-        intr_ena = self.get_intr_ena()
-        print("--------> INTR_ENA          = ", hex(intr_ena))
-        intr_status = self.get_intr_status()
-        print("--------> INTR_STATUS       = ", hex(intr_status))
+        dma_ip_addr        = self.get_dma_ip_addr()
+        pr_ip_addr         = self.get_pr_ip_addr()
+        intr_ena           = self.get_intr_ena()
+        intr_status        = self.get_intr_status()
+
+        W = 55
+        progress = (f"{cur_query}/{amt_query}"
+                    if amt_query > 0 else f"{cur_query}/-")
+
+        print("┌" + "─" * W + "┐")
+        print(f"│{'  DFX Manager — Main Status':^{W}}│")
+        print("├" + "─" * W + "┤")
+        print(f"│  {'MAIN_STATE':<22}: {self.main_state_to_str(main_state):<{W-26}}│")
+        print(f"│  {'RECON_STATE':<22}: {self.recon_state_to_str(recon_state):<{W-26}}│")
+        print(f"│  {'EXEC_STATE':<22}: {self.exec_state_to_str(exec_state):<{W-26}}│")
+        print("├" + "─" * W + "┤")
+        print(f"│  {'LAST_SESSION':<22}: {last_session:<{W-26}}│")
+        print(f"│  {'QUERY (cur/amt)':<22}: {progress:<{W-26}}│")
+        print(f"│  {'AMT_QUERY_PER_ITER':<22}: {amt_query_per_iter:<{W-26}}│")
+        print("├" + "─" * W + "┤")
+        print(f"│  {'DMA_IP_ADDR':<22}: {hex(dma_ip_addr):<{W-26}}│")
+        print(f"│  {'PR_IP_ADDR':<22}: {hex(pr_ip_addr):<{W-26}}│")
+        print("├" + "─" * W + "┤")
+        intr_line = f"ena={'1' if intr_ena else '0'}  status={'1 (pending)' if intr_status else '0'}"
+        print(f"│  {'INTERRUPT':<22}: {intr_line:<{W-26}}│")
+        print("└" + "─" * W + "┘")
 
     def print_slot_data(self):
-
-        print("----- SLOT DATA ------------------")
+        W = 55
+        print("┌" + "─" * W + "┐")
+        print(f"│{'  DFX Manager — Slot Data':^{W}}│")
+        print("├" + "─" * W + "┤")
 
         if self.get_main_state() != 0:
-            print("---------- cannot print slot data: system is not in SHUTDOWN state")
+            msg = "read-back unavailable: not in SHUTDOWN state"
+            print(f"│  {msg:<{W-2}}│")
+            print("└" + "─" * W + "┘")
             return
 
         for slot_idx in range(self.LIM_AMT_SLOT):
@@ -261,22 +298,22 @@ class DFX_Mng:
              prof_recon, prof_exec, rm_recon_sel, rm_exec_sel,
              load_mask, store_mask, complete_mask, next_session) = self.get_slot(slot_idx)
 
-            print(f"------> slot {slot_idx} :")
-            print(f"        srcAddr        : {hex(s_addr)},  srcSize   : {hex(s_size)}")
-            print(f"        desAddr        : {hex(d_addr)},  desSize   : {hex(d_size)}")
-            print(f"        profReconCnt   : {hex(prof_recon)}")
-            print(f"        profExecCnt    : {hex(prof_exec)}")
-            print(f"        vsRmReconSel   : {bin(rm_recon_sel)}")
-            print(f"        vsRmExecSel    : {bin(rm_exec_sel)}")
-            print(f"        loadMask       : {bin(load_mask)}")
-            print(f"        storeMask      : {bin(store_mask)}")
-            print(f"        completeMask   : {bin(complete_mask)}")
-            print(f"        nextSession    : {next_session}")
+            print(f"│  slot [{slot_idx}]{'':>{W-10}}│")
+            print(f"│    {'src':<6}: addr={hex(s_addr):<12}  size={hex(s_size):<{W-38}}│")
+            print(f"│    {'des':<6}: addr={hex(d_addr):<12}  size={hex(d_size):<{W-38}}│")
+            print(f"│    {'recon':<6}: rm_sel={bin(rm_recon_sel):<8}  prof={prof_recon:<{W-34}}│")
+            print(f"│    {'exec':<6}: rm_sel={bin(rm_exec_sel):<8}  prof={prof_exec:<{W-34}}│")
+            masks = f"load={bin(load_mask)}  store={bin(store_mask)}  done={bin(complete_mask)}"
+            print(f"│    {'masks':<6}: {masks:<{W-10}}│")
+            print(f"│    {'next':<6}: slot {next_session:<{W-14}}│")
+            if slot_idx < self.LIM_AMT_SLOT - 1:
+                print("│" + "·" * W + "│")
+
+        print("└" + "─" * W + "┘")
 
     def print_debug(self):
         self.print_main_status()
         self.print_slot_data()
-        print("-------------------------------")
 
     # =============================================
     # ===== test ==================================

@@ -115,16 +115,17 @@ localparam STATE_RECON_W4SLAVERESET      = 4'b0010;
 localparam STATE_RECON_W4SLAVEOP         = 4'b0011;
 localparam STATE_RECON_FIN_SYNC          = 4'b0100;
 
-localparam STATE_EXEC_SHUTDOWN           = 4'b0000;
-localparam STATE_EXEC_INITIALIZE_PR_CTRL = 4'b0001; // initialize PR-controlled IP (set batch_size + ap_start)
-localparam STATE_EXEC_CLEAR_MGS          = 4'b0010;
-localparam STATE_EXEC_INITIALIZE_MGS     = 4'b0011; // initialize magic streamer, to reset magic streamer and start the streaming
-localparam STATE_EXEC_INITIALIZE_DMA     = 4'b0100; // the state will reset the interrupt signal
-localparam STATE_EXEC_SET_DMA_LOAD       = 4'b0101; // the system is setting the dma load, we can trigger the slave to do something
-localparam STATE_EXEC_SET_DMA_STORE      = 4'b0110; // the system is setting the dma store, we can trigger the slave to do something
-localparam STATE_EXEC_TRIGGERING         = 4'b0111;
-localparam STATE_EXEC_WAIT4FIN           = 4'b1000;
-localparam STATE_EXEC_FIN_SYNC           = 4'b1001;
+localparam STATE_EXEC_SHUTDOWN               = 4'b0000;
+localparam STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK = 4'b0001;
+localparam STATE_EXEC_INITIALIZE_PR_CTRL     = 4'b0010; // initialize PR-controlled IP (set batch_size + ap_start)
+localparam STATE_EXEC_CLEAR_MGS              = 4'b0011;
+localparam STATE_EXEC_INITIALIZE_MGS         = 4'b0100; // initialize magic streamer, to reset magic streamer and start the streaming
+localparam STATE_EXEC_INITIALIZE_DMA         = 4'b0101; // the state will reset the interrupt signal
+localparam STATE_EXEC_SET_DMA_LOAD           = 4'b0110; // the system is setting the dma load, we can trigger the slave to do something
+localparam STATE_EXEC_SET_DMA_STORE          = 4'b0111; // the system is setting the dma store, we can trigger the slave to do something
+localparam STATE_EXEC_TRIGGERING             = 4'b1000;
+localparam STATE_EXEC_WAIT4FIN               = 4'b1001;
+localparam STATE_EXEC_FIN_SYNC               = 4'b1010;
 
 ///////////// task for dma
 localparam DMA_TASK_RESET_INTR_BEG = 0; // reset the interrupt signal task
@@ -188,12 +189,12 @@ wire [BANK1_INDEX_WIDTH-1 :0] b1_read_indexer_val  = b1_read_address_val [6+:BAN
 wire [BANK1_INDEX_WIDTH-1 :0] b1_write_indexer_val = b1_write_address_val[6+:BANK1_INDEX_WIDTH];
 
 
-assign dfx_stream_store_reset = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_load_mask_read_val : 0;
-assign dfx_stream_load_reset  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_load_mask_read_val : 0;
-assign dfx_stream_store_init  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
-assign dfx_stream_load_init   = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val: 0;
+assign dfx_stream_store_reset = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_store_mask_read_val : 0;
+assign dfx_stream_load_reset  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_load_mask_read_val  : 0;
+assign dfx_stream_store_init  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val : 0;
+assign dfx_stream_load_init   = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_load_mask_read_val  : 0;
 
-assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_recon_select_write_val: 0;
+assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_recon_select_read_val: 0;
 
 wire [BANK1_RM_SELECT_WIDTH-1:0] dfx_rm_nreset_expand;
 genvar dfx_rm_nreset_i;
@@ -203,7 +204,7 @@ generate
     end
 endgenerate
 
-wire dfx_rm_nreset_current = (dfx_rm_nreset_expand & b1_vs_rm_recon_select_write_val) != 0;
+wire dfx_rm_nreset_current = (dfx_rm_nreset_expand & b1_vs_rm_recon_select_read_val) != 0;
 
 
 
@@ -284,31 +285,32 @@ always@(posedge clk) begin
     end else if (b0_main_state == STATE_MAIN_PROCESS) begin
 
         //// partial update complete mask
-        b1_complete_mask[b1_write_indexer_val] <= (b1_complete_mask[b1_write_indexer_val] | dfx_stream_fin);
+        b1_complete_mask[b1_read_indexer] <= (b1_complete_mask[b1_read_indexer] | dfx_stream_fin);
 
         //// partial update recon profiler
         if ( (b0_recon_state == STATE_RECON_REPROG      ) |
              (b0_recon_state == STATE_RECON_W4SLAVERESET) |
              (b0_recon_state == STATE_RECON_W4SLAVEOP   )
         )begin
-            b1_prof_recon[b1_write_indexer_val]    <= b1_prof_recon[b1_write_indexer_val] + 1;
+            b1_prof_recon[b1_read_indexer]    <= b1_prof_recon[b1_read_indexer] + 1;
         end
         //// partial update exec profiler
-        if (    (b0_exec_state == STATE_EXEC_INITIALIZE_PR_CTRL) |
-                (b0_exec_state == STATE_EXEC_CLEAR_MGS)          |
-                (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)     |
-                (b0_exec_state == STATE_EXEC_INITIALIZE_DMA)     |
-                (b0_exec_state == STATE_EXEC_SET_DMA_LOAD)       |
-                (b0_exec_state == STATE_EXEC_SET_DMA_STORE)      |
-                (b0_exec_state == STATE_EXEC_TRIGGERING)         |
+        if (    (b0_exec_state == STATE_EXEC_INITIALIZE_PR_CTRL)     |
+                (b0_exec_state == STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK) |
+                (b0_exec_state == STATE_EXEC_CLEAR_MGS)              |
+                (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)         |
+                (b0_exec_state == STATE_EXEC_INITIALIZE_DMA)         |
+                (b0_exec_state == STATE_EXEC_SET_DMA_LOAD)           |
+                (b0_exec_state == STATE_EXEC_SET_DMA_STORE)          |
+                (b0_exec_state == STATE_EXEC_TRIGGERING)             |
                 (b0_exec_state == STATE_EXEC_WAIT4FIN)            )begin
 
-           b1_prof_exec[b1_write_indexer_val] <= b1_prof_exec[b1_write_indexer_val] + 1;
+           b1_prof_exec[b1_read_indexer] <= b1_prof_exec[b1_read_indexer] + 1;
         end
 
     end else if (b0_main_state == STATE_MAIN_PRE_SHUTDOWN)begin
-        b1_dma_src_addr[b1_write_indexer_val] <= b1_dma_src_addr_read_val + b1_dma_src_size_read_val;
-        b1_dma_des_addr[b1_write_indexer_val] <= b1_dma_des_addr_read_val + b1_dma_des_size_read_val;
+        b1_dma_src_addr[b1_read_indexer] <= b1_dma_src_addr_read_val + b1_dma_src_size_read_val;
+        b1_dma_des_addr[b1_read_indexer] <= b1_dma_des_addr_read_val + b1_dma_des_size_read_val;
     end
 end
 
@@ -319,7 +321,6 @@ always@( posedge clk) begin
     // main state
     if (~nreset)begin
         b0_main_state   <= STATE_MAIN_SHUTDOWN;
-        b0_exec_state   <= STATE_EXEC_SHUTDOWN;
         b0_intr_status  <= 0;
         b1_read_indexer <= 0;
         b0_cur_query    <= 0;
@@ -328,7 +329,7 @@ always@( posedge clk) begin
         case(b0_control_cmd_write_val)
             CTRL_CLEAR: begin
                 b0_main_state   <= STATE_MAIN_SHUTDOWN;
-                b0_exec_state   <= STATE_MAIN_PRE_SHUTDOWN;
+
                 b1_read_indexer <= 0;
                 b0_cur_query    <= 0;
             end
@@ -391,7 +392,12 @@ always@( posedge clk) begin
                     b0_recon_state <= STATE_RECON_REPROG;
                 end
             end
-            STATE_RECON_REPROG      : begin b0_recon_state <= STATE_RECON_W4SLAVERESET; end
+            STATE_RECON_REPROG      : begin // data from bank 1 is ready from this state
+                b0_recon_state <= STATE_RECON_W4SLAVERESET;
+                if (b1_vs_rm_recon_select_read_val == 0) begin
+                    b0_recon_state <= STATE_RECON_FIN_SYNC;
+                end
+            end
             STATE_RECON_W4SLAVERESET: begin
                 if (~dfx_rm_nreset_current) begin
                     b0_recon_state <= STATE_RECON_W4SLAVEOP;
@@ -421,7 +427,14 @@ always@( posedge clk) begin
         case (b0_exec_state)
             STATE_EXEC_SHUTDOWN: begin
                 if (b0_main_state == STATE_MAIN_PROCESS)begin // main start we then start
-                    b0_exec_state <= STATE_EXEC_INITIALIZE_PR_CTRL;
+                    b0_exec_state <= STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK;
+                end
+            end
+            STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK: begin // bank 1 data ready here
+                if (b1_vs_rm_exec_select_read_val == 0) begin
+                    b0_exec_state <= STATE_EXEC_CLEAR_MGS;
+                end else begin
+                    b0_exec_state   <= STATE_EXEC_INITIALIZE_PR_CTRL;
                     pr_ctrl_task    <= 1;
                 end
             end
