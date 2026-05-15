@@ -75,6 +75,7 @@ module S_AXI_READ #(
 
 localparam ST_IDLE      = 3'b000;
 localparam ST_READFETCH = 3'b001;
+localparam ST_READWAIT  = 3'b011;  // extra cycle: let b1_*_read_val latch the updated indexer
 localparam ST_READDATA  = 3'b010;
 
 
@@ -95,9 +96,15 @@ always @(posedge clk or negedge nreset ) begin
                     b1_read_indexer_req  <= 1;
                 end
             end
-            ST_READFETCH: begin // one cycle for bank1 registered read to latch the index
-                state     <= ST_READDATA;
-                b1_read_indexer_req  <= 0;
+            ST_READFETCH: begin // cycle 1: b1_read_indexer latches the new slot index
+                b1_read_indexer_req <= 0;
+                if (b1_read_address_val[15:14] == 2'b01)
+                    state <= ST_READWAIT;  // Bank 1: need one more cycle for _read_val to settle
+                else
+                    state <= ST_READDATA;
+            end
+            ST_READWAIT: begin // cycle 2: b1_*_read_val latches data from the updated indexer
+                state <= ST_READDATA;
             end
             ST_READDATA: begin
                 if (S_AXI_RREADY) begin ///// send data response immediately

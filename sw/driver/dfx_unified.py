@@ -20,8 +20,9 @@ class DFX_Unified_Driver(DefaultIP):
     PR_CTRL_STRIDE   = 0x1_0000
 
     # Set by gen_dfx_unified_driver() in sw_build.py; defaults serve single-region builds.
-    NUM_PR_REGION = NUM_PR_REGION_VAL
-    LIM_AMT_SLOT  = LIM_AMT_SLOT_VAL
+    NUM_PR_REGION    = NUM_PR_REGION_VAL
+    SLOT_INDEX_WIDTH = SLOT_INDEX_WIDTH_VAL
+    NUM_STREAMER     = NUM_STREAMER_VAL
 
     # do not remove even it seems unused, it is used by the PYNQ system
     bindto = ['user.org:user:dfx_unified:1.0']
@@ -29,7 +30,8 @@ class DFX_Unified_Driver(DefaultIP):
     def __init__(self, description):
         super().__init__(description=description)
 
-        self.dfx_mng  = DFX_Mng (self, self.DFX_MNG_OFFSET, self.LIM_AMT_SLOT)
+        self.dfx_mng  = DFX_Mng (self, self.DFX_MNG_OFFSET  , self.NUM_PR_REGION,
+                                       self.SLOT_INDEX_WIDTH, self.NUM_STREAMER)
         self.dfx_ctrl = DFX_Ctrl(self, self.DFX_CTRL_OFFSET)
         self.dfx_dma  = DFX_Dma (self, self.DMA_OFFSET)
         self.dfx_man  = DFX_Man (self, self.PR_RESET_OFFSET, self.PR_DECUP_OFFSET)

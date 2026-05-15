@@ -4,10 +4,11 @@ import shutil
 
 class SwBuildHelper:
 
-    def __init__(self, export_folder_path, num_pr_region, rm_index_width):
+    def __init__(self, export_folder_path, num_pr_region, rm_index_width, num_streamer):
         self.export_folder_path = export_folder_path
         self.num_pr_region      = num_pr_region
         self.rm_index_width     = rm_index_width
+        self.num_streamer       = num_streamer
 
     def package_export_file(self):
         # make export path
@@ -45,8 +46,10 @@ class SwBuildHelper:
     def _configure_unified_driver(self, path):
         with open(path, 'r') as f:
             code = f.read()
-        code = code.replace('NUM_PR_REGION_VAL', str(self.num_pr_region))
-        code = code.replace('LIM_AMT_SLOT_VAL',  str(1 << self.rm_index_width))
+        code = code.replace('NUM_PR_REGION_VAL',    str(self.num_pr_region))
+        code = code.replace('SLOT_INDEX_WIDTH_VAL', str(self.rm_index_width))
+        code = code.replace('NUM_STREAMER_VAL',     str(self.num_streamer))
+        code = code.replace('LIM_AMT_SLOT_VAL',     str(1 << self.rm_index_width))
         with open(path, 'w') as f:
             f.write(code)
         

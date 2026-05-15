@@ -9,7 +9,7 @@ import re
 
 class DFX_Mng:
 
-    def __init__(self, host_ip, offset, lmt_amt_slot):
+    def __init__(self, host_ip, offset, num_pr_region, slot_index_width, num_streamer):
 
         # meta data
         self.offset  = offset
@@ -55,7 +55,10 @@ class DFX_Mng:
         self.SLOT_COMPLETE_MASK   = (1, 0, 0xA)
         self.SLOT_NEXT_SESSION    = (1, 0, 0xB)
 
-        self.LIM_AMT_SLOT = lmt_amt_slot
+        self.NUM_REGION       = num_pr_region
+        self.SLOT_INDEX_WIDTH = slot_index_width
+        self.LIM_AMT_SLOT     = 1 << slot_index_width
+        self.NUM_STREAMER     = num_streamer
 
     def read(self, addr):
         return self.host_ip.read(self.offset + addr)
@@ -148,10 +151,11 @@ class DFX_Mng:
         return self.write(self.gen_addr(*self.REG_INTR_ENA), value)
 
     def set_slot(self, slot_t, slot_idx, value):
-        if slot_t == self.SLOT_VS_RM_EXEC_SEL and bin(value).count('1') > 1:
+        if slot_t in (self.SLOT_VS_RM_RECON_SEL, self.SLOT_VS_RM_EXEC_SEL) and value != 0 and bin(value).count('1') != 1:
+            field = "vs_rm_recon_sel" if slot_t == self.SLOT_VS_RM_RECON_SEL else "vs_rm_exec_sel"
             raise ValueError(
-                f"[slot {slot_idx}] vs_rm_exec_sel={bin(value)}: HW only programs one PR region "
-                f"per session — only one bit may be set at a time"
+                f"[slot {slot_idx}] {field}={bin(value)}: must be exactly one-hot "
+                f"(exactly one PR region selected per session)"
             )
         addr = self.gen_addr_for_slot(slot_t, slot_idx)
         self.write(addr, value)
@@ -298,14 +302,15 @@ class DFX_Mng:
              prof_recon, prof_exec, rm_recon_sel, rm_exec_sel,
              load_mask, store_mask, complete_mask, next_session) = self.get_slot(slot_idx)
 
-            print(f"│  slot [{slot_idx}]{'':>{W-10}}│")
-            print(f"│    {'src':<6}: addr={hex(s_addr):<12}  size={hex(s_size):<{W-38}}│")
-            print(f"│    {'des':<6}: addr={hex(d_addr):<12}  size={hex(d_size):<{W-38}}│")
+            slot_label = f"  slot [{slot_idx}]"
+            print(f"│{slot_label:<{W}}│")
+            print(f"│    {'src':<6}: addr={hex(s_addr):<12}  size={hex(s_size):<{W-36}}│")
+            print(f"│    {'des':<6}: addr={hex(d_addr):<12}  size={hex(d_size):<{W-36}}│")
             print(f"│    {'recon':<6}: rm_sel={bin(rm_recon_sel):<8}  prof={prof_recon:<{W-34}}│")
             print(f"│    {'exec':<6}: rm_sel={bin(rm_exec_sel):<8}  prof={prof_exec:<{W-34}}│")
             masks = f"load={bin(load_mask)}  store={bin(store_mask)}  done={bin(complete_mask)}"
-            print(f"│    {'masks':<6}: {masks:<{W-10}}│")
-            print(f"│    {'next':<6}: slot {next_session:<{W-14}}│")
+            print(f"│    {'masks':<6}: {masks:<{W-12}}│")
+            print(f"│    {'next':<6}: slot {next_session:<{W-17}}│")
             if slot_idx < self.LIM_AMT_SLOT - 1:
                 print("│" + "·" * W + "│")
 
@@ -352,8 +357,9 @@ class DFX_Mng:
         # ---- step 2: Bank 0 R/W registers ----------------------------------
         print("[test] ===== Bank 0 R/W registers =====")
 
-        self.set_last_session(0x5)
-        check("REG_LAST_SESSION",       0x5,        self.get_last_session(),       mask=0x7)
+        last_session_mask = (1 << (self.SLOT_INDEX_WIDTH - 1)) - 1
+        self.set_last_session(last_session_mask)
+        check("REG_LAST_SESSION",       last_session_mask, self.get_last_session(), mask=last_session_mask)
 
         self.set_amt_query(0xDEADBEEF)
         check("REG_AMT_QUERY",          0xDEADBEEF, self.get_amt_query())
@@ -382,11 +388,13 @@ class DFX_Mng:
             des_size      = (0x00200000 | (s <<  8)) & 0x3FFFFFF   # 26-bit
             prof_recon    = (0xAABBCC00 | s)         & 0xFFFFFFFF
             prof_exec     = (0x11223300 | s)         & 0xFFFFFFFF
-            rm_recon_sel  = (s + 1) & 0x3                          # 2-bit
-            rm_exec_sel   = (s + 2) & 0x3                          # 2-bit
-            load_mask     = (0xAA | s)  & 0xFF                     # 8-bit
-            store_mask    = (0x55 | s)  & 0xFF                     # 8-bit
-            complete_mask = (0x33 | s)  & 0xFF                     # 8-bit
+            onehot_mask   = (1 << self.NUM_REGION) - 1
+            streamer_mask = (1 << self.NUM_STREAMER) - 1
+            rm_recon_sel  = (1 << (s % self.NUM_REGION)) & onehot_mask   # one-hot, NUM_PR_REGION-bit
+            rm_exec_sel   = (1 << (s % self.NUM_REGION)) & onehot_mask   # one-hot, NUM_PR_REGION-bit
+            load_mask     = (0xAA | s)  & streamer_mask             # NUM_STREAMER-bit
+            store_mask    = (0x55 | s)  & streamer_mask             # NUM_STREAMER-bit
+            complete_mask = (0x33 | s)  & streamer_mask             # NUM_STREAMER-bit
             next_session  = (s + 1) % self.LIM_AMT_SLOT            # 3-bit, linked-list chain
 
             self.set_slot(self.SLOT_DMA_SRC_ADDR,    s, src_addr)
@@ -413,12 +421,12 @@ class DFX_Mng:
             check(f"slot[{s}] SLOT_DMA_DES_SIZE",    des_size,      rb_des_size,     mask=0x3FFFFFF)
             check(f"slot[{s}] SLOT_PROF_RECON",      prof_recon,    rb_prof_recon)
             check(f"slot[{s}] SLOT_PROF_EXEC",       prof_exec,     rb_prof_exec)
-            check(f"slot[{s}] SLOT_VS_RM_RECON_SEL", rm_recon_sel,  rb_rm_recon_sel, mask=0x3)
-            check(f"slot[{s}] SLOT_VS_RM_EXEC_SEL",  rm_exec_sel,   rb_rm_exec_sel,  mask=0x3)
-            check(f"slot[{s}] SLOT_LOAD_MASK",       load_mask,     rb_load_mask,    mask=0xFF)
-            check(f"slot[{s}] SLOT_STORE_MASK",      store_mask,    rb_store_mask,   mask=0xFF)
-            check(f"slot[{s}] SLOT_COMPLETE_MASK",   complete_mask, rb_complete_mask,mask=0xFF)
-            check(f"slot[{s}] SLOT_NEXT_SESSION",    next_session,  rb_next_session, mask=0x7)
+            check(f"slot[{s}] SLOT_VS_RM_RECON_SEL", rm_recon_sel,  rb_rm_recon_sel, mask=onehot_mask)
+            check(f"slot[{s}] SLOT_VS_RM_EXEC_SEL",  rm_exec_sel,   rb_rm_exec_sel,  mask=onehot_mask)
+            check(f"slot[{s}] SLOT_LOAD_MASK",       load_mask,     rb_load_mask,    mask=streamer_mask)
+            check(f"slot[{s}] SLOT_STORE_MASK",      store_mask,    rb_store_mask,   mask=streamer_mask)
+            check(f"slot[{s}] SLOT_COMPLETE_MASK",   complete_mask, rb_complete_mask,mask=streamer_mask)
+            check(f"slot[{s}] SLOT_NEXT_SESSION",    next_session,  rb_next_session, mask=(1 << self.SLOT_INDEX_WIDTH) - 1)
 
         # ---- step 4: summary -----------------------------------------------
         total  = 6 + self.LIM_AMT_SLOT * 12
