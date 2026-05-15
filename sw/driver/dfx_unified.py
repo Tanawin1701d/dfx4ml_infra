@@ -23,6 +23,9 @@ class DFX_Unified_Driver(DefaultIP):
     NUM_PR_REGION = NUM_PR_REGION_VAL
     LIM_AMT_SLOT  = LIM_AMT_SLOT_VAL
 
+    # do not remove even it seems unused, it is used by the PYNQ system
+    bindto = ['user.org:user:dfx_unified:1.0']
+
     def __init__(self, description):
         super().__init__(description=description)
 
