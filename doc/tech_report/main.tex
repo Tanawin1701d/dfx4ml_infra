@@ -195,6 +195,57 @@ The DFX Manager is composed of 5 major components:
   \item DFX Manager Core: it contains the internal register memory used to control the flow of the system and provide data for the slave IPs. Moreover, Flow CTRL is responsible for orchestrating the slave IPs to work in the correct order.
 \end{enumerate}
 
+\subsubsection{DFX Manager's Reconfigurable Parameter}
+
+The DFX Manager IP is parameterized at synthesis time via Verilog \texttt{parameter} declarations, allowing the designer to tailor its resource usage and functional scope to the target platform. Table~\ref{tab:dfx_mng_params} summarises all exposed parameters.
+ 
+
+\rowcolors{2}{white}{headerbg}
+\begin{longtable}{
+    L{4.8cm}  % Parameter
+    C{1.6cm}  % Default
+    L{7.8cm}  % Description
+}
+\caption{DFX Manager Reconfigurable Parameters}
+\label{tab:dfx_mng_params}\\
+\toprule
+\rowcolor{white}
+\textbf{Parameter} & \textbf{Default} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\caption[]{DFX Manager Reconfigurable Parameters (continued)}\\
+\toprule
+\rowcolor{white}
+\textbf{Parameter} & \textbf{Default} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+
+% ── Global ──────────────────────────────────────────────────────────────────
+\rowcolor{sectionbg} \multicolumn{3}{l}{\small\textbf{\textsc{Global}}} \\
+\reg{GLOB\_ADDR\_WIDTH} & 32 & AXI address bus width. \\
+\reg{GLOB\_DATA\_WIDTH} & 32 & AXI data bus width. \\
+\reg{NUM\_REGION}       &  2 & Number of independently managed DFX reconfigurable regions. \\
+
+% ── Bank 0 — Control & Status ───────────────────────────────────────────────
+\rowcolor{sectionbg} \multicolumn{3}{l}{\small\textbf{\textsc{Bank 0 --- Control \& Status}}} \\
+\reg{BANK0\_CONTROL\_WIDTH}  & 4  & The width of the control register \\
+\reg{BANK0\_STATE\_BIT\_LEN} & 4  & state register width (recon\_state, exec\_state). \\
+\reg{BANK0\_QUERY\_BIT\_LEN} & 32 & Query register bit width (bank0) \\ 
+
+% ── Bank 1 — Slot & DMA Descriptor ─────────────────────────────────────────
+\rowcolor{sectionbg} \multicolumn{3}{l}{\small\textbf{\textsc{Bank 1 --- Slot \& DMA Descriptor}}} \\
+\reg{BANK1\_INDEX\_WIDTH}            &  3 & Session-index width; supports $2^{n}$ slots (default: 8). \\
+\reg{BANK1\_DATA\_ADDR\_WIDTH}       & 32 & DMA start-address width per session. \\
+\reg{BANK1\_DATA\_SIZE\_WIDTH}       & 26 & DMA transfer-size width (max $2^{26}$ bytes $\approx$ 64~MB). \\
+\reg{BANK1\_RM\_SELECT\_WIDTH}       &  2 & RM-select width; encodes $N_{\mathrm{VS}} \times M_{\mathrm{RM/VS}}$ module variants. \\
+\reg{BANK1\_PROFILE\_RECON\_WIDTH}   & 32 & Reconfiguration phase profiling counter width. \\
+\reg{BANK1\_PROFILE\_EXEC\_WIDTH}    & 32 & Execution phase profiling counter width. \\
+\reg{BANK1\_DATA\_POOL\_MASK\_WIDTH} & 8  & DFX Streamers (MGSs) selecting bit width\\
+
+\end{longtable} 
+
 \subsubsection{DFX Manager Core}
 
 \paragraph{\textbf{Register Architecture (internal register bank)}}
@@ -216,15 +267,6 @@ With a 64~KB range, the address space is categorized into 3 main sections:
 \end{enumerate}
 
 Fig.~\ref{fig:dfx_mng_reg} illustrates the DFX Manager's internal memory. The system is composed of two memory banks: Bank 0 is dedicated to IP control, the debugging system, overall running configuration, interrupt settings, and flow control memory; Bank 1 is composed of several rows sharing the same register pattern, used to store data and metadata for reconfigurable module initialization and slave static IP commands.
-
-\begin{sidewaysfigure}
-\centering
-\includegraphics[width=\textheight]{images/dfx_mng_reg.png}
-\caption{\label{fig:dfx_mng_reg} DFX Manager Core's internal register overview}
-\end{sidewaysfigure}
-
- 
-
  
 % =============================================================================
 \paragraph{\textbf{Bank 0 — Global Control Registers}}
@@ -423,8 +465,13 @@ This bank stores per-session data and metadata. Each row (session slot) follows 
   \badwo & Write Only   & Register is write-only; reads return undefined values. \\
 \end{tabular}
 
-
 \vspace{1.5em}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.8\textwidth]{images/dfx_mng_reg.png}
+\caption{\label{fig:dfx_mng_reg} DFX Manager Core's internal register overview}
+\end{figure}
 
 
 \paragraph{\textbf{Flow Control (state machine)}}
@@ -433,35 +480,67 @@ Flow Control orchestrates the slave IP steps --- DFX Controller, DMA IP, and DFX
  
 The DFX Manager Core runs three concurrent, loosely-coupled state machines whose outputs are readable from Bank~0 via \reg{MAIN\_STATE}, \reg{RECON\_STATE}, and \reg{EXEC\_STATE}. Fig.~\ref{fig:dfx_mng_state} illustrates the high-level state diagram.
 
-\begin{enumerate}
-  \item \textbf{Main state machine} (\reg{MAIN\_STATE}) --- the top-level sequencer with three states:
-    \begin{enumerate}[label=\alph*.]
-      \item \textbf{SHUTDOWN}: the DFX Manager is idle. All Bank~0 and Bank~1 registers are writable from the PS (except read-only status registers). The machine waits for the PS to issue \textbf{CTRL\_START} via \reg{CTRL\_REG}.
-      \item \textbf{PROCESS}: both the RECON and EXEC sub-machines are launched in parallel. The machine stays in PROCESS until both sub-machines reach FIN\_SYNC simultaneously.
-      \item \textbf{PRE\_SHUTDOWN}: a single-cycle transition that advances the session pointer to \reg{NEXT\_SESSION}, increments the DMA source/destination addresses for the next iteration, and decides whether to loop back to PROCESS (query budget not yet exhausted) or transition to SHUTDOWN. If \reg{INTR\_ENA} is set and all queries are done, \reg{INTR\_STATUS} is asserted.
-    \end{enumerate}
-
-  \item \textbf{Reconfiguration sub-machine} (\reg{RECON\_STATE}) --- controls the DFX CTRL IP in parallel with EXEC:
-    \begin{enumerate}[label=\alph*.]
-      \item \textbf{REPROG}: drives \texttt{dfx\_rm\_program} with \reg{VS\_RM\_RECON\_SELECT} to trigger partial-region bitstream loading.
-      \item \textbf{W4SLAVERESET}: waits for the partial-region reset signal (\texttt{dfx\_rm\_nreset}) to deassert.
-      \item \textbf{W4SLAVEOP}: waits for \texttt{dfx\_rm\_nreset} to reassert (reconfiguration complete).
-      \item \textbf{FIN\_SYNC}: holds until the EXEC sub-machine also reaches FIN\_SYNC, then both return to SHUTDOWN together.
-    \end{enumerate}
-
-  \item \textbf{Execution sub-machine} (\reg{EXEC\_STATE}) --- initializes and triggers the data-path IPs in parallel with RECON:
-    \begin{enumerate}[label=\alph*.]
-      \item \textbf{INITIALIZE\_PR\_CTRL}: sends \texttt{batch\_size} and \texttt{ap\_start} commands to the PR-controlled IP (address from \reg{PR\_IP\_ADDR}) via the PR CTRL Connector.
-      \item \textbf{CLEAR\_MGS}: one-cycle pulse to reset all DFX Streamer channels specified by \reg{LOAD\_MASK}.
-      \item \textbf{INITIALIZE\_MGS}: one-cycle pulse to initialize the DFX Streamer channels specified by \reg{STORE\_MASK}.
-      \item \textbf{INITIALIZE\_DMA}: resets the DMA interrupt via the DMA Connector.
-      \item \textbf{SET\_DMA\_LOAD}: programs the DMA engine with the source address and size from the current session slot (\reg{DMA\_SRC\_ADDR} / \reg{DMA\_SRC\_SIZE}). Skipped if \reg{LOAD\_MASK}[0] is clear.
-      \item \textbf{SET\_DMA\_STORE}: programs the DMA engine with the destination address and size (\reg{DMA\_DES\_ADDR} / \reg{DMA\_DES\_SIZE}). Skipped if \reg{STORE\_MASK}[0] is clear.
-      \item \textbf{TRIGGERING}: one-cycle pulse to start the DMA transfer.
-      \item \textbf{WAIT4FIN}: waits until \reg{COMPLETE\_MASK}~$=$~\reg{STORE\_MASK} (all expected store operations have completed).
-      \item \textbf{FIN\_SYNC}: holds until the RECON sub-machine also reaches FIN\_SYNC, then both return to SHUTDOWN together.
-    \end{enumerate}
+% ── Main state machine ───────────────────────────────────────────────────────
+\textbf{1.~Main state machine} (\reg{MAIN\_STATE}) --- top-level sequencer:
+\begin{enumerate}[label=\alph*., leftmargin=2em]\raggedright
+  \item \textbf{SHUTDOWN}: idle; Bank~0/1 registers are PS-writable.
+        Waits for \reg{CTRL\_REG}~$=$~\texttt{CTRL\_START}.
+  \item \textbf{PROCESS}: launches RECON and EXEC in parallel;
+        holds until both reach \textbf{FIN\_SYNC} simultaneously.
+  \item \textbf{PRE\_SHUTDOWN}: single-cycle housekeeping --- advances the
+        session pointer (\reg{NEXT\_SESSION}), increments DMA addresses, then
+        either loops back to \textbf{PROCESS} or returns to \textbf{SHUTDOWN}.
+        Asserts \reg{INTR\_STATUS} if \reg{INTR\_ENA} is set and all queries
+        are complete.
 \end{enumerate}
+
+\medskip
+% ── Reconfiguration sub-machine ──────────────────────────────────────────────
+\textbf{2.~Reconfiguration sub-machine} (\reg{RECON\_STATE}) ---
+controls the DFX CTRL IP in parallel with EXEC:
+\begin{enumerate}[label=\alph*., leftmargin=2em]\raggedright
+  \item \textbf{REPROG}: reads \reg{VS\_RM\_RECON\_SELECT} from Bank~1.\\
+        \hspace*{1em}$\bullet$~If~$0$: skip to \textbf{FIN\_SYNC}
+          (bypasses b and c).\\
+        \hspace*{1em}$\bullet$~Otherwise: drives \texttt{dfx\_rm\_program}
+          $\to$ \textbf{W4SLAVERESET}.
+  \item \textbf{W4SLAVERESET}: waits for \texttt{dfx\_rm\_nreset} to deassert.
+  \item \textbf{W4SLAVEOP}: waits for \texttt{dfx\_rm\_nreset} to reassert
+        (reconfiguration complete).
+  \item \textbf{FIN\_SYNC}: holds until EXEC also reaches \textbf{FIN\_SYNC};
+        both return to \textbf{SHUTDOWN} together.
+\end{enumerate} 
+
+\medskip
+% ── Execution sub-machine ────────────────────────────────────────────────────
+\textbf{3.~Execution sub-machine} (\reg{EXEC\_STATE}) ---
+initializes and triggers the data-path IPs in parallel with RECON:
+\begin{enumerate}[label=\alph*., leftmargin=2em]\raggedright
+  \item \textbf{PR\_CTRL\_REQ\_SKIP\_CHECK}: entry state;
+        reads \reg{VS\_RM\_EXEC\_SELECT} from Bank~1.\\
+        \hspace*{1em}$\bullet$~If~$0$: skip to \textbf{CLEAR\_MGS}.\\
+        \hspace*{1em}$\bullet$~Otherwise: arm PR CTRL sequencer
+          $\to$ \textbf{INITIALIZE\_PR\_CTRL}.
+  \item \textbf{INITIALIZE\_PR\_CTRL}: sends \texttt{batch\_size} and
+        \texttt{ap\_start} to the PR-controlled IP (\reg{PR\_IP\_ADDR});
+        advances on \texttt{AP\_START} completion.
+  \item \textbf{CLEAR\_MGS}: one-cycle reset of DFX Streamer channels
+        in \reg{LOAD\_MASK}.
+  \item \textbf{INITIALIZE\_MGS}: one-cycle init of DFX Streamer channels
+        in \reg{STORE\_MASK}.
+  \item \textbf{INITIALIZE\_DMA}: resets the DMA interrupt flag.
+  \item \textbf{SET\_DMA\_LOAD}: programs DMA source address and size
+        (\reg{DMA\_SRC\_ADDR}, \reg{DMA\_SRC\_SIZE});
+        skipped if \reg{LOAD\_MASK}[0]~$= 0$.
+  \item \textbf{SET\_DMA\_STORE}: programs DMA destination address and size
+        (\reg{DMA\_DES\_ADDR}, \reg{DMA\_DES\_SIZE});
+        skipped if \reg{STORE\_MASK}[0]~$= 0$.
+  \item \textbf{TRIGGERING}: one-cycle pulse to start the DMA transfer.
+  \item \textbf{WAIT4FIN}: waits until
+        \reg{COMPLETE\_MASK}~$=$~\reg{STORE\_MASK}.
+  \item \textbf{FIN\_SYNC}: holds until RECON also reaches \textbf{FIN\_SYNC};
+        both return to \textbf{SHUTDOWN} together.
+\end{enumerate} 
 
 \begin{figure}[H]
 \centering
