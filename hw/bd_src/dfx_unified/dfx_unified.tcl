@@ -104,8 +104,8 @@ TUSER {PRESENT 0 WIDTH 0} TLAST {PRESENT 1 WIDTH 1} TID {PRESENT 0 WIDTH 0} TDES
   connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins axi_dma_0/s2mm_introut] [get_bd_pins s2mm_introut]
   connect_bd_net -net clk_0_1 [get_bd_pins clk] [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] [get_bd_pins axi_dma_0/m_axi_s2mm_aclk] [get_bd_pins dfx_decoupler_0/intf_0_aclk] [get_bd_pins dfx_decoupler_1/intf_0_aclk] [get_bd_pins axi_dma_0/s_axi_lite_aclk]
   connect_bd_net -net reset_0_1 [get_bd_pins nreset] [get_bd_pins dfx_decoupler_0/intf_0_arstn] [get_bd_pins dfx_decoupler_1/intf_0_arstn] [get_bd_pins axi_dma_0/axi_resetn]
-  connect_bd_net -net dma_decup_store [get_bd_pins decup_store] [get_bd_pins dfx_decoupler_1/decouple]
-  connect_bd_net -net dma_decup_load  [get_bd_pins decup_load]  [get_bd_pins dfx_decoupler_0/decouple]
+  connect_bd_net -net dma_decup_store [get_bd_pins decup_store] [get_bd_pins dfx_decoupler_0/decouple]
+  connect_bd_net -net dma_decup_load  [get_bd_pins decup_load]  [get_bd_pins dfx_decoupler_1/decouple]
 
 
   # Restore current instance
