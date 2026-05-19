@@ -282,11 +282,11 @@ This bank is mainly used to control the flow control system and slave IP identif
 
 \rowcolors{2}{white}{headerbg}
 \begin{longtable}{
-    L{1.6cm}   % Address 
-    L{3.2cm}   % Register
-    L{1.7cm}   % Width
+    L{1.6cm}   % Address
+    L{3.4cm}   % Register
+    L{2.8cm}   % Width
     C{1.4cm}   % Access
-    L{6.7cm}   % Description
+    L{5.5cm}   % Description
 }
 \caption{Bank 0 — Global Control Registers}
 \label{tab:bank0_registers}\\
@@ -304,19 +304,19 @@ This bank is mainly used to control the flow control system and slave IP identif
 \bottomrule
 \endfoot 
 
-\addr{0x0000} & \reg{CTRL\_REG} & 4 bit & \badwo &
+\addr{0x0000} & \reg{CTRL\_REG} & {\small\reg{BANK0\_CONTROL}\newline\reg{\_WIDTH}} & \badwo &
   Control register (write-only).\newline
   \textbf{0x0}~=~CLEAR (reset all state machines and counters)\newline
   \textbf{0x1}~=~SHUTDOWN (halt gracefully)\newline
   \textbf{0x2}~=~START (begin processing) \\
 
-\addr{0x0040} & \reg{MAIN\_STATE} & 4 bit & \badro &
+\addr{0x0040} & \reg{MAIN\_STATE} & {\small\reg{BANK0\_STATE}\newline\reg{\_BIT\_LEN}} & \badro &
   Main flow state machine output:\newline
   \textbf{0x0}~=~SHUTDOWN\newline
   \textbf{0x1}~=~PROCESS\newline
   \textbf{0x2}~=~PRE\_SHUTDOWN \\
 
-\addr{0x0080} & \reg{RECON\_STATE} & 4 bit & \badro &
+\addr{0x0080} & \reg{RECON\_STATE} & {\small\reg{BANK0\_STATE}\newline\reg{\_BIT\_LEN}} & \badro &
   Reconfiguration sub-state machine (runs in parallel with \reg{EXEC\_STATE}):\newline
   \textbf{0x0}~=~SHUTDOWN\newline
   \textbf{0x1}~=~REPROG\newline
@@ -324,7 +324,7 @@ This bank is mainly used to control the flow control system and slave IP identif
   \textbf{0x3}~=~W4SLAVEOP\newline
   \textbf{0x4}~=~FIN\_SYNC \\
 
-\addr{0x00C0} & \reg{EXEC\_STATE} & 4 bit & \badro &
+\addr{0x00C0} & \reg{EXEC\_STATE} & {\small\reg{BANK0\_STATE}\newline\reg{\_BIT\_LEN}} & \badro &
   Execution sub-state machine (runs in parallel with \reg{RECON\_STATE}):\newline
   \textbf{0x0}~=~SHUTDOWN\newline
   \textbf{0x1}~=~INITIALIZE\_PR\_CTRL\newline
@@ -337,22 +337,22 @@ This bank is mainly used to control the flow control system and slave IP identif
   \textbf{0x8}~=~WAIT4FIN\newline
   \textbf{0x9}~=~FIN\_SYNC \\
 
-\addr{0x0100} & \reg{LAST\_SESSION} & 3 bit & \badrw &
+\addr{0x0100} & \reg{LAST\_SESSION} & {\small\reg{BANK1\_INDEX}\newline\reg{\_WIDTH}} & \badrw &
   Index of the last session in the execution round. The main machine stops cycling when the current session index equals this value and the query budget is exhausted. \\
 
-\addr{0x0140} & \reg{CUR\_QUERY} & 32 bit & \badro &
+\addr{0x0140} & \reg{CUR\_QUERY} & {\small\reg{BANK0\_QUERY}\newline\reg{\_BIT\_LEN}} & \badro &
   Current query counter. Incremented by \reg{AMT\_QUERY\_PER\_ITER} after each full session round. Cleared on CLEAR or START. \\
 
-\addr{0x0180} & \reg{AMT\_QUERY} & 32 bit & \badrw &
+\addr{0x0180} & \reg{AMT\_QUERY} & {\small\reg{BANK0\_QUERY}\newline\reg{\_BIT\_LEN}} & \badrw &
   Total query budget. The system shuts down automatically when \reg{CUR\_QUERY} reaches this value. \\
 
-\addr{0x01C0} & \reg{AMT\_QUERY} \newline \reg{\_PER\_ITER} & 32 bit & \badrw &
+\addr{0x01C0} & \reg{AMT\_QUERY} \newline \reg{\_PER\_ITER} & {\small\reg{BANK0\_QUERY}\newline\reg{\_BIT\_LEN}} & \badrw &
   Number of queries processed per iteration (per full session round). Added to \reg{CUR\_QUERY} on each round completion. \\
 
-\addr{0x0200} & \reg{DMA\_IP\_ADDR} & 32 bit & \badrw &
+\addr{0x0200} & \reg{DMA\_IP\_ADDR} & {\small\reg{GLOB\_ADDR\_WIDTH}} & \badrw &
   Base address of the DMA IP in the memory-mapped peripheral space. Used by the DMA Connector to issue AXI-LITE transactions. \\
 
-\addr{0x0240} & \reg{PR\_IP\_ADDR} & 32 bit & \badrw &
+\addr{0x0240} & \reg{PR\_IP\_ADDR} & {\small\reg{GLOB\_ADDR\_WIDTH}} & \badrw &
   Base address of the PR-controlled IP (e.g., the ML accelerator) in the peripheral space. Used by the PR CTRL Connector to initialize the IP via \texttt{batch\_size} and \texttt{ap\_start}. \\
 
 \addr{0x0280} & \reg{INTR\_ENA} & 1 bit & \badrw &
@@ -379,9 +379,9 @@ This bank stores per-session data and metadata. Each row (session slot) follows 
 \begin{longtable}{
     L{1.6cm}   % Slot Offset
     L{3.4cm}   % Register
-    L{1.8cm}   % Width
+    L{2.8cm}   % Width
     C{1.4cm}   % Access
-    L{6.8cm}   % Description
+    L{5.5cm}   % Description
 }
 \toprule
 \rowcolor{white}
@@ -399,55 +399,55 @@ This bank stores per-session data and metadata. Each row (session slot) follows 
 % ── DMA Source ────────────────────────────────────────────────────────────────
 \subrow{DMA Transfer — Source}
 
-\addr{+0x00} & \reg{DMA\_SRC\_ADDR} & 32 bit & \badrw &
+\addr{+0x00} & \reg{DMA\_SRC\_ADDR} & {\small\reg{BANK1\_DATA}\newline\reg{\_ADDR\_WIDTH}} & \badrw &
   Source memory address. Address in system memory from which the DMA engine reads data for this session. \\
 
-\addr{+0x04} & \reg{DMA\_SRC\_SIZE} & 26 bit & \badrw &
+\addr{+0x04} & \reg{DMA\_SRC\_SIZE} & {\small\reg{BANK1\_DATA}\newline\reg{\_SIZE\_WIDTH}} & \badrw &
   Source transfer size in bytes for this session. \\
 
 % ── DMA Destination ───────────────────────────────────────────────────────────
 \subrow{DMA Transfer — Destination}
 
-\addr{+0x08} & \reg{DMA\_DES\_ADDR} & 32 bit & \badrw &
+\addr{+0x08} & \reg{DMA\_DES\_ADDR} & {\small\reg{BANK1\_DATA}\newline\reg{\_ADDR\_WIDTH}} & \badrw &
   Destination memory address. Address in system memory where the DMA engine writes output data for this session. \\
 
-\addr{+0x0C} & \reg{DMA\_DES\_SIZE} & 26 bit & \badrw &
+\addr{+0x0C} & \reg{DMA\_DES\_SIZE} & {\small\reg{BANK1\_DATA}\newline\reg{\_SIZE\_WIDTH}} & \badrw &
   Destination transfer size in bytes for this session. \\
 
 % ── Profiling ─────────────────────────────────────────────────────────────────
 \subrow{Profiling Counters}
 
-\addr{+0x10} & \reg{PROF\_RECON} & 32 bit & \badrw &
+\addr{+0x10} & \reg{PROF\_RECON} & {\small\reg{BANK1\_PROFILE}\newline\reg{\_RECON\_WIDTH}} & \badrw &
   Reconfiguration profiler counter. Auto-incremented every cycle while \reg{RECON\_STATE} is in REPROG, W4SLAVERESET, or W4SLAVEOP. PS may write to reset or preset the counter. \\
 
-\addr{+0x14} & \reg{PROF\_EXEC} & 32 bit & \badrw &
+\addr{+0x14} & \reg{PROF\_EXEC} & {\small\reg{BANK1\_PROFILE}\newline\reg{\_EXEC\_WIDTH}} & \badrw &
   Execution profiler counter. Auto-incremented every cycle while \reg{EXEC\_STATE} is in any active (non-SHUTDOWN / non-FIN\_SYNC) state. PS may write to reset or preset the counter. \\
 
 % ── RM Selection ──────────────────────────────────────────────────────────────
 \subrow{RM Selection}
 
-\addr{+0x18} & \reg{VS\_RM\_RECON} \newline \reg{\_SELECT} & 2 bit & \badrw &
+\addr{+0x18} & \reg{VS\_RM\_RECON} \newline \reg{\_SELECT} & {\small\reg{BANK1\_RM}\newline\reg{\_SELECT\_WIDTH}} & \badrw &
   Selects which reconfigurable module to program during RECON. Forwarded to the DFX CTRL IP as the \texttt{dfx\_rm\_program} signal. \\
 
-\addr{+0x1C} & \reg{VS\_RM\_EXEC} \newline \reg{\_SELECT} & 2 bit & \badrw &
+\addr{+0x1C} & \reg{VS\_RM\_EXEC} \newline \reg{\_SELECT} & {\small\reg{BANK1\_RM}\newline\reg{\_SELECT\_WIDTH}} & \badrw &
   Selects which RM the execution pipeline targets. Allows a different RM to be reconfigured while another executes. \\
 
 % ── Stream Masks ──────────────────────────────────────────────────────────────
 \subrow{Stream Masks}
 
-\addr{+0x20} & \reg{LOAD\_MASK} & 8 bit & \badrw &
+\addr{+0x20} & \reg{LOAD\_MASK} & {\small\reg{BANK1\_DATA\_POOL}\newline\reg{\_MASK\_WIDTH}} & \badrw &
   Bit mask of input streamers that must be loaded before this session may execute. Bit~0 (LSB) is reserved for DMA; bits~1--7 correspond to DFX Streamer channels~1--7. \\
 
-\addr{+0x24} & \reg{STORE\_MASK} & 8 bit & \badrw &
+\addr{+0x24} & \reg{STORE\_MASK} & {\small\reg{BANK1\_DATA\_POOL}\newline\reg{\_MASK\_WIDTH}} & \badrw &
   Bit mask of output streamers that must store data after execution. Bit~0 (LSB) is reserved for DMA; bits~1--7 correspond to DFX Streamer channels~1--7. \\
 
-\addr{+0x28} & \reg{COMPLETE\_MASK} & 8 bit & \badrw &
+\addr{+0x28} & \reg{COMPLETE\_MASK} & {\small\reg{BANK1\_DATA\_POOL}\newline\reg{\_MASK\_WIDTH}} & \badrw &
   Tracks which store operations have completed (same bit layout as \reg{STORE\_MASK}). Bits are ORed in automatically as streamers finish (\texttt{dfx\_stream\_fin}). The session is complete when \reg{COMPLETE\_MASK}~$=$~\reg{STORE\_MASK}. \\
 
 % ── Linked List ───────────────────────────────────────────────────────────────
 \subrow{Session Linked List}
 
-\addr{+0x2C} & \reg{NEXT\_SESSION} & 3 bit & \badrw &
+\addr{+0x2C} & \reg{NEXT\_SESSION} & {\small\reg{BANK1\_INDEX}\newline\reg{\_WIDTH}} & \badrw &
   Index of the next session slot to execute after this one. Forms a singly-linked list of sessions; a round ends when the current slot index equals \reg{LAST\_SESSION} in Bank~0. \\
 
 \end{longtable}
@@ -457,7 +457,7 @@ This bank stores per-session data and metadata. Each row (session slot) follows 
 
 \vspace{0.5em}
 
-\paragraph{\textbf{Access Permission Legend}}
+\paragraph{\textbf{Access Permission Legend}} 
 
 \begin{tabular}{lll}
   \badrw & Read / Write & Register can be both read and written by the host. \\[4pt]
@@ -480,67 +480,59 @@ Flow Control orchestrates the slave IP steps --- DFX Controller, DMA IP, and DFX
  
 The DFX Manager Core runs three concurrent, loosely-coupled state machines whose outputs are readable from Bank~0 via \reg{MAIN\_STATE}, \reg{RECON\_STATE}, and \reg{EXEC\_STATE}. Fig.~\ref{fig:dfx_mng_state} illustrates the high-level state diagram.
 
-% ── Main state machine ───────────────────────────────────────────────────────
-\textbf{1.~Main state machine} (\reg{MAIN\_STATE}) --- top-level sequencer:
-\begin{enumerate}[label=\alph*., leftmargin=2em]\raggedright
-  \item \textbf{SHUTDOWN}: idle; Bank~0/1 registers are PS-writable.
-        Waits for \reg{CTRL\_REG}~$=$~\texttt{CTRL\_START}.
-  \item \textbf{PROCESS}: launches RECON and EXEC in parallel;
-        holds until both reach \textbf{FIN\_SYNC} simultaneously.
-  \item \textbf{PRE\_SHUTDOWN}: single-cycle housekeeping --- advances the
-        session pointer (\reg{NEXT\_SESSION}), increments DMA addresses, then
-        either loops back to \textbf{PROCESS} or returns to \textbf{SHUTDOWN}.
-        Asserts \reg{INTR\_STATUS} if \reg{INTR\_ENA} is set and all queries
-        are complete.
-\end{enumerate}
+\rowcolors{2}{white}{headerbg}
+\begin{longtable}{
+    L{4.0cm}   % State 
+    L{9.8cm}   % Description
+}
+\caption{DFX Manager Flow Control --- State Machine Summary}
+\label{tab:dfx_mng_states}\\
+\toprule
+\rowcolor{white}
+\textbf{State} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\caption[]{DFX Manager Flow Control --- State Machine Summary (continued)}\\
+\toprule
+\rowcolor{white}
+\textbf{State} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
 
-\medskip
-% ── Reconfiguration sub-machine ──────────────────────────────────────────────
-\textbf{2.~Reconfiguration sub-machine} (\reg{RECON\_STATE}) ---
-controls the DFX CTRL IP in parallel with EXEC:
-\begin{enumerate}[label=\alph*., leftmargin=2em]\raggedright
-  \item \textbf{REPROG}: reads \reg{VS\_RM\_RECON\_SELECT} from Bank~1.\\
-        \hspace*{1em}$\bullet$~If~$0$: skip to \textbf{FIN\_SYNC}
-          (bypasses b and c).\\
-        \hspace*{1em}$\bullet$~Otherwise: drives \texttt{dfx\_rm\_program}
-          $\to$ \textbf{W4SLAVERESET}.
-  \item \textbf{W4SLAVERESET}: waits for \texttt{dfx\_rm\_nreset} to deassert.
-  \item \textbf{W4SLAVEOP}: waits for \texttt{dfx\_rm\_nreset} to reassert
-        (reconfiguration complete).
-  \item \textbf{FIN\_SYNC}: holds until EXEC also reaches \textbf{FIN\_SYNC};
-        both return to \textbf{SHUTDOWN} together.
-\end{enumerate} 
+% ── 1. Main state machine ─────────────────────────────────────────────────────
+\rowcolor{sectionbg} \multicolumn{2}{l}{\small\textbf{\textsc{1.~Main State Machine (\reg{MAIN\_STATE})}}} \\
+\reg{SHUTDOWN}      & Idle; Bank~0/1 registers are PS-writable. Waits for \reg{CTRL\_REG}~$=$~\texttt{CTRL\_START}. \\
+\reg{PROCESS}       & Launches RECON and EXEC in parallel; holds until both reach \reg{FIN\_SYNC} simultaneously. \\
+\reg{PRE\_SHUTDOWN} & Single-cycle housekeeping --- advances the session pointer (\reg{NEXT\_SESSION}), increments DMA addresses, then either loops back to \reg{PROCESS} or returns to \reg{SHUTDOWN}. Asserts \reg{INTR\_STATUS} if \reg{INTR\_ENA} is set and all queries are complete. \\
 
-\medskip
-% ── Execution sub-machine ────────────────────────────────────────────────────
-\textbf{3.~Execution sub-machine} (\reg{EXEC\_STATE}) ---
-initializes and triggers the data-path IPs in parallel with RECON:
-\begin{enumerate}[label=\alph*., leftmargin=2em]\raggedright
-  \item \textbf{PR\_CTRL\_REQ\_SKIP\_CHECK}: entry state;
-        reads \reg{VS\_RM\_EXEC\_SELECT} from Bank~1.\\
-        \hspace*{1em}$\bullet$~If~$0$: skip to \textbf{CLEAR\_MGS}.\\
-        \hspace*{1em}$\bullet$~Otherwise: arm PR CTRL sequencer
-          $\to$ \textbf{INITIALIZE\_PR\_CTRL}.
-  \item \textbf{INITIALIZE\_PR\_CTRL}: sends \texttt{batch\_size} and
-        \texttt{ap\_start} to the PR-controlled IP (\reg{PR\_IP\_ADDR});
-        advances on \texttt{AP\_START} completion.
-  \item \textbf{CLEAR\_MGS}: one-cycle reset of DFX Streamer channels
-        in \reg{LOAD\_MASK}.
-  \item \textbf{INITIALIZE\_MGS}: one-cycle init of DFX Streamer channels
-        in \reg{STORE\_MASK}.
-  \item \textbf{INITIALIZE\_DMA}: resets the DMA interrupt flag.
-  \item \textbf{SET\_DMA\_LOAD}: programs DMA source address and size
-        (\reg{DMA\_SRC\_ADDR}, \reg{DMA\_SRC\_SIZE});
-        skipped if \reg{LOAD\_MASK}[0]~$= 0$.
-  \item \textbf{SET\_DMA\_STORE}: programs DMA destination address and size
-        (\reg{DMA\_DES\_ADDR}, \reg{DMA\_DES\_SIZE});
-        skipped if \reg{STORE\_MASK}[0]~$= 0$.
-  \item \textbf{TRIGGERING}: one-cycle pulse to start the DMA transfer.
-  \item \textbf{WAIT4FIN}: waits until
-        \reg{COMPLETE\_MASK}~$=$~\reg{STORE\_MASK}.
-  \item \textbf{FIN\_SYNC}: holds until RECON also reaches \textbf{FIN\_SYNC};
-        both return to \textbf{SHUTDOWN} together.
-\end{enumerate} 
+% ── 2. Reconfiguration sub-machine ───────────────────────────────────────────
+\rowcolor{sectionbg} \multicolumn{2}{l}{\small\textbf{\textsc{2.~Reconfiguration Sub-machine (\reg{RECON\_STATE})}}} \\
+\reg{REPROG}        & Reads \reg{VS\_RM\_RECON\_SELECT} from Bank~1.\newline
+                      $\bullet$~If~$0$: skip to \reg{FIN\_SYNC} (bypasses W4SLAVERESET and W4SLAVEOP).\newline
+                      $\bullet$~Otherwise: drives \texttt{dfx\_rm\_program} $\to$ \reg{W4SLAVERESET}. \\
+\reg{W4SLAVERESET}  & Waits for \texttt{dfx\_rm\_nreset} to deassert. \\
+\reg{W4SLAVEOP}     & Waits for \texttt{dfx\_rm\_nreset} to reassert (reconfiguration complete). \\
+\reg{FIN\_SYNC}     & Holds until EXEC also reaches \reg{FIN\_SYNC}; both return to \reg{SHUTDOWN} together. \\
+
+% ── 3. Execution sub-machine ─────────────────────────────────────────────────
+\rowcolor{sectionbg} \multicolumn{2}{l}{\small\textbf{\textsc{3.~Execution Sub-machine (\reg{EXEC\_STATE})}}} \\
+\reg{PR\_CTRL\_REQ} \newline \reg{\_SKIP\_CHECK} &
+                      Entry state; reads \reg{VS\_RM\_EXEC\_SELECT} from Bank~1.\newline
+                      $\bullet$~If~$0$: skip to \reg{CLEAR\_MGS}.\newline
+                      $\bullet$~Otherwise: arm PR CTRL sequencer $\to$ \reg{INITIALIZE\_PR\_CTRL}. \\
+\reg{INITIALIZE} \newline \reg{\_PR\_CTRL}    & Sends \texttt{batch\_size} and \texttt{ap\_start} to the PR-controlled IP (\reg{PR\_IP\_ADDR}); advances on \texttt{AP\_START} completion. \\
+\reg{CLEAR\_MGS}    & One-cycle reset of DFX Streamer channels in \reg{LOAD\_MASK}. \\
+\reg{INITIALIZE\_MGS} & One-cycle init of DFX Streamer channels in \reg{STORE\_MASK}. \\
+\reg{INITIALIZE\_DMA} & Resets the DMA interrupt flag. \\
+\reg{SET\_DMA\_LOAD}  & Programs DMA source address and size (\reg{DMA\_SRC\_ADDR}, \reg{DMA\_SRC\_SIZE}); skipped if \reg{LOAD\_MASK}[0]~$= 0$. \\
+\reg{SET\_DMA\_STORE} & Programs DMA destination address and size (\reg{DMA\_DES\_ADDR}, \reg{DMA\_DES\_SIZE}); skipped if \reg{STORE\_MASK}[0]~$= 0$. \\
+\reg{TRIGGERING}    & One-cycle pulse to start the DMA transfer. \\
+\reg{WAIT4FIN}      & Waits until \reg{COMPLETE\_MASK}~$=$~\reg{STORE\_MASK}. \\
+\reg{FIN\_SYNC}     & Holds until RECON also reaches \reg{FIN\_SYNC}; both return to \reg{SHUTDOWN} together. \\
+
+\end{longtable}
 
 \begin{figure}[H]
 \centering
