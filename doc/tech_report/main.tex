@@ -596,7 +596,7 @@ Fig.~\ref{fig:dfx_streamer} \cite{amd_dfx_controller_2026} illustrates the inter
 
 In the case of multiple reconfigurable regions, the system will create Banks 0--3 equal to the number of the user's reconfigurable regions.
 
-\subsection{DFX Decoupler Controller Next Gen}
+\subsection{DFX Decoupler Controller}
 
 For debugging purposes, in the old version the DFX Controller IP owned the DFX decoupler, making it impossible for the PS to bypass control in some situations. We therefore redesigned the ownership of the DFX decoupler into a per-region mux (\texttt{dfx\_decup\_ctrl}), located at address \texttt{0xA001\_0000}. The register maps to the \texttt{decup\_and\_ctrl\_ps} port: bit~0 is the global source-select, and bits~\texttt{[N:1]} carry the per-region PS decoupler values (one bit per reconfigurable region, where $N = \text{NUM\_REGION}$). The resulting decoupler signal can be routed to \texttt{decup\_store}, \texttt{decup\_load}, or both on the target \texttt{Dfx\_Streamer}. The register bit-field definition is shown in Table~\ref{tab:dfx_decoupler_reg}.
 
