@@ -2,7 +2,10 @@
 module Stream_Single_S2M #
 (
     parameter integer S_DATA_WIDTH      = 32,
-    parameter integer M_DATA_WIDTH      = 32
+    parameter integer M_DATA_WIDTH      = 32,
+    parameter integer VM_ID             = 0,
+    parameter integer AMOUNT_REGION     = 1,
+    parameter integer RM_ID             = 0
 )
 (
     // AXIS Master Interface
@@ -28,6 +31,8 @@ module Stream_Single_S2M #
     reg    sending;
     wire   ready_for_next = nreset && S_AXI_TVALID && S_AXI_TREADY;
 
+    localparam [M_DATA_WIDTH-1:0] OFFSET = VM_ID * AMOUNT_REGION + RM_ID;
+
     wire [M_DATA_WIDTH-1:0] tdata_adapted;
     generate
         if (M_DATA_WIDTH > S_DATA_WIDTH) begin
@@ -47,7 +52,7 @@ module Stream_Single_S2M #
         end else begin
             if (ready_for_next) begin
                 M_AXI_TVALID <= 1'b1;
-                M_AXI_TDATA  <= tdata_adapted;
+                M_AXI_TDATA  <= tdata_adapted + OFFSET;
                 M_AXI_TLAST  <= S_AXI_TLAST;
                 sending      <= 1'b1;
             end else if (M_AXI_TREADY) begin

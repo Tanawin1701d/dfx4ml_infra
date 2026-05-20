@@ -31,7 +31,8 @@ proc create_sub_block_design {parentCell \
             if {$test_mode == 1} {
                 puts "create dfx_region $block_name for testing"
                 create_dfx_region_bd $parentCell $block_name $clk_frq \
-                    $interface_widths $rm_config "" $m
+                    $interface_widths $rm_config "" $m $r $num_dfx_region \
+                    [lindex $dfx_regions_list $r]
             } else {
                 puts "create dfx_region $block_name (user mode)"
                 create_dfx_region_user_bd $parentCell $block_name $clk_frq \
@@ -125,6 +126,7 @@ proc create_dfx4ml_design { parentCell \
 
         # Connect load streamers: dfx_unified_0 outputs → region inputs
         set load_streamers [dict get $region load_streamers]
+        puts "region ${r} load_streamers: $load_streamers"
         foreach s_idx $load_streamers {
             connect_bd_intf_net \
                 -intf_net "dfx_unified_0_M_AXIS_DS${s_idx}_r${r}" \
@@ -134,6 +136,7 @@ proc create_dfx4ml_design { parentCell \
 
         # Connect store streamers: region outputs → dfx_unified_0 inputs
         set store_streamers [dict get $region store_streamers]
+        puts "region ${r} store_streamers: $store_streamers"
         foreach s_idx $store_streamers {
             connect_bd_intf_net \
                 -intf_net "dfx_pr_region_${r}_0_M_DS${s_idx}" \

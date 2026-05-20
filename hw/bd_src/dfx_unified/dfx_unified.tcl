@@ -506,7 +506,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
       -vlnv xilinx.com:ip:xlconcat:2.1 dfx_rm_nreset_concat ]
   set concat_prop_list [list CONFIG.NUM_PORTS $num_dfx_region]
   for {set r 0} {$r < $num_dfx_region} {incr r} {
-    lappend concat_prop_list "CONFIG.IN${r}_WIDTH" [lindex $num_rm_per_region $r]
+    lappend concat_prop_list "CONFIG.IN${r}_WIDTH" 1
   }
   set_property -dict $concat_prop_list $dfx_rm_nreset_concat
 
