@@ -432,7 +432,7 @@ always@( posedge clk) begin
             end
             STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK: begin // bank 1 data ready here
                 if (b1_vs_rm_exec_select_read_val == 0) begin
-                    b0_exec_state <= STATE_EXEC_CLEAR_MGS;
+                    b0_exec_state <= STATE_EXEC_FIN_SYNC;
                 end else begin
                     b0_exec_state   <= STATE_EXEC_INITIALIZE_PR_CTRL;
                     pr_ctrl_task    <= 1;
