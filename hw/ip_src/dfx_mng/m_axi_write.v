@@ -12,6 +12,8 @@ module M_AXI_WRITE #(
     parameter BANK1_PROFILE_RECON_WIDTH  = 32, // <---- PROFILER RECON
     parameter BANK1_PROFILE_EXEC_WIDTH   = 32, // <---- PROFILER EXEC
     parameter BANK1_DATA_POOL_MASK_WIDTH =  8, // <---- MASK OF MGS and DMA
+    // REGION PARAMETER
+    parameter NUM_REGION          = 1, // number of reconfigurable regions
     // DMA CONTROL PARAMETER
     parameter DMA_INIT_TASK_CNT   = 8, //// (reset interrupt + startReadChannel + baseAddr0 + size0) + (startWriteChannel + baseAddr1 + size1)
     parameter DMA_EXEC_TASK_CNT   = 1,
@@ -79,6 +81,11 @@ wire[GLOB_ADDR_WIDTH-1: 0] dmaSrcDataSizeADDR = b0_dma_ip_addr + 32'h28;
 
 wire[GLOB_ADDR_WIDTH-1: 0] dmDesStatusADDR    = b0_dma_ip_addr + 32'h34;
 
+// number of RM variants per region; each region's PR Ctrl IP sits at a
+// separate 0x0001_0000-spaced AXI slot, so the offset uses the region
+// index (i / num_rm_per_region), not the flat RM index (i).
+localparam num_rm_per_region = BANK1_RM_SELECT_WIDTH / NUM_REGION;
+
 //////// PR CTRL CHANNEL
 reg[GLOB_ADDR_WIDTH-1: 0] prCtrlApCtrlADDR    ;
 reg[GLOB_ADDR_WIDTH-1: 0] prCtrlBatchSizeADDR ;
@@ -89,8 +96,8 @@ always @(*) begin
     prCtrlBatchSizeADDR = 0;
     for (i = 0; i < BANK1_RM_SELECT_WIDTH; i = i + 1) begin
         if (b1_vs_rm_exec_select_send_val[i]) begin
-            prCtrlApCtrlADDR    = b0_pr_ip_addr + 32'h00 + i* 32'h0001_0000;
-            prCtrlBatchSizeADDR = b0_pr_ip_addr + 32'h10 + i* 32'h0001_0000;
+            prCtrlApCtrlADDR    = b0_pr_ip_addr + 32'h00 + (i/num_rm_per_region) * 32'h0001_0000;
+            prCtrlBatchSizeADDR = b0_pr_ip_addr + 32'h10 + (i/num_rm_per_region) * 32'h0001_0000;
         end
     end
 end
