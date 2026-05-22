@@ -225,5 +225,6 @@ class DFX_Ctrl:
         data_u32  = np.frombuffer(data, dtype='<u4')
         buffer    = allocate(shape=(len(data_u32),), dtype='>u4')
         buffer[:] = data_u32
+        buffer.flush()   # write cache → DRAM so DMA sees fresh data
         print(f"       size={file_size}  phy_addr={buffer.physical_address:#010x}")
         return buffer, buffer.physical_address, file_size
