@@ -44,9 +44,10 @@ proc create_sub_block_design {parentCell \
     ##------------------------------------------------------------
     ## STAGE 3: UNIFIED BD CREATION
     ##------------------------------------------------------------
-    create_dfx_unified_bd $parentCell $clk_frq $rm_index_width \
+    # create_dfx_unified_bd returns [array get region_load_port] — forward to caller
+    return [create_dfx_unified_bd $parentCell $clk_frq $rm_index_width \
         $num_dfx_streamer $num_dfx_region \
-        $dfx_streamers_list $dfx_regions_list $rm_schemetics_list
+        $dfx_streamers_list $dfx_regions_list $rm_schemetics_list]
 }
 
 
@@ -67,7 +68,10 @@ proc create_dfx4ml_design { parentCell \
     ##------------------------------------------------------------
     ## STAGE 1: SUB-BLOCK DISPATCH
     ##------------------------------------------------------------
-    create_sub_block_design $parentCell \
+    # Capture the load-port allocation map returned by create_sub_block_design
+    # (which in turn returns it from create_dfx_unified_bd).
+    # array set restores the flat key-value list into a local array.
+    set alloc [create_sub_block_design $parentCell \
         $clk_frq \
         $rm_index_width \
         $num_dfx_streamer \
@@ -75,7 +79,8 @@ proc create_dfx4ml_design { parentCell \
         $dfx_streamers_list \
         $dfx_regions_list \
         $rm_schemetics_list \
-        $test_mode
+        $test_mode]
+    array set region_load_port $alloc
 
     ##------------------------------------------------------------
     ## STAGE 2: TOP-LEVEL BD INIT
@@ -125,13 +130,23 @@ proc create_dfx4ml_design { parentCell \
         ] $pr_container
 
         # Connect load streamers: dfx_unified_0 outputs → region inputs
+        # s_idx == 0 → DMA path: port stays "M_AXIS_DS0" (single, never multi-ported)
+        # s_idx  > 0 → Dfx_Streamer: port is "M_AXIS_DS${s_idx}_p${port_j}"
         set load_streamers [dict get $region load_streamers]
         puts "region ${r} load_streamers: $load_streamers"
         foreach s_idx $load_streamers {
-            connect_bd_intf_net \
-                -intf_net "dfx_unified_0_M_AXIS_DS${s_idx}_r${r}" \
-                [get_bd_intf_pins dfx_unified_0/M_AXIS_DS${s_idx}] \
-                [get_bd_intf_pins dfx_pr_region_${r}_0/S_DS_${s_idx}]
+            if {$s_idx == 0} {
+                connect_bd_intf_net \
+                    -intf_net "dfx_unified_0_M_AXIS_DS0_r${r}" \
+                    [get_bd_intf_pins dfx_unified_0/M_AXIS_DS0] \
+                    [get_bd_intf_pins dfx_pr_region_${r}_0/S_DS_0]
+            } else {
+                set port_j $region_load_port($r,$s_idx)
+                connect_bd_intf_net \
+                    -intf_net "dfx_unified_0_M_AXIS_DS${s_idx}_p${port_j}_r${r}" \
+                    [get_bd_intf_pins dfx_unified_0/M_AXIS_DS${s_idx}_p${port_j}] \
+                    [get_bd_intf_pins dfx_pr_region_${r}_0/S_DS_${s_idx}]
+            }
         }
 
         # Connect store streamers: region outputs → dfx_unified_0 inputs

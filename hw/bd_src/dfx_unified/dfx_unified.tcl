@@ -150,6 +150,22 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     incr total_rm $n
   }
 
+  # --- Load-port allocation ---
+  # For each streamer i, count how many regions reference it in load_streamers.
+  # region_load_port($r,$s_idx) = the port index j on streamer s_idx allocated to region r.
+  array set streamer_load_port_count {}
+  for {set i 0} {$i < $num_dfx_streamer} {incr i} {
+    set streamer_load_port_count($i) 0
+  }
+  array set region_load_port {}
+  for {set r 0} {$r < $num_dfx_region} {incr r} {
+    set region [lindex $dfx_regions_list $r]
+    foreach s_idx [dict get $region load_streamers] {
+      set region_load_port($r,$s_idx) $streamer_load_port_count($s_idx)
+      incr streamer_load_port_count($s_idx)
+    }
+  }
+
   ##------------------------------------------------------------
   ## STAGE 2: VALIDATION
   ##------------------------------------------------------------
@@ -312,13 +328,16 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     ] $pr_ctrl_port
   }
 
+  # One external master AXIS port per allocated load port (M_AXIS_DS${i}_p${j})
   for {set i 1} {$i < $num_dfx_streamer} {incr i} {
-    set port_name "M_AXIS_DS$i"
-    
-    set M_AXIS_DS_PORT [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 $port_name ]
-    set_property -dict [ list \
-     CONFIG.FREQ_HZ "$clk_frq" \
-     ] $M_AXIS_DS_PORT
+    set num_ports_i [expr {max($streamer_load_port_count($i), 1)}]
+    for {set j 0} {$j < $num_ports_i} {incr j} {
+      set port_name "M_AXIS_DS${i}_p${j}"
+      set M_AXIS_DS_PORT [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 $port_name ]
+      set_property -dict [ list \
+       CONFIG.FREQ_HZ "$clk_frq" \
+       ] $M_AXIS_DS_PORT
+    }
   }
   
   ##------------------------------------------------------------
@@ -355,6 +374,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
     set aiw [lindex $applied_interface_widths $i] ; # actual/applied index width
     set iw [lindex $interface_widths $i]          ; # interface index width
     set sw [lindex $amt_rows $i]      ; # storage index width
+    set num_load_ports_i [expr {max($streamer_load_port_count($i), 1)}]
     set_property -dict [ list \
          CONFIG.DATA_WIDTH "$aiw" \
          CONFIG.ITF_DATA_WIDTH "$iw" \
@@ -362,6 +382,7 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
          CONFIG.BANK1_ST_MSK_WIDTH "$num_dfx_streamer" \
          CONFIG.BANK1_LD_MSK_WIDTH "$num_dfx_streamer" \
          CONFIG.STREAMER_IDX "$i" \
+         CONFIG.NUM_LOAD_PORTS "$num_load_ports_i" \
          ] $target_streamer
   }
 
@@ -546,8 +567,12 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
       [get_bd_intf_ports M_AXI_BS] [get_bd_intf_pins DFX_Ctrl_B/M_AXI_MEM]
 
   for {set i 1} {$i < [llength $interface_widths]} {incr i} {
-    connect_bd_intf_net -intf_net Dfx_Streamer_${i}_M_AXI \
-        [get_bd_intf_ports M_AXIS_DS$i] [get_bd_intf_pins Dfx_Streamer_${i}/M_AXI]
+    # Connect each allocated load port (M_AXI_j) to its external port M_AXIS_DS${i}_p${j}
+    set num_ports_i [expr {max($streamer_load_port_count($i), 1)}]
+    for {set j 0} {$j < $num_ports_i} {incr j} {
+      connect_bd_intf_net -intf_net "Dfx_Streamer_${i}_M_AXI_${j}" \
+          [get_bd_intf_ports M_AXIS_DS${i}_p${j}] [get_bd_intf_pins Dfx_Streamer_${i}/M_AXI_${j}]
+    }
     connect_bd_intf_net -intf_net S_AXI_${i}_1 \
         [get_bd_intf_ports S_AXIS_DS$i] [get_bd_intf_pins Dfx_Streamer_${i}/S_AXI]
   }
@@ -653,7 +678,8 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
       if {$l_idx == 0} {
         lappend decup_pins [get_bd_pins dma_hier/decup_load]
       } elseif {$l_idx > 0} {
-        lappend decup_pins [get_bd_pins Dfx_Streamer_${l_idx}/decup_load]
+        set port_j $region_load_port($r,$l_idx)
+        lappend decup_pins [get_bd_pins Dfx_Streamer_${l_idx}/decup_load_${port_j}]
       }
     }
     foreach s_idx [dict get $region store_streamers] {
@@ -794,5 +820,10 @@ proc create_dfx_unified_bd { parentCell clk_frq rm_index_width \
   save_bd_design
 
   close_bd_design dfx_unified
+
+  # Return the load-port allocation map so callers (dfx4ml.tcl) can use it
+  # without recomputing.  Format: flat key-value list via [array get], which
+  # can be directly restored with [array set region_load_port $alloc].
+  return [array get region_load_port]
 }
 

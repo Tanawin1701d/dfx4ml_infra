@@ -125,6 +125,20 @@ class HwBuildHelper:
             if len(rm_schemetics[r]) == 0:
                 raise ValueError(f"rm_schemetics[{r}] must have at least one RM entry")
 
+        # Validate that no streamer is referenced more than 8 times across all regions'
+        # load_streamers (each reference consumes one physical load port; max is 8).
+        from collections import Counter
+        load_port_usage = Counter()
+        for region in dfx_regions:
+            for s_idx in region["load_streamers"]:
+                load_port_usage[s_idx] += 1
+        for s_idx, count in load_port_usage.items():
+            if count > 8:
+                raise ValueError(
+                    f"Streamer {s_idx} is referenced {count} times across all regions' "
+                    f"load_streamers, but the maximum supported load ports per streamer is 8."
+                )
+
     @classmethod
     def for_ip_only(cls, build_folder_path, dfx_root_path, vivado_path):
         """Create a minimal instance for IP-only composition (build_ip_only())."""

@@ -31,8 +31,11 @@ hw_builder = HwBuildHelper(
     clk_frq                 = 99999001,
     rm_index_width          = 2,
     dfx_streamers           = [{"load_width": 4, "store_width": 4, "actual_width": 32, "amount_row": 1024}],
+    # Each entry is one streamer; load/store_width = AXI-S bus width (bytes), actual_width = data width (bits)
     dfx_regions             = [{"load_streamers": [0], "store_streamers": [0]}],
-    rm_schemetics           = [[{...}, {...}]],  # [region_idx][rm_idx]
+    # One dict per RP region; index lists refer into dfx_streamers for input/output routing
+    rm_schemetics           = [[{"load_io_map": [...], "store_io_map": [...]}, ...]],
+    # [region_idx][rm_idx] — I/O port mapping for each RM variant inside a region
     test_mode               = 1,
     vivado_path             = "<abs path to vivado>",
     export_folder_path      = "./export"
@@ -86,8 +89,8 @@ dfx4ml (top BD)
 │   ├── dfx_mng_0        ← DFX Manager IP
 │   ├── dfx_ctrl         ← Xilinx DFX Controller IP
 │   └── dfx_streamer_N   ← N BRAM streamer instances
-└── dfx_pr_region_R_0    ← One reconfigurable module per region R
-    └── dfx_pr_region_R_rm_M_inst_0  ← ML kernel RM variant M
+└── dfx_pr_region_R_0    ← One reconfigurable module per region R (R = 0 … N-1)
+    └── dfx_pr_region_R_rm_M_inst_0  ← ML kernel RM variant M (M = 0 … num_rm-1)
 ```
 
 `hw/bd_src/dfx_unified/dfx_unified.tcl` builds the static sub-BD.  
@@ -118,6 +121,15 @@ The template calls `build {}` in `hw/build_script/build.tcl`, which:
 | `0x3_0000` | `DFX_Dma` — DMA debug |
 | `0x4_0000` | `DFX_Mng` — main orchestrator registers |
 | `0x5_0000 + r*0x1_0000` | `Pr_Ctrl[r]` — HLS ap_ctrl for region `r` |
+
+Sub-driver modules (all in `sw/driver/`):
+
+| Module | Role |
+|---|---|
+| `dfx_man.py` | PR decouple/reset sub-driver (offsets `0x1_0000`, `0x2_0000`) |
+| `dfx_dma.py` | DMA debug sub-driver (offset `0x3_0000`) |
+| `pr_ctrl.py` | HLS `ap_ctrl_hs` sub-driver for each RP region |
+| `mem_alloc.py` | CMA allocation helpers, Linux overcommit mode control, and cache flush before DMA |
 
 **`SwBuildHelper._configure_unified_driver()`** stamps build-time constants (`NUM_PR_REGION_VAL`, `SLOT_INDEX_WIDTH_VAL`, `NUM_STREAMER_VAL`) into the exported copy of `dfx_unified.py` — the source file in `sw/driver/` contains these as literal placeholder strings.
 
@@ -157,6 +169,18 @@ Use `hw/bd_src/dfx_region/dfx_region.tcl` as the reference RM implementation.
 
 ---
 
+## Examples
+
+| Directory | Description |
+|---|---|
+| `example/multi_region_test2/` | 2 PR regions · 2 RMs each · 2 streamers (basic multi-region pipeline) |
+| `example/multi_region_test3/` | 2 PR regions · 2 RMs each · 3 streamers (DMA + 2 independent streamers) |
+| `example/multi_region_explore/` | Exploratory multi-region tests |
+| `example/exp_dyn_size/` | Dynamic payload-size experiments |
+| `example/query_explore/` | Query/inference exploration notebooks |
+
+---
+
 ## Key Files Quick Reference
 
 | File | Purpose |
@@ -170,4 +194,5 @@ Use `hw/bd_src/dfx_region/dfx_region.tcl` as the reference RM implementation.
 | `sw/driver/dfx_unified.py` | PYNQ top-level driver (contains `NUM_PR_REGION_VAL` placeholders — do not hardcode values here) |
 | `sw/driver/dfx_mng.py` | DFX Manager Python driver |
 | `sw/driver/dfx_ctrl.py` | DFX Controller Python driver |
+| `sw/driver/mem_alloc.py` | CMA allocation, overcommit mode, cache flush before DMA |
 | `doc/tech_report/main.tex` | Full technical report: register maps, state machines, driver internals |

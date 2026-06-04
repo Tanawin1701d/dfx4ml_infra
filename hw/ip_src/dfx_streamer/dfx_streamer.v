@@ -6,13 +6,23 @@ module Dfx_Streamer #
     parameter integer STATE_BIT_WIDTH    =  5,
     parameter integer BANK1_ST_MSK_WIDTH =  8,
     parameter integer BANK1_LD_MSK_WIDTH =  8,
-    parameter integer STREAMER_IDX       =  1 /// the index is start at one
+    parameter integer STREAMER_IDX       =  1, /// the index is start at one
+    parameter integer NUM_LOAD_PORTS     =  1  /// 1–8; first NUM_LOAD_PORTS master ports are active
 )
 (
     input wire                        clk,
     input wire                        nreset,
     input wire                        decup_store,
-    input wire                        decup_load,
+
+    // Per-port decouple for each load master port (bit j = port j)
+    input wire                        decup_load_0,
+    input wire                        decup_load_1,
+    input wire                        decup_load_2,
+    input wire                        decup_load_3,
+    input wire                        decup_load_4,
+    input wire                        decup_load_5,
+    input wire                        decup_load_6,
+    input wire                        decup_load_7,
 
     // AXIS Slave Interface   store in terface
     input  wire [ITF_DATA_WIDTH-1:0] S_AXI_TDATA,
@@ -21,12 +31,61 @@ module Dfx_Streamer #
     output wire                      S_AXI_TREADY,
     input  wire                      S_AXI_TLAST,
 
-    // AXIS Master Interface load interface
-    output  wire [ITF_DATA_WIDTH-1:0]  M_AXI_TDATA,    // it is supposed to be reg
-    output  wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0]  M_AXI_TKEEP,    // it is supposed to be reg
-    output  wire                       M_AXI_TVALID,    // it is supposed to be reg
-    input   wire                       M_AXI_TREADY,    // it is supposed to be reg
-    output  wire                       M_AXI_TLAST,    // it is supposed to be reg
+    // AXIS Master Interface — load port 0
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_0_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_0_TKEEP,
+    output wire                                          M_AXI_0_TVALID,
+    input  wire                                          M_AXI_0_TREADY,
+    output wire                                          M_AXI_0_TLAST,
+
+    // AXIS Master Interface — load port 1
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_1_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_1_TKEEP,
+    output wire                                          M_AXI_1_TVALID,
+    input  wire                                          M_AXI_1_TREADY,
+    output wire                                          M_AXI_1_TLAST,
+
+    // AXIS Master Interface — load port 2
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_2_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_2_TKEEP,
+    output wire                                          M_AXI_2_TVALID,
+    input  wire                                          M_AXI_2_TREADY,
+    output wire                                          M_AXI_2_TLAST,
+
+    // AXIS Master Interface — load port 3
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_3_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_3_TKEEP,
+    output wire                                          M_AXI_3_TVALID,
+    input  wire                                          M_AXI_3_TREADY,
+    output wire                                          M_AXI_3_TLAST,
+
+    // AXIS Master Interface — load port 4
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_4_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_4_TKEEP,
+    output wire                                          M_AXI_4_TVALID,
+    input  wire                                          M_AXI_4_TREADY,
+    output wire                                          M_AXI_4_TLAST,
+
+    // AXIS Master Interface — load port 5
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_5_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_5_TKEEP,
+    output wire                                          M_AXI_5_TVALID,
+    input  wire                                          M_AXI_5_TREADY,
+    output wire                                          M_AXI_5_TLAST,
+
+    // AXIS Master Interface — load port 6
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_6_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_6_TKEEP,
+    output wire                                          M_AXI_6_TVALID,
+    input  wire                                          M_AXI_6_TREADY,
+    output wire                                          M_AXI_6_TLAST,
+
+    // AXIS Master Interface — load port 7
+    output wire [ITF_DATA_WIDTH-1:0]                    M_AXI_7_TDATA,
+    output wire [(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8)-1:0] M_AXI_7_TKEEP,
+    output wire                                          M_AXI_7_TVALID,
+    input  wire                                          M_AXI_7_TREADY,
+    output wire                                          M_AXI_7_TLAST,
 
 
 
@@ -53,11 +112,66 @@ module Dfx_Streamer #
     wire                      S_AXI_TREADY_CLEAN; assign S_AXI_TREADY = S_AXI_TREADY_CLEAN;
     wire                      S_AXI_TLAST_CLEAN  = decup_store ? 0: S_AXI_TLAST;
 
-    // AXIS Master Interface load interface
-    reg [ITF_DATA_WIDTH-1:0]     M_AXI_TDATA_CLEAN; assign M_AXI_TDATA = M_AXI_TDATA_CLEAN;
-    reg                          M_AXI_TVALID_CLEAN; assign M_AXI_TVALID = M_AXI_TVALID_CLEAN;
-    wire                         M_AXI_TREADY_CLEAN = decup_load ? 0: M_AXI_TREADY;
-    reg                          M_AXI_TLAST_CLEAN; assign M_AXI_TLAST = M_AXI_TLAST_CLEAN;
+    // AXIS Master Interface load interface — shared FSM signals (broadcast to all ports)
+    reg [ITF_DATA_WIDTH-1:0]  M_AXI_TDATA_CLEAN;
+    reg                       M_AXI_TVALID_CLEAN;
+    reg                       M_AXI_TLAST_CLEAN;
+
+    // OR-pool of all active (non-decoupled, within NUM_LOAD_PORTS) TREADY signals
+    wire [7:0] m_tready_active;
+    assign m_tready_active[0] = (NUM_LOAD_PORTS > 0) & ~decup_load_0 & M_AXI_0_TREADY;
+    assign m_tready_active[1] = (NUM_LOAD_PORTS > 1) & ~decup_load_1 & M_AXI_1_TREADY;
+    assign m_tready_active[2] = (NUM_LOAD_PORTS > 2) & ~decup_load_2 & M_AXI_2_TREADY;
+    assign m_tready_active[3] = (NUM_LOAD_PORTS > 3) & ~decup_load_3 & M_AXI_3_TREADY;
+    assign m_tready_active[4] = (NUM_LOAD_PORTS > 4) & ~decup_load_4 & M_AXI_4_TREADY;
+    assign m_tready_active[5] = (NUM_LOAD_PORTS > 5) & ~decup_load_5 & M_AXI_5_TREADY;
+    assign m_tready_active[6] = (NUM_LOAD_PORTS > 6) & ~decup_load_6 & M_AXI_6_TREADY;
+    assign m_tready_active[7] = (NUM_LOAD_PORTS > 7) & ~decup_load_7 & M_AXI_7_TREADY;
+    wire M_AXI_TREADY_CLEAN = |m_tready_active;
+
+    // TKEEP width shorthand
+    localparam TKEEP_W = (DATA_WIDTH < 8) ? 1 : DATA_WIDTH/8;
+
+    // Broadcast FSM outputs to all 8 load ports; inactive ports (>= NUM_LOAD_PORTS) are 0
+    assign M_AXI_0_TDATA  = (NUM_LOAD_PORTS > 0) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_0_TVALID = (NUM_LOAD_PORTS > 0) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_0_TLAST  = (NUM_LOAD_PORTS > 0) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_0_TKEEP  = (NUM_LOAD_PORTS > 0) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
+
+    assign M_AXI_1_TDATA  = (NUM_LOAD_PORTS > 1) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_1_TVALID = (NUM_LOAD_PORTS > 1) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_1_TLAST  = (NUM_LOAD_PORTS > 1) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_1_TKEEP  = (NUM_LOAD_PORTS > 1) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
+
+    assign M_AXI_2_TDATA  = (NUM_LOAD_PORTS > 2) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_2_TVALID = (NUM_LOAD_PORTS > 2) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_2_TLAST  = (NUM_LOAD_PORTS > 2) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_2_TKEEP  = (NUM_LOAD_PORTS > 2) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
+
+    assign M_AXI_3_TDATA  = (NUM_LOAD_PORTS > 3) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_3_TVALID = (NUM_LOAD_PORTS > 3) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_3_TLAST  = (NUM_LOAD_PORTS > 3) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_3_TKEEP  = (NUM_LOAD_PORTS > 3) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
+
+    assign M_AXI_4_TDATA  = (NUM_LOAD_PORTS > 4) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_4_TVALID = (NUM_LOAD_PORTS > 4) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_4_TLAST  = (NUM_LOAD_PORTS > 4) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_4_TKEEP  = (NUM_LOAD_PORTS > 4) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
+
+    assign M_AXI_5_TDATA  = (NUM_LOAD_PORTS > 5) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_5_TVALID = (NUM_LOAD_PORTS > 5) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_5_TLAST  = (NUM_LOAD_PORTS > 5) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_5_TKEEP  = (NUM_LOAD_PORTS > 5) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
+
+    assign M_AXI_6_TDATA  = (NUM_LOAD_PORTS > 6) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_6_TVALID = (NUM_LOAD_PORTS > 6) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_6_TLAST  = (NUM_LOAD_PORTS > 6) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_6_TKEEP  = (NUM_LOAD_PORTS > 6) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
+
+    assign M_AXI_7_TDATA  = (NUM_LOAD_PORTS > 7) ? M_AXI_TDATA_CLEAN  : {ITF_DATA_WIDTH{1'b0}};
+    assign M_AXI_7_TVALID = (NUM_LOAD_PORTS > 7) ? M_AXI_TVALID_CLEAN : 1'b0;
+    assign M_AXI_7_TLAST  = (NUM_LOAD_PORTS > 7) ? M_AXI_TLAST_CLEAN  : 1'b0;
+    assign M_AXI_7_TKEEP  = (NUM_LOAD_PORTS > 7) ? {TKEEP_W{1'b1}}    : {TKEEP_W{1'b0}};
 
     //// we accept all dfx controller command to make it easier to compute
     wire storeReset = storeReset_pool[STREAMER_IDX];
@@ -113,8 +227,6 @@ wire [DATA_WIDTH-1:0] m_pip_data = bank_rdata[bank_sel_q];
 
 ///////// store
 assign S_AXI_TREADY_CLEAN = (state == STATUS_STORE) && S_AXI_TVALID_CLEAN;
-///////// load
-assign M_AXI_TKEEP   = {(DATA_WIDTH < 8 ? 1 : DATA_WIDTH/8){1'b1}};
 ///////// interrupt signal
 assign finStore = storeIntr;
 /////////// debug signal
