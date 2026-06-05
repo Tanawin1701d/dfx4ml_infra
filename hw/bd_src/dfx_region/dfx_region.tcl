@@ -39,6 +39,12 @@ proc create_dfx_region_bd { \
       }
   }
 
+  # Stream_Single_S2M is a slave->master passthrough: it needs BOTH an active
+  # load (S_AXI source) and an active store (M_AXI sink) to be fully connected.
+  # When either side is empty the cell would have a dangling port and
+  # validate_bd_design fails, so only instantiate it when both sides are active.
+  set has_s2m [expr {[llength $active_load_idxs] > 0 && [llength $active_store_idxs] > 0}]
+
   ##------------------------------------------------------------
   ## STAGE 2: VALIDATION
   ##------------------------------------------------------------
@@ -138,15 +144,18 @@ proc create_dfx_region_bd { \
       }
   }
 
-  set Stream_Single_S2M_0 [ create_bd_cell -type ip \
-      -vlnv user.org:user:Stream_Single_S2M:1.0 Stream_Single_S2M_0 ]
-  set_property -dict [list \
-      CONFIG.S_DATA_WIDTH    "$s2m_s_width" \
-      CONFIG.M_DATA_WIDTH    "$s2m_m_width" \
-      CONFIG.VM_ID           "$vm_id" \
-      CONFIG.AMOUNT_REGION   "$amount_region" \
-      CONFIG.RM_ID           "$rm_id" \
-  ] $Stream_Single_S2M_0
+  # Only create the S2M passthrough when both a load source and store sink exist.
+  if { $has_s2m } {
+      set Stream_Single_S2M_0 [ create_bd_cell -type ip \
+          -vlnv user.org:user:Stream_Single_S2M:1.0 Stream_Single_S2M_0 ]
+      set_property -dict [list \
+          CONFIG.S_DATA_WIDTH    "$s2m_s_width" \
+          CONFIG.M_DATA_WIDTH    "$s2m_m_width" \
+          CONFIG.VM_ID           "$vm_id" \
+          CONFIG.AMOUNT_REGION   "$amount_region" \
+          CONFIG.RM_ID           "$rm_id" \
+      ] $Stream_Single_S2M_0
+  }
 
   set AXI_Lite_Shut_0 [ create_bd_cell -type ip \
       -vlnv user.org:user:AXI_Lite_Shut:1.0 AXI_Lite_Shut_0 ]
@@ -156,7 +165,7 @@ proc create_dfx_region_bd { \
   ##------------------------------------------------------------
   # Load ports: active in rm_config → S2M; rest → Stream_Slave_Dummy
   foreach io_idx $region_load_idxs {
-      if { [lsearch $active_load_idxs $io_idx] >= 0 } {
+      if { $has_s2m && [lsearch $active_load_idxs $io_idx] >= 0 } {
           connect_bd_intf_net -intf_net S_DS_${io_idx}_1 \
               [get_bd_intf_ports S_DS_${io_idx}] \
               [get_bd_intf_pins Stream_Single_S2M_0/S_AXI]
@@ -175,7 +184,7 @@ proc create_dfx_region_bd { \
 
   # Store ports: active in rm_config → S2M; rest → Stream_Master_Dummy
   foreach io_idx $region_store_idxs {
-      if { [lsearch $active_store_idxs $io_idx] >= 0 } {
+      if { $has_s2m && [lsearch $active_store_idxs $io_idx] >= 0 } {
           connect_bd_intf_net -intf_net M_DS_${io_idx}_1 \
               [get_bd_intf_pins Stream_Single_S2M_0/M_AXI] \
               [get_bd_intf_ports M_DS_${io_idx}]
@@ -199,14 +208,15 @@ proc create_dfx_region_bd { \
   ##------------------------------------------------------------
   ## STAGE 8: NET CONNECTIONS
   ##------------------------------------------------------------
-  connect_bd_net -net clk_0_1 \
-      [get_bd_ports clk] \
-      [get_bd_pins Stream_Single_S2M_0/clk] \
-      [get_bd_pins AXI_Lite_Shut_0/clk]
-  connect_bd_net -net nreset_0_1 \
-      [get_bd_ports nreset] \
-      [get_bd_pins Stream_Single_S2M_0/nreset] \
-      [get_bd_pins AXI_Lite_Shut_0/nreset]
+  # AXI_Lite_Shut is always present; Stream_Single_S2M only when has_s2m.
+  set clk_pins    [list [get_bd_pins AXI_Lite_Shut_0/clk]]
+  set nreset_pins [list [get_bd_pins AXI_Lite_Shut_0/nreset]]
+  if { $has_s2m } {
+      lappend clk_pins    [get_bd_pins Stream_Single_S2M_0/clk]
+      lappend nreset_pins [get_bd_pins Stream_Single_S2M_0/nreset]
+  }
+  connect_bd_net -net clk_0_1    [get_bd_ports clk]    {*}$clk_pins
+  connect_bd_net -net nreset_0_1 [get_bd_ports nreset] {*}$nreset_pins
 
   ##------------------------------------------------------------
   ## STAGE 9: ADDRESS SEGMENTS
