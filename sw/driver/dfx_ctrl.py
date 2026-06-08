@@ -62,7 +62,9 @@ class DFX_Ctrl:
               f"  →  VSID={self.BLS_VSID}  BANKID={self.BLS_BANKID}  REGID={self.BLS_REGID}")
 
     def _retrieve_config(self, path):
-        vs_idx       = None
+        # Single-region builds have no Virtual Socket Manager bit range in the
+        # meta file, so default to (0, 0) — that line is never matched below.
+        vs_idx       = (0, 0)
         reg_bank_idx = None
         reg_col_idx  = None
         with open(path, 'r') as file:

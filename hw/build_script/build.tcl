@@ -92,9 +92,17 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
             }
             set partitions_list [list "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_${rm}_inst_0"]
             puts "DEBUG: create_pr_configuration -name config_child_${r}_${rm} -partitions $partitions_list -greyboxes $greybox_list"
-            create_pr_configuration -name config_child_${r}_${rm} \
-                -partitions $partitions_list \
-                -greyboxes $greybox_list
+            # Single-region builds have no other regions to grey out; passing an
+            # empty -greyboxes list makes Vivado parse '' as a partition instance
+            # and fail, so only supply the flag when there is at least one greybox.
+            if {[llength $greybox_list] > 0} {
+                create_pr_configuration -name config_child_${r}_${rm} \
+                    -partitions $partitions_list \
+                    -greyboxes $greybox_list
+            } else {
+                create_pr_configuration -name config_child_${r}_${rm} \
+                    -partitions $partitions_list
+            }
 
             # Child run inherits static routing from impl_dfx and re-implements only region r
             puts "DEBUG: create_run child_${child_idx}_impl_dfx -parent_run impl_dfx -flow {Vivado Implementation 2023} -pr_config config_child_${r}_${rm}"
