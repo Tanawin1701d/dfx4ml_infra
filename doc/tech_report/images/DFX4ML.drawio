@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:148.0) Gecko/20100101 Firefox/148.0" pages="18">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:148.0) Gecko/20100101 Firefox/148.0" pages="19">
   <diagram name="register arch" id="d3_GtWvPh6vwfRuABx9K">
     <mxGraphModel dx="314" dy="804" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
       <root>
@@ -2695,6 +2695,45 @@
         </mxCell>
         <mxCell id="leg_t5" parent="qqV9iIwvSO2ucb3-J6ph-6" style="text;html=1;align=left;fontSize=9;strokeColor=none;fillColor=none;" value="Synchonization" vertex="1">
           <mxGeometry height="13" width="112" x="28" y="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="3bZx7fVBO-A2HkvxEiu8" name="dfx_streamer_multi_load">
+    <mxGraphModel dx="680" dy="831" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="9iFg3UHIBVnd74AmgnMl-7" edge="1" parent="1" source="9iFg3UHIBVnd74AmgnMl-35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#d5e8d4;strokeColor=#82b366;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="9iFg3UHIBVnd74AmgnMl-12">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="322" y="731" as="sourcePoint" />
+            <mxPoint x="393" y="715" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9iFg3UHIBVnd74AmgnMl-8" connectable="0" parent="9iFg3UHIBVnd74AmgnMl-7" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;" value="&lt;b&gt;AXI-STREAM&lt;/b&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.343" y="2" as="geometry">
+            <mxPoint x="44" y="6" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9iFg3UHIBVnd74AmgnMl-10" edge="1" parent="1" source="9iFg3UHIBVnd74AmgnMl-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=3;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;startArrow=classic;startFill=1;endArrow=none;endFill=0;" target="9iFg3UHIBVnd74AmgnMl-35">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="807" y="815" as="sourcePoint" />
+            <mxPoint x="480" y="600" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9iFg3UHIBVnd74AmgnMl-11" connectable="0" parent="9iFg3UHIBVnd74AmgnMl-10" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;b&gt;AXI-STREAM&lt;/b&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.4626" y="2" as="geometry">
+            <mxPoint x="-40" y="40" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9iFg3UHIBVnd74AmgnMl-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;" value="&lt;b style=&quot;font-size:15px;&quot;&gt;DFX Module&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px;&quot;&gt;(Reconfigurable Region A)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="145.5" width="337" x="160.5" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="9iFg3UHIBVnd74AmgnMl-34" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;" value="&lt;b style=&quot;font-size:15px;&quot;&gt;DFX Module&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px;&quot;&gt;(Reconfigurable Region B)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="145.5" width="344" x="510" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="9iFg3UHIBVnd74AmgnMl-35" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" value="&lt;span style=&quot;font-size: 15px;&quot;&gt;&lt;b&gt;DFX Streamer&amp;nbsp;&lt;/b&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="166" x="246" y="490" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
