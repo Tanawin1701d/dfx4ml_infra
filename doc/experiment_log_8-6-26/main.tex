@@ -37,7 +37,7 @@
   morekeywords={True,False,None},
 }
 
-\title{DFX4ML-ARCH (Progress Update 19-5-26)}
+\title{DFX4ML-ARCH (Progress Update 8-6-26)}
 \author{
 	Omitted for blind review \\
 	CERN, CH-1211 Geneva, Switzerland
@@ -125,7 +125,7 @@ We set up two use-case scenarios: first, we divide the model into four parts, an
 
 \subsubsection{Four-Part Partitioning}
 
-In the four-part scheme, the model is split at the boundaries of the four sequential parts and mapped onto two physical reconfigurable regions over four reconfiguration phases, as shown in Figure~\ref{fig:model_4sub}. The blue parts (1 and 3) are loaded into \emph{region~0}, and the orange parts (2 and 4) into \emph{region~1}; the two regions are reconfigured alternately, so that one region can execute its current part while the other is being reconfigured for the next. 
+In the four-part scheme, the model is split at the boundaries of the four sequential parts and mapped onto two physical reconfigurable regions over four reconfiguration phases, as shown in Figure~\ref{fig:model_4sub}. The part 1 and 3 are loaded into \emph{region~0}, and the part 2 and 4 into \emph{region~1}; the two regions are reconfigured alternately, so that one region can execute its current part while the other is being reconfigured for the next. 
 
 \begin{figure}[H]
   \centering
@@ -194,7 +194,7 @@ The two halves map to the physical regions and reconfiguration phases as shown i
 \end{figure}
 
  
-Imagin the dfx streamer as an the fifo consisted of multiple entries (\ref{fig:magic_streamer_vis}). the entry is supposed to hold the data out from the HLS4ML layer stream. For instance, if the HLS4ML stream dump (2,1,16) with 16 bits precision for each query. Therefore, the HLS4ML will dump 16 x 16 = 256 bits output for each cycle.
+Imagin the dfx streamer as an the fifo consisted of multiple entries (Fig. \ref{fig:magic_streamer_vis}). the entry is supposed to hold the data out from the HLS4ML layer stream. For instance, if the HLS4ML stream dump (2,1,16) with 16 bits precision for each query. Therefore, the HLS4ML will dump 16 x 16 = 256 bits output for each cycle.
 
 Assume that Xilinx's URAM provides 64 bits per bank; in that case, we may need at least 4 banks at the output. And the URAM can support 4096 rows therefore we can hold 4096/(2*1) = 2048 for this set. User can have more of set the URAM to support more queries.
 
@@ -395,7 +395,7 @@ Table~\ref{tab:two_part_streams} lists each crossing stream, the streamer it is 
 
 \subsubsection{Four-Part Scheme}
 
-The four parts are mapped onto two PR regions (\texttt{pblock\_dfx\_pr\_region\_0/1}), each region hosting two RM variants. Figure~\ref{fig:res_skip4_util} reports the utilisation of each part against the device, with reference lines at the full device limit and at the 50\% per-region share (the device hosts the two PR regions side by side).
+The four parts are mapped onto two PR regions (\texttt{pblock\_dfx\_pr\_region\_0/1}), each region hosting two RM variants. Figure~\ref{fig:res_skip4_util} reports the utilisation of each part against the device, with reference lines at the full device limit and at the 50\% per-region (static region included)
 
 \begin{landscape}
 \begin{figure}
@@ -663,5 +663,10 @@ into the DFX4ML partial-reconfiguration flow, removing the manual import step
 and providing a seamless path from a trained model to a self-reconfiguring
 DFX4ML deployment.
 
+In parallel, we plan to upgrade the DFX Manager bank~0 register set to track the
+performance of the latency-hiding technique directly in hardware. By exposing
+on-chip counters that measure the overlap between reconfiguration and
+data/compute phases, we can cross-validate the latency-hiding gains.
+ 
 \end{document}
    
