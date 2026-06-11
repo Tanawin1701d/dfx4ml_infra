@@ -1,4 +1,4 @@
-proc build_custom_prj {{build_dir "build"}} {
+proc build_no_syn_prj {{build_dir "build"}} {
     # Create build directory if it doesn't exist
     file mkdir $build_dir
 
@@ -16,34 +16,27 @@ proc build_custom_prj {{build_dir "build"}} {
 
 
 
-proc create_custom_dfx4ml_design { parentCell \
-                                  clk_frq \
-                                  rm_index_width \
-                                  num_dfx_streamer \
-                                  interface_widths \
-                                  applied_interface_widths \
-                                  storage_index_widths \
-                                  num_actual_rm\
-                                  input_map_list \
-                                  output_map_list \
-                                  ip_map_list \
-                                  test_mode \
+proc create_no_syn_dfx4ml_design { parentCell \
+                                   clk_frq \
+                                   rm_index_width \
+                                   num_dfx_streamer \
+                                   num_dfx_region \
+                                   dfx_streamers_list \
+                                   dfx_regions_list \
+                                   rm_schemetics_list \
+                                   test_mode \
 } {
 
     set create_new_block 1
-    create_dfx4ml_design $parentCell  \
-                         $clk_frq  \
+    create_dfx4ml_design $parentCell      \
+                         $clk_frq        \
                          $rm_index_width  \
-                         $num_dfx_streamer  \
-                         $interface_widths  \
-                         $applied_interface_widths  \
-                         $storage_index_widths  \
-                         $num_actual_rm  \
-                         $input_map_list  \
-                         $output_map_list  \
-                         $ip_map_list  \
-                         $test_mode  \
+                         $num_dfx_streamer \
+                         $num_dfx_region  \
+                         $dfx_streamers_list \
+                         $dfx_regions_list   \
+                         $rm_schemetics_list \
+                         $test_mode      \
                          $create_new_block
-
 
 }

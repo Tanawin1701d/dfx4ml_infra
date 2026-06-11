@@ -2,75 +2,52 @@ proc create_sub_block_design {parentCell \
                               clk_frq \
                               rm_index_width \
                               num_dfx_streamer \
-                              interface_widths \
-                              applied_interface_widths \
-                              storage_index_widths \
-                              num_actual_rm\
-                              input_map_list \
-                              output_map_list \
-                              ip_map_list \
+                              num_dfx_region \
+                              dfx_streamers_list \
+                              dfx_regions_list \
+                              rm_schemetics_list \
                               test_mode \
 } {
 
-    # the integrity check of this argument below will be handled by dfx unified
-    # rm_index_width
-    # num_dfx_streamer
-    # interface_widths
-    # applied_interface_widths
-    # storage_index_widths
-
-    # the integrity check for this argument below will be handled by dfx region
-    # inside element input_map_list
-    # inside element output_map_list
-    # inside element ip_map_list
-
-    # integrity check of this system
-    set max_rm_allowed [expr {int(pow(2, $rm_index_width))}]
-    if {($num_actual_rm + 1) > $max_rm_allowed} {
-        error "ERROR: num_actual_rm + 1 (= [expr {$num_actual_rm + 1}]) exceeds maximum allowed value of 2^rm_index_width (= $max_rm_allowed)"
+    ##------------------------------------------------------------
+    ## STAGE 1: ARGUMENT PARSING
+    ##------------------------------------------------------------
+    # Derive interface_widths from dfx_streamers_list (load_width in bytes → bits)
+    set interface_widths {}
+    foreach s $dfx_streamers_list {
+        lappend interface_widths [expr {[dict get $s load_width] * 8}]
     }
 
-    # check size of input_map_list
-    if {[llength $input_map_list] != $num_actual_rm} {
-        error "ERROR: size of input_map_list (= [llength $input_map_list]) does not equal num_actual_rm (= $num_actual_rm)"
-    }
+    ##------------------------------------------------------------
+    ## STAGE 2: PER-REGION RM BD CREATION
+    ##------------------------------------------------------------
+    # Create one BD per (region, rm) pair
+    for {set r 0} {$r < $num_dfx_region} {incr r} {
+        set region_rms [lindex $rm_schemetics_list $r]
 
-    # check size of output_map_list
-    if {[llength $output_map_list] != $num_actual_rm} {
-        error "ERROR: size of output_map_list (= [llength $output_map_list]) does not equal num_actual_rm (= $num_actual_rm)"
-    }
-    
-    # check size of ip_map_list
-    if {[llength $ip_map_list] != $num_actual_rm} {
-        error "ERROR: size of ip_map_list (= [llength $ip_map_list]) does not equal num_actual_rm (= $num_actual_rm)"
-    }
-    
-    # Create DFX regions for each RM
-    for {set i 0} {$i < $num_actual_rm} {incr i} {
-        set input_maps  [lindex $input_map_list $i]
-        set output_maps [lindex $output_map_list $i]
-        set ip_src      [lindex $ip_map_list $i]
-
-        if {$test_mode == 1} {
-            puts "create dfx_region for testing"
-            create_dfx_region_bd $parentCell "dfx_pr_${i}" $clk_frq \
-                                 $num_dfx_streamer $interface_widths \
-                                 $input_maps $output_maps \
-                                 $ip_src
-        } else {
-            puts "create dfx_region for testing"
-            create_dfx_region_user_bd $parentCell "dfx_pr_${i}" $clk_frq \
-                                 $num_dfx_streamer $interface_widths \
-                                 $input_maps $output_maps \
-                                 $ip_src
-
+        for {set m 0} {$m < [llength $region_rms]} {incr m} {
+            set block_name "dfx_pr_region_${r}_rm_${m}"
+            set rm_config  [lindex $region_rms $m]
+            if {$test_mode == 1} {
+                puts "create dfx_region $block_name for testing"
+                create_dfx_region_bd $parentCell $block_name $clk_frq \
+                    $interface_widths $rm_config "" $m $r $num_dfx_region \
+                    [lindex $dfx_regions_list $r]
+            } else {
+                puts "create dfx_region $block_name (user mode)"
+                create_dfx_region_user_bd $parentCell $block_name $clk_frq \
+                    $interface_widths $rm_config "" $m
+            }
         }
     }
 
-    create_dfx_unified_bd $parentCell $clk_frq $rm_index_width \
-                              $num_dfx_streamer $interface_widths \
-                              $applied_interface_widths $storage_index_widths
-
+    ##------------------------------------------------------------
+    ## STAGE 3: UNIFIED BD CREATION
+    ##------------------------------------------------------------
+    # create_dfx_unified_bd returns [array get region_load_port] — forward to caller
+    return [create_dfx_unified_bd $parentCell $clk_frq $rm_index_width \
+        $num_dfx_streamer $num_dfx_region \
+        $dfx_streamers_list $dfx_regions_list $rm_schemetics_list]
 }
 
 
@@ -78,86 +55,126 @@ proc create_dfx4ml_design { parentCell \
                             clk_frq \
                             rm_index_width \
                             num_dfx_streamer \
-                            interface_widths \
-                            applied_interface_widths \
-                            storage_index_widths \
-                            num_actual_rm\
-                            input_map_list \
-                            output_map_list \
-                            ip_map_list \
+                            num_dfx_region \
+                            dfx_streamers_list \
+                            dfx_regions_list \
+                            rm_schemetics_list \
                             test_mode \
                             create_new_block \
 } {
 
+    # input argument checking is delegated to create_sub_block_design / create_dfx_unified_bd
 
+    ##------------------------------------------------------------
+    ## STAGE 1: SUB-BLOCK DISPATCH
+    ##------------------------------------------------------------
+    # Capture the load-port allocation map returned by create_sub_block_design
+    # (which in turn returns it from create_dfx_unified_bd).
+    # array set restores the flat key-value list into a local array.
+    set alloc [create_sub_block_design $parentCell \
+        $clk_frq \
+        $rm_index_width \
+        $num_dfx_streamer \
+        $num_dfx_region \
+        $dfx_streamers_list \
+        $dfx_regions_list \
+        $rm_schemetics_list \
+        $test_mode]
+    array set region_load_port $alloc
 
-  # input argument check will be checked by create_sub_block_design
+    ##------------------------------------------------------------
+    ## STAGE 2: TOP-LEVEL BD INIT
+    ##------------------------------------------------------------
+    # Create dfx4ml top-level block design
+    if {$create_new_block} {
+        create_bd_design "dfx4ml"
+    } else {
+        open_bd_design "dfx4ml"
+    }
 
-  create_sub_block_design $parentCell \
-                          $clk_frq \
-                          $rm_index_width \
-                          $num_dfx_streamer \
-                          $interface_widths \
-                          $applied_interface_widths \
-                          $storage_index_widths \
-                          $num_actual_rm\
-                          $input_map_list \
-                          $output_map_list \
-                          $ip_map_list \
-                          $test_mode
+    # Create instance: dfx_unified_0
+    set dfx_unified_0 [ create_bd_cell -type container -reference dfx_unified dfx_unified_0 ]
+    set_property -dict [list \
+        CONFIG.ACTIVE_SIM_BD   {dfx_unified.bd} \
+        CONFIG.ACTIVE_SYNTH_BD {dfx_unified.bd} \
+        CONFIG.ENABLE_DFX      {0} \
+        CONFIG.LIST_SIM_BD     {dfx_unified.bd} \
+        CONFIG.LIST_SYNTH_BD   {dfx_unified.bd} \
+        CONFIG.LOCK_PROPAGATE  {0} \
+    ] $dfx_unified_0
 
-  # Create dfx4ml block design
+    ##------------------------------------------------------------
+    ## STAGE 3: PR REGION CONTAINERS AND CONNECTIONS
+    ##------------------------------------------------------------
+    # Create one PR container per region and connect its streamers
+    for {set r 0} {$r < $num_dfx_region} {incr r} {
+        set region     [lindex $dfx_regions_list $r]
+        set region_rms [lindex $rm_schemetics_list $r]
 
-  if {$create_new_block} {
-    create_bd_design "dfx4ml"
-  } else {
-    open_bd_design "dfx4ml"
-  }
+        # Build BD list for this region
+        set bd_list {}
+        for {set m 0} {$m < [llength $region_rms]} {incr m} {
+            lappend bd_list "dfx_pr_region_${r}_rm_${m}.bd"
+        }
+        set bd_list_str [join $bd_list ":"]
 
+        set pr_container [ create_bd_cell -type container \
+            -reference "dfx_pr_region_${r}_rm_0" "dfx_pr_region_${r}_0" ]
+        set_property -dict [list \
+            CONFIG.ACTIVE_SIM_BD   "dfx_pr_region_${r}_rm_0.bd" \
+            CONFIG.ACTIVE_SYNTH_BD "dfx_pr_region_${r}_rm_0.bd" \
+            CONFIG.ENABLE_DFX      {true} \
+            CONFIG.LIST_SIM_BD     $bd_list_str \
+            CONFIG.LIST_SYNTH_BD   $bd_list_str \
+            CONFIG.LOCK_PROPAGATE  {0} \
+        ] $pr_container
 
+        # Connect load streamers: dfx_unified_0 outputs → region inputs
+        # s_idx == 0 → DMA path: port stays "M_AXIS_DS0" (single, never multi-ported)
+        # s_idx  > 0 → Dfx_Streamer: port is "M_AXIS_DS${s_idx}_p${port_j}"
+        set load_streamers [dict get $region load_streamers]
+        puts "region ${r} load_streamers: $load_streamers"
+        foreach s_idx $load_streamers {
+            if {$s_idx == 0} {
+                connect_bd_intf_net \
+                    -intf_net "dfx_unified_0_M_AXIS_DS0_r${r}" \
+                    [get_bd_intf_pins dfx_unified_0/M_AXIS_DS0] \
+                    [get_bd_intf_pins dfx_pr_region_${r}_0/S_DS_0]
+            } else {
+                set port_j $region_load_port($r,$s_idx)
+                connect_bd_intf_net \
+                    -intf_net "dfx_unified_0_M_AXIS_DS${s_idx}_p${port_j}_r${r}" \
+                    [get_bd_intf_pins dfx_unified_0/M_AXIS_DS${s_idx}_p${port_j}] \
+                    [get_bd_intf_pins dfx_pr_region_${r}_0/S_DS_${s_idx}]
+            }
+        }
 
-  # Create instance: dfx_unified_0, and set properties
-  set dfx_unified_0 [ create_bd_cell -type container -reference dfx_unified dfx_unified_0 ]
-  set_property -dict [list \
-    CONFIG.ACTIVE_SIM_BD {dfx_unified.bd} \
-    CONFIG.ACTIVE_SYNTH_BD {dfx_unified.bd} \
-    CONFIG.ENABLE_DFX {0} \
-    CONFIG.LIST_SIM_BD {dfx_unified.bd} \
-    CONFIG.LIST_SYNTH_BD {dfx_unified.bd} \
-    CONFIG.LOCK_PROPAGATE {0} \
-  ] $dfx_unified_0
+        # Connect store streamers: region outputs → dfx_unified_0 inputs
+        set store_streamers [dict get $region store_streamers]
+        puts "region ${r} store_streamers: $store_streamers"
+        foreach s_idx $store_streamers {
+            connect_bd_intf_net \
+                -intf_net "dfx_pr_region_${r}_0_M_DS${s_idx}" \
+                [get_bd_intf_pins dfx_pr_region_${r}_0/M_DS_${s_idx}] \
+                [get_bd_intf_pins dfx_unified_0/S_AXIS_DS${s_idx}]
+        }
 
+        # AXI-Lite PR ctrl: dfx_unified per-region port → region container
+        connect_bd_intf_net \
+            -intf_net "dfx_unified_0_M_AXI_LITE_PR_CTRL_${r}" \
+            [get_bd_intf_pins dfx_unified_0/M_AXI_LITE_PR_CTRL_${r}] \
+            [get_bd_intf_pins dfx_pr_region_${r}_0/S_AXI_LITE_PR_CTRL]
 
-  # Create instance: dfx_pr_0_0, and set properties
-  # Generate list of BD names dynamically
-  set bd_list {}
-  for {set i 0} {$i < $num_actual_rm} {incr i} {
-    lappend bd_list "dfx_pr_${i}.bd"
-  }
-  set bd_list_str [join $bd_list ":"]
+        # nreset: per-region dfx_nreset from dfx_unified → region container
+        connect_bd_net \
+            -net "dfx_unified_0_dfx_nreset_${r}" \
+            [get_bd_pins dfx_unified_0/dfx_nreset_${r}] \
+            [get_bd_pins dfx_pr_region_${r}_0/nreset]
+    }
 
-  set dfx_pr_0_0 [ create_bd_cell -type container -reference dfx_pr_0 dfx_pr_0_0 ]
-  set_property -dict [list \
-    CONFIG.ACTIVE_SIM_BD {dfx_pr_0.bd} \
-    CONFIG.ACTIVE_SYNTH_BD {dfx_pr_0.bd} \
-    CONFIG.ENABLE_DFX {true} \
-    CONFIG.LIST_SIM_BD $bd_list_str \
-    CONFIG.LIST_SYNTH_BD $bd_list_str \
-    CONFIG.LOCK_PROPAGATE {0} \
-  ] $dfx_pr_0_0
-
-
-  # Create interface connections
-  
-  for {set i 0} {$i < $num_dfx_streamer} {incr i} {
-    connect_bd_intf_net -intf_net dfx_pr_0_0_M_DS_${i} [get_bd_intf_pins dfx_pr_0_0/M_DS_${i}] [get_bd_intf_pins dfx_unified_0/S_AXIS_DS${i}]
-    connect_bd_intf_net -intf_net dfx_unified_0_M_AXIS_DS${i} [get_bd_intf_pins dfx_unified_0/M_AXIS_DS${i}] [get_bd_intf_pins dfx_pr_0_0/S_DS_${i}]
-  }
-
-  # Create port connections
-  connect_bd_net -net dfx_unified_0_dfx_nreset [get_bd_pins dfx_unified_0/dfx_nreset] [get_bd_pins dfx_pr_0_0/nreset]
-
-  save_bd_design
-
-  close_bd_design dfx4ml
+    ##------------------------------------------------------------
+    ## STAGE 4: FINALIZE
+    ##------------------------------------------------------------
+    save_bd_design
+    close_bd_design dfx4ml
 }

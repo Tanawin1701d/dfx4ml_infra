@@ -1,7 +1,7 @@
 module Pr_Reset_Slave #
 (
     parameter integer DATA_WIDTH        = 32,
-    parameter integer STORAGE_IDX_WIDTH = 10,     //// 4 Kb
+    parameter integer AMT_ROW           = 1024,
     parameter [0:0]   SINK_MODE         = 0
 )
 (

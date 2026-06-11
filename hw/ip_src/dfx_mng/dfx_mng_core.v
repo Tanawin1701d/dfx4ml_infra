@@ -1,178 +1,133 @@
 module DFX_Mng_Core #(
+    // ADDRESS & DATA
+    parameter GLOB_ADDR_WIDTH     = 32, // Address width for AXI interface
+    parameter GLOB_DATA_WIDTH     = 32, // Data width for AXI interface
+    parameter NUM_REGION          = 2 ,
 
-    parameter GLOB_ADDR_WIDTH = 32, // Address width for AXI interface
-    parameter GLOB_DATA_WIDTH = 32, // Data width for AXI interface
-
-    parameter BANK1_INDEX_WIDTH    =  3, // 2 ^ 2 = 4 slots
-    parameter BANK1_SRC_ADDR_WIDTH = 32,
-    parameter BANK1_SRC_SIZE_WIDTH = 26,
-    parameter BANK1_DST_ADDR_WIDTH = 32,
-    parameter BANK1_DST_SIZE_WIDTH = 26,
-    parameter BANK1_STATUS_WIDTH   =  2,
-    parameter BANK1_PROFILE_WIDTH  = 32,
-    parameter BANK1_LD_MSK_WIDTH   =  8,
-    parameter BANK1_ST_MSK_WIDTH   =  8,
-
+    // BANK 0
     parameter BANK0_CONTROL_WIDTH = 4,
-    parameter BANK0_STATUS_WIDTH  = 4,
-    parameter BANK0_CNT_WIDTH     = BANK1_INDEX_WIDTH, /// the counter for the sequencer
-    parameter BANK0_INTR_WIDTH    = 1, /// the interrupt for the sequencer
-    parameter BANK0_ROUNDTRIP_WIDTH = 16, /// the round trip counter for the sequencer
-
+    parameter BANK0_STATE_BIT_LEN = 4,
+    parameter BANK0_QUERY_BIT_LEN = 32,
+    // BANK 1
+    parameter BANK1_INDEX_WIDTH          =  3, // 2 ^ 2 = 4 slots
+    parameter BANK1_DATA_ADDR_WIDTH      = 32, // <---- DATA FROM DMA START ADDR
+    parameter BANK1_DATA_SIZE_WIDTH      = 26,
+    parameter BANK1_RM_SELECT_WIDTH      = 2, // it should be n(vs) x n(rm perslot)
+    parameter BANK1_PROFILE_RECON_WIDTH  = 32, // <---- PROFILER RECON
+    parameter BANK1_PROFILE_EXEC_WIDTH   = 32, // <---- PROFILER EXEC
+    parameter BANK1_DATA_POOL_MASK_WIDTH =  8, // <---- MASK OF MGS and DMA
+    // DMA CONTROL PARAMETER
     parameter DMA_INIT_TASK_CNT   = 8, //// (reset interrupt + startReadChannel + baseAddr0 + size0) + (startWriteChannel + baseAddr1 + size1)
-    parameter DMA_EXEC_TASK_CNT   = 1
+    parameter DMA_EXEC_TASK_CNT   = 1,
+    // PR  CONTROL PARAMETER
+    parameter PR_CTRL_TASK_CNT    = 2  //// (set batch_size + ap_start)
 ) (
     input wire clk,
-    input wire reset,
-    //////////////////////////////////////////////////////////
-    // outsider interface bank 1 (typically from PS)///////////
-    //////////////////////////////////////////////////////////
+    input wire nreset,
+    //////// BANK 0 READ
+    output wire [BANK0_STATE_BIT_LEN -1: 0] b0_main_state_read_val,
+    output wire [BANK0_STATE_BIT_LEN -1: 0] b0_recon_state_read_val,
+    output wire [BANK0_STATE_BIT_LEN -1: 0] b0_exec_state_read_val,
+    output wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_read_val,
+    output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query_read_val,
+    output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_read_val,
+    output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_read_val,
+    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_read_val,
+    output wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_read_val,
+    output wire                             b0_intr_ena_read_val,
+    output wire                             b0_intr_status_read_val,
+    output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_read_val,
+    //////// BANK 0 WRITE
+    input wire [BANK0_CONTROL_WIDTH -1: 0] b0_control_cmd_write_val        , input wire b0_control_cmd_write_req,
+    input wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_write_val       , input wire b0_last_session_write_req,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_write_val          , input wire b0_amt_query_write_req,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_write_val , input wire b0_amt_query_per_iter_write_req,
+    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        , input wire b0_dma_ip_addr_write_req,
+    input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val        , input wire b0_pr_ip_addr_write_req,
+    input wire                             b0_intr_ena_write_val           , input wire b0_intr_ena_write_req,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_write_val              , input wire b0_mperf_write_req,
+    //////// BANK 1 READ
+    input  wire                                    b1_read_indexer_req,
+    input  wire [GLOB_ADDR_WIDTH            -1: 0] b1_read_address_val,
 
-    ///////// setter from outsider
-    input wire [BANK1_INDEX_WIDTH    -1:0] ext_bank1_inp_index,
-    input wire [BANK1_SRC_ADDR_WIDTH -1:0] ext_bank1_inp_src_addr,
-    input wire [BANK1_SRC_SIZE_WIDTH -1:0] ext_bank1_inp_src_size,
-    input wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_inp_des_addr,
-    input wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_inp_des_size,
-    input wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_inp_status,
-    input wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_inp_profile,
-    input wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_inp_ld_mask,
-    input wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_mask,
-    // input wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_intr_mask_ack,
-    input wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_inp_st_intr_mask_abs,
+    output reg [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_read_val,
+    output reg [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_read_val,
+    output reg [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_des_addr_read_val,
+    output reg [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_read_val,
+    output reg [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_read_val,
+    output reg [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_read_val,
+    output reg [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_recon_select_read_val,
+    output reg [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_exec_select_read_val,
+    output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_read_val,
+    output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_read_val,
+    output reg [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_read_val,
+    output reg [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_read_val,
 
-    input wire ext_bank1_set_src_addr,
-    input wire ext_bank1_set_src_size,
-    input wire ext_bank1_set_des_addr,
-    input wire ext_bank1_set_des_size,
-    input wire ext_bank1_set_status,
-    input wire ext_bank1_set_profile,
-    input wire ext_bank1_set_ld_mask,
-    input wire ext_bank1_set_st_mask,
-    // input wire ext_bank1_set_st_intr_mask_ack,
-    input wire ext_bank1_set_st_intr_mask_abs,
+    //////////// BANK 1 WRITE
+    input  wire [GLOB_ADDR_WIDTH-1         : 0] b1_write_address_val,
 
-    output wire ext_bank1_set_fin_src_addr,   /// the result external setting
-    output wire ext_bank1_set_fin_src_size,   /// the result external setting
-    output wire ext_bank1_set_fin_des_addr,   /// the result external setting
-    output wire ext_bank1_set_fin_des_size,   /// the result external setting
-    output wire ext_bank1_set_fin_status,     /// the result external setting
-    output wire ext_bank1_set_fin_profile,    /// the result external setting
-    output wire ext_bank1_set_fin_ld_mask,
-    output wire ext_bank1_set_fin_st_mask,
-    // output wire ext_bank1_set_fin_st_intr_mask_ack,
-    output wire ext_bank1_set_fin_st_intr_mask_abs,
+    input  wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_src_addr_write_val , input  wire  b1_dma_src_addr_write_req,
+    input  wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_src_size_write_val , input  wire  b1_dma_src_size_write_req,
+    input  wire [BANK1_DATA_ADDR_WIDTH       -1: 0] b1_dma_des_addr_write_val , input  wire  b1_dma_des_addr_write_req,
+    input  wire [BANK1_DATA_SIZE_WIDTH       -1: 0] b1_dma_des_size_write_val , input  wire  b1_dma_des_size_write_req,
+    input  wire [BANK1_PROFILE_RECON_WIDTH   -1: 0] b1_prof_recon_write_val   , input  wire  b1_prof_recon_write_req,
+    input  wire [BANK1_PROFILE_EXEC_WIDTH    -1: 0] b1_prof_exec_write_val    , input  wire  b1_prof_exec_write_req,
+    input  wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_recon_select_write_val , input  wire  b1_vs_rm_recon_select_write_req,
+    input  wire [BANK1_RM_SELECT_WIDTH       -1: 0] b1_vs_rm_exec_select_write_val , input  wire  b1_vs_rm_exec_select_write_req,
+    input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_load_mask_write_val    , input  wire  b1_load_mask_write_req,
+    input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_store_mask_write_val   , input  wire  b1_store_mask_write_req,
+    input  wire [BANK1_DATA_POOL_MASK_WIDTH  -1: 0] b1_complete_mask_write_val, input  wire  b1_complete_mask_write_req,
+    input  wire [BANK1_INDEX_WIDTH           -1: 0] b1_next_session_write_val , input  wire  b1_next_session_write_req,
 
-    ///////// send outsider
+    //////////// DMA and PR ctrl
+    output reg [DMA_INIT_TASK_CNT  -1:0]    dma_init_task,
+    input  wire[DMA_INIT_TASK_CNT  -1:0]    dma_fin_task,
 
-    input  wire [BANK1_INDEX_WIDTH    -1:0] ext_bank1_out_index,
-    input  wire                             ext_bank1_out_req,           // actually it is a wire
-    /////////
-    output wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_out_src_addr,      // actually it is a reg
-    output wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_out_src_size,      // actually it is a reg
-    output wire [BANK1_DST_ADDR_WIDTH -1:0] ext_bank1_out_des_addr,
-    output wire [BANK1_DST_SIZE_WIDTH -1:0] ext_bank1_out_des_size,
-    output wire [BANK1_STATUS_WIDTH   -1:0] ext_bank1_out_status  ,      // actually it is a reg
-    output wire [BANK1_PROFILE_WIDTH  -1:0] ext_bank1_out_profile,       // actually it is a reg
-    output wire [BANK1_LD_MSK_WIDTH   -1:0] ext_bank1_out_ld_mask,     // actually it is a reg
-    output wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_mask,
-    output wire [BANK1_ST_MSK_WIDTH   -1:0] ext_bank1_out_st_intr_mask,
+    output reg [PR_CTRL_TASK_CNT   -1:0]    pr_ctrl_task,
+    input  wire[PR_CTRL_TASK_CNT   -1:0]    pr_ctrl_fin_task,
 
+    //////////// MGS Communication
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_store_reset,
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_load_reset,
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_store_init,
+    output wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_load_init,
 
+    input  wire[BANK1_DATA_POOL_MASK_WIDTH-1: 0] dfx_stream_fin,
 
-    output wire                             ext_bank1_out_ready,         // actually it is a reg
-
-
-    //////////////////////////////////////////////////////////
-    // outsider interface bank0 (typically from PS)///////////
-    //////////////////////////////////////////////////////////
-    input wire [BANK0_CONTROL_WIDTH-1:0] ext_bank0_inp_control, /// set control data
-    input wire                           ext_bank0_set_control, /// set control signal
-    input wire                           hw_ctrl_start,
-
-    output wire [BANK0_STATUS_WIDTH-1:0] ext_bank0_out_status,  /// read only and it is reg
-
-    output wire [BANK0_CNT_WIDTH   -1:0] ext_bank0_out_mainCnt,     /// read only
-
-    input  wire [BANK0_CNT_WIDTH-1:0]    ext_bank0_inp_endCnt,      ///
-    input  wire                          ext_bank0_set_endCnt,      ///
-    output wire [BANK0_CNT_WIDTH-1:0]    ext_bank0_out_endCnt,      /// read only
-
-    input  wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_inp_dmaBaseAddr,
-    input  wire                          ext_bank0_set_dmaBaseAddr,
-    output wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_dmaBaseAddr,
-
-    input  wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_inp_dfxCtrlAddr,
-    input  wire                          ext_bank0_set_dfxCtrlAddr,
-    output wire [GLOB_ADDR_WIDTH-1: 0]   ext_bank0_out_dfxCtrlAddr,
-
-    input  wire [BANK0_INTR_WIDTH-1: 0]  ext_bank0_inp_intrEna, //// input data for the interrupt counter
-    input  wire                          ext_bank0_set_intrEna, //// set the interrupt counter ONLY when the system is in shutdown state
-    output wire[BANK0_INTR_WIDTH-1: 0]   ext_bank0_out_intrEna, //// output data for the interrupt counter
-
-    input wire [BANK0_INTR_WIDTH-1: 0]  ext_bank0_inp_intr, //// input data for the interrupt counter
-    input wire                          ext_bank0_set_intr, //// set the interrupt counter ONLY when the system is in shutdown state
-    output wire[BANK0_INTR_WIDTH-1: 0]  ext_bank0_out_intr, //// output data for the interrupt counter
-    input                               hw_intr_clear, //// clear the interrupt signal
-
-    input wire [BANK0_ROUNDTRIP_WIDTH-1: 0]  ext_bank0_inp_roundTrip, /// input data for the round trip counter
-    input wire                               ext_bank0_set_roundTrip, /// set the round trip counter ONLY when the system is in shutdown state
-    output wire [BANK0_ROUNDTRIP_WIDTH-1: 0] ext_bank0_out_roundTrip, /// output data for the round trip counter
-
-
-
-    //////////////////////////////////////////////////////////
-    // slave functionality                         ///////////
-    //////////////////////////////////////////////////////////
-
-
-    /////
-    ///// this will trigger the dfx Controller usally hardware trigger
-    /////
-    output wire [(1 <<BANK0_CNT_WIDTH)-1: 0] slaveReprog, ///// trigger slave dfx Controller to reprogram
-    input  wire nslaveReset, ///// the signal from dfx Controller that rm module is reset active low
-    /////
-    ///// this will trigger the dma Controller
-    /////
-    output wire [BANK1_ST_MSK_WIDTH-1: 0] slaveMgsStoreReset, //// reset the interrupt signal
-    output wire [BANK1_LD_MSK_WIDTH-1: 0] slaveMgsLoadReset,  //// reset the interrupt signal
-    output wire [BANK1_ST_MSK_WIDTH-1: 0] slaveMgsStoreInit,  //// init the store of the magic streamer bucket
-    output wire [BANK1_LD_MSK_WIDTH-1: 0] slaveMgsLoadInit,   //// init the load of the magic streamer bucket
-    output wire [DMA_INIT_TASK_CNT -1: 0] slaveInit   , ///// trigger slave dma to do somthing via AXI
-    input  wire [DMA_INIT_TASK_CNT -1: 0] slaveFinInit, ///// trigger slave dma to do somthing via AXI
-
-    ////// finish exec
-    input wire  [BANK1_ST_MSK_WIDTH   -1: 0] mgsFinExec, ///// the slave magic sequencer Ip acknowledge that it is finish
-                                            /////// -1 because we reserve bit 0 for dma
-
-    output wire [BANK1_DST_ADDR_WIDTH -1:0] slave_bank1_out_src_addr,      // actually it is a reg
-    output wire [BANK1_DST_SIZE_WIDTH -1:0] slave_bank1_out_src_size,      // actually it is a reg
-    output wire [BANK1_DST_ADDR_WIDTH -1:0] slave_bank1_out_des_addr,
-    output wire [BANK1_DST_SIZE_WIDTH -1:0] slave_bank1_out_des_size,
-    output wire [BANK1_STATUS_WIDTH   -1:0] slave_bank1_out_status  ,      // actually it is a reg
-    output wire [BANK1_PROFILE_WIDTH  -1:0] slave_bank1_out_profile,        // actually it is a reg
-    output wire [BANK1_LD_MSK_WIDTH   -1:0] slave_bank1_out_ld_mask,     // actually it is a reg
-    output wire [BANK1_ST_MSK_WIDTH   -1:0] slave_bank1_out_st_mask,
-    output wire [BANK1_ST_MSK_WIDTH   -1:0] slave_bank1_out_st_intr_mask
-
-
+    //////////// DFX Ctrl
+    output wire[BANK1_RM_SELECT_WIDTH     -1: 0] dfx_rm_program,
+    input  wire[NUM_REGION                -1: 0] dfx_rm_nreset
 
 );
 
+localparam BANK1_ROWS       = 1 << BANK1_INDEX_WIDTH;
+localparam SLOTS_PER_REGION = BANK1_RM_SELECT_WIDTH / NUM_REGION;
 
-localparam STATUS_SHUTDOWN       = 4'b0000;
-localparam STATUS_REPROG         = 4'b0001;
-localparam STATUS_W4SLAVERESET   = 4'b0010;
-localparam STATUS_W4SLAVEOP      = 4'b0011;
-localparam STATUS_CLEAR_MGS      = 4'b0100;
-localparam STATUS_INITIALIZE_MGS = 4'b0101; // initialize magic streamer, to reset magic streamer and start the streaming
-localparam STATUS_INITIALIZE_DMA = 4'b0110; // the state will reset the interrupt signal
-localparam STATUS_SET_DMA_LOAD   = 4'b0111; // the system is setting the dma load, we can trigger the slave to do something
-localparam STATUS_SET_DMA_STORE  = 4'b1000; // the system is setting the dma store, we can trigger the slave to do something
-localparam STATUS_TRIGGERING     = 4'b1001;
-localparam STATUS_WAIT4FIN       = 4'b1010;
-localparam STATUS_PAUSEONERROR   = 4'b1111; // the system is paused on error, we can not do anything
+localparam CTRL_CLEAR                    = 4'b0000;
+localparam CTRL_SHUTDOWN                 = 4'b0001;
+localparam CTRL_START                    = 4'b0010;
 
+localparam STATE_MAIN_SHUTDOWN           = 4'b0000;
+localparam STATE_MAIN_PROCESS            = 4'b0001;
+localparam STATE_MAIN_PRE_SHUTDOWN       = 4'b0010;
+
+localparam STATE_RECON_SHUTDOWN          = 4'b0000;
+localparam STATE_RECON_REPROG            = 4'b0001;
+localparam STATE_RECON_W4SLAVERESET      = 4'b0010;
+localparam STATE_RECON_W4SLAVEOP         = 4'b0011;
+localparam STATE_RECON_FIN_SYNC          = 4'b0100;
+
+localparam STATE_EXEC_SHUTDOWN               = 4'b0000;
+localparam STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK = 4'b0001;
+localparam STATE_EXEC_INITIALIZE_PR_CTRL     = 4'b0010; // initialize PR-controlled IP (set batch_size + ap_start)
+localparam STATE_EXEC_CLEAR_MGS              = 4'b0011;
+localparam STATE_EXEC_INITIALIZE_MGS         = 4'b0100; // initialize magic streamer, to reset magic streamer and start the streaming
+localparam STATE_EXEC_INITIALIZE_DMA         = 4'b0101; // the state will reset the interrupt signal
+localparam STATE_EXEC_SET_DMA_LOAD           = 4'b0110; // the system is setting the dma load, we can trigger the slave to do something
+localparam STATE_EXEC_SET_DMA_STORE          = 4'b0111; // the system is setting the dma store, we can trigger the slave to do something
+localparam STATE_EXEC_TRIGGERING             = 4'b1000;
+localparam STATE_EXEC_WAIT4FIN               = 4'b1001;
+localparam STATE_EXEC_FIN_SYNC               = 4'b1010;
 
 ///////////// task for dma
 localparam DMA_TASK_RESET_INTR_BEG = 0; // reset the interrupt signal task
@@ -182,463 +137,384 @@ localparam DMA_TASK_LOAD_TASK_END  = 4;  // load task end
 localparam DMA_TASK_STORE_TASK_BEG = 5; // store task begin
 localparam DMA_TASK_STORE_TASK_END = 7; // store task end
 
-localparam CTRL_CLEAR            = 4'b0000;
-localparam CTRL_SHUTDOWN         = 4'b0001;
-localparam CTRL_START            = 4'b0010;
-
-/////////////////////////////////////////////////
-////// BANK 0 slot table wire declaration ///////
-/////////////////////////////////////////////////
-
-reg [BANK0_STATUS_WIDTH-1   : 0]    mainStatus;   ///// 0x4
-reg [BANK0_CNT_WIDTH   -1   : 0]    mainCnt;      ///// 0x8
-reg [(1 <<BANK0_CNT_WIDTH)-1: 0]    mainTrigger;
-assign slaveReprog = (mainStatus == STATUS_REPROG) ? mainTrigger : 0; //// we want only when it is in stage reprogramming(only 1 cycle)
-reg [BANK0_CNT_WIDTH   -1:0]    endCnt; ///// 0xC
-
-reg [GLOB_ADDR_WIDTH   -1:0]    dmaBaseAddr; ///// 0x10
-reg [GLOB_ADDR_WIDTH   -1:0]    dfxCtrlAddr; ///// 0x14
-
-reg [BANK0_INTR_WIDTH      -1:0]    intrEna;
-reg [BANK0_INTR_WIDTH      -1:0]    intr;
-reg [BANK0_ROUNDTRIP_WIDTH -1:0]    roundTrip; /// the round trip counter
-
-reg [DMA_INIT_TASK_CNT -1:0]    dmaInitTask;
-////////////////////////////////////////////////
-////// restart signal declaration //////////////
-////////////////////////////////////////////////
-wire finishRound = (mainStatus == STATUS_WAIT4FIN) && (mainCnt == endCnt) && (slave_bank1_out_st_mask == slave_bank1_out_st_intr_mask); ///// the round trip is finished when the mainCnt is equal to endCnt and the slave has finished executing
-
-/////////////////////////////////////////////////
-////// BANK 1 slot table wire declaration ///////
-/////////////////////////////////////////////////
-
-
-////// the writing side signal
-
-//////////////  the input pool
-
-wire [BANK1_INDEX_WIDTH    -1:0] bank1_inp_index; // actually it is a wire
-
-wire [BANK1_PROFILE_WIDTH  -1:0] bank1_inp_profile; // it must share with ps and auto inc
-wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_inp_st_intr_mask_ack; // mask is usesd only when state is w4fin the interrupt should be set forever, if there is no reset signal
-wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_inp_st_intr_mask_abs;
-
-wire bank1_set_fin_src_addr;
-wire bank1_set_fin_src_size;
-wire bank1_set_fin_des_addr;
-wire bank1_set_fin_des_size;
-wire bank1_set_fin_status;
-wire bank1_set_fin_profile;
-wire bank1_set_fin_ld_mask;
-wire bank1_set_fin_st_mask;
-wire bank1_set_fin_intr_mask_ack;
-wire bank1_set_fin_intr_mask_abs;
-
-
-//////////////  the out pool
-wire [BANK1_INDEX_WIDTH    -1:0] bank1_out_index; // actually it is a wire
-wire [BANK1_DST_ADDR_WIDTH -1:0] bank1_out_src_addr;      // actually it is a reg
-wire [BANK1_DST_SIZE_WIDTH -1:0] bank1_out_src_size;      // actually it is a reg
-wire [BANK1_DST_ADDR_WIDTH -1:0] bank1_out_des_addr;
-wire [BANK1_DST_SIZE_WIDTH -1:0] bank1_out_des_size;
-wire [BANK1_STATUS_WIDTH   -1:0] bank1_out_status  ;      // actually it is a reg
-wire [BANK1_PROFILE_WIDTH  -1:0] bank1_out_profile ;      // actually it is a reg
-wire [BANK1_LD_MSK_WIDTH   -1:0] bank1_out_ld_mask;
-wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_out_st_mask;
-wire [BANK1_ST_MSK_WIDTH   -1:0] bank1_out_st_intr_mask;
-
-///////////////////////////////////
-//////////// assign bank1       ///
-///////////////////////////////////
-
-////////////////////////////////////////
-////// reading   ///////////////////////
-//////////////////////////////////////// only when the system is in shutdown state, we can read the bank1 slot
-assign bank1_out_index = (mainStatus == STATUS_SHUTDOWN) ? ext_bank1_out_index: mainCnt;
-
-assign ext_bank1_out_src_addr      = bank1_out_src_addr;
-assign ext_bank1_out_src_size      = bank1_out_src_size;
-assign ext_bank1_out_des_addr      = bank1_out_des_addr;
-assign ext_bank1_out_des_size      = bank1_out_des_size;
-assign ext_bank1_out_status        = bank1_out_status;
-assign ext_bank1_out_profile       = bank1_out_profile;
-assign ext_bank1_out_ld_mask       = bank1_out_ld_mask;
-assign ext_bank1_out_st_mask       = bank1_out_st_mask;
-assign ext_bank1_out_st_intr_mask  = bank1_out_st_intr_mask;
-assign ext_bank1_out_ready         = ext_bank1_out_req &&  (mainStatus == STATUS_SHUTDOWN);
+///////////// task for PR ctrl IP
+localparam PR_CTRL_TASK_BATCH_SIZE = 0; // write BATCH_SIZE to IP offset 0x10
+localparam PR_CTRL_TASK_AP_START   = 1; // write ap_start (0x01) to IP offset 0x00
 
 
 
-assign slave_bank1_out_src_addr      =  bank1_out_src_addr;
-assign slave_bank1_out_src_size      =  bank1_out_src_size;
-assign slave_bank1_out_des_addr      =  bank1_out_des_addr;
-assign slave_bank1_out_des_size      =  bank1_out_des_size;
-assign slave_bank1_out_status        =  bank1_out_status;
-assign slave_bank1_out_profile       =  bank1_out_profile;
-assign slave_bank1_out_ld_mask       = bank1_out_ld_mask;
-assign slave_bank1_out_st_mask       = bank1_out_st_mask;
-assign slave_bank1_out_st_intr_mask  = bank1_out_st_intr_mask;
+/////////////////////////////////////////////
+////// STATE MACHINE  ///////////////////////
+/////////////////////////////////////////////
 
-////////////////////////////////////////
-/////// writing ////////////////////////
-////////////////////////////////////////
-assign bank1_inp_index             = (mainStatus == STATUS_SHUTDOWN) ? ext_bank1_inp_index : mainCnt;
-
-///////////// writing profiler data
-
-assign bank1_inp_profile = ( (mainStatus == STATUS_REPROG      ) |
-                             (mainStatus == STATUS_W4SLAVERESET) |
-                             (mainStatus == STATUS_W4SLAVEOP   )) ? (slave_bank1_out_profile + 1) : ext_bank1_inp_profile;
-
-assign bank1_inp_st_intr_mask_ack = mgsFinExec;
-assign bank1_inp_st_intr_mask_abs = (mainStatus == STATUS_SHUTDOWN)  ? ext_bank1_inp_st_intr_mask_abs : 0; ///// in case reset mgs
-
-////////////// writing from external setData
-wire ext_bank1_mainActual_set_req = (mainStatus == STATUS_SHUTDOWN) &&
-                                    (ext_bank1_set_src_addr | ext_bank1_set_src_size |
-                                     ext_bank1_set_des_addr | ext_bank1_set_des_size |
-                                     ext_bank1_set_status   | ext_bank1_set_profile  |
-                                     ext_bank1_set_ld_mask  | ext_bank1_set_st_mask  |
-                                     ext_bank1_set_st_intr_mask_abs);
-assign ext_bank1_set_fin_src_addr   = ext_bank1_mainActual_set_req & ext_bank1_set_src_addr;
-assign ext_bank1_set_fin_src_size   = ext_bank1_mainActual_set_req & ext_bank1_set_src_size;
-assign ext_bank1_set_fin_des_addr   = ext_bank1_mainActual_set_req & ext_bank1_set_des_addr;
-assign ext_bank1_set_fin_des_size   = ext_bank1_mainActual_set_req & ext_bank1_set_des_size;
-assign ext_bank1_set_fin_status     = ext_bank1_mainActual_set_req & ext_bank1_set_status;
-assign ext_bank1_set_fin_profile    = ext_bank1_mainActual_set_req & ext_bank1_set_profile;
-assign ext_bank1_set_fin_ld_mask         = ext_bank1_mainActual_set_req & ext_bank1_set_ld_mask;
-assign ext_bank1_set_fin_st_mask         = ext_bank1_mainActual_set_req & ext_bank1_set_st_mask;
-// assign ext_bank1_set_fin_st_intr_mask_ack   = 0;
-assign ext_bank1_set_fin_st_intr_mask_abs   = ext_bank1_mainActual_set_req & ext_bank1_set_st_intr_mask_abs;
-
-////////////// writing pool
-assign bank1_set_fin_src_addr       = ext_bank1_set_fin_src_addr;
-assign bank1_set_fin_src_size       = ext_bank1_set_fin_src_size;
-assign bank1_set_fin_des_addr       = ext_bank1_set_fin_des_addr;
-assign bank1_set_fin_des_size       = ext_bank1_set_fin_des_size;
-assign bank1_set_fin_status         = ext_bank1_set_fin_status;
-assign bank1_set_fin_profile        = ext_bank1_set_fin_profile |
-                                    ( ( mainStatus == STATUS_REPROG       ) |
-                                      ( mainStatus == STATUS_W4SLAVERESET ) |
-                                      ( mainStatus == STATUS_W4SLAVEOP    ));
-assign bank1_set_fin_ld_mask        = ext_bank1_set_fin_ld_mask;
-assign bank1_set_fin_st_mask        = ext_bank1_set_fin_st_mask;
-assign bank1_set_fin_intr_mask_ack  = mainStatus == STATUS_WAIT4FIN; //// this is internal only set
-assign bank1_set_fin_intr_mask_abs  = ext_bank1_set_fin_st_intr_mask_abs; //// this is internal reset and external write
+/////////////////////////////////////////////
+////// BANK 0 MEM  //////////////////////////
+/////////////////////////////////////////////
+reg [BANK0_STATE_BIT_LEN -1: 0] b0_main_state;
+reg [BANK0_STATE_BIT_LEN -1: 0] b0_recon_state;
+reg [BANK0_STATE_BIT_LEN -1: 0] b0_exec_state;
+reg [BANK1_INDEX_WIDTH   -1: 0] b0_last_session;
+reg [BANK0_QUERY_BIT_LEN -1: 0] b0_cur_query;
+reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query;
+reg [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter;
+reg [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr;
+reg [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr;
+reg                             b0_intr_ena;
+reg                             b0_intr_status;
+reg [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf;
+/////////////////////////////////////////////
+////// BANK 1 MEM  //////////////////////////
+/////////////////////////////////////////////
 
 
-///////////////////////////////////////////////
-///////// variable setting/getting //////////
-///////////////////////////////////////////////
+reg  [BANK1_INDEX_WIDTH-1 : 0] b1_read_indexer;
 
-///////////////////////////////////////////////////
-//////////// control will be held in state machine
-///////////////////////////////////////////////////
+reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_src_addr      [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_src_size      [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_ADDR_WIDTH-1     : 0] b1_dma_des_addr      [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_SIZE_WIDTH-1     : 0] b1_dma_des_size      [BANK1_ROWS-1: 0];
+reg [BANK1_PROFILE_RECON_WIDTH-1 : 0] b1_prof_recon        [BANK1_ROWS-1: 0];
+reg [BANK1_PROFILE_EXEC_WIDTH-1  : 0] b1_prof_exec         [BANK1_ROWS-1: 0];
+reg [BANK1_RM_SELECT_WIDTH-1     : 0] b1_vs_rm_recon_select[BANK1_ROWS-1: 0];
+reg [BANK1_RM_SELECT_WIDTH-1     : 0] b1_vs_rm_exec_select [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_load_mask         [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_store_mask        [BANK1_ROWS-1: 0];
+reg [BANK1_DATA_POOL_MASK_WIDTH-1: 0] b1_complete_mask     [BANK1_ROWS-1: 0];
+reg [BANK1_INDEX_WIDTH-1         : 0] b1_next_session      [BANK1_ROWS-1: 0];
 
-////////////////////////////////////
-//////////// status setting/////////
-////////////////////////////////////
-assign ext_bank0_out_status = mainStatus;
-////////////////////////////////////
-//////////// main counter setting///
-////////////////////////////////////
-assign ext_bank0_out_mainCnt = mainCnt;
-///////////////////////////////////
-//////////// end counter setting///
-///////////////////////////////////
-assign ext_bank0_out_endCnt = endCnt;
-always @(posedge clk or negedge reset) begin
-    if (~reset) begin
-        endCnt  <= 0;
-    end else if (mainStatus == STATUS_SHUTDOWN) begin
-        // if the system is in shutdown state, we can set the endCnt
-        if (ext_bank0_set_endCnt) begin
-            endCnt <= ext_bank0_inp_endCnt;
-        end
+/////////////////////////////////////////////
+////// system wire & register   /////////////
+/////////////////////////////////////////////
+
+wire all_sync = (b0_recon_state == STATE_RECON_FIN_SYNC) &&  (b0_exec_state == STATE_EXEC_FIN_SYNC);
+
+wire [BANK1_INDEX_WIDTH-1 :0] b1_read_indexer_val  = b1_read_address_val [6+:BANK1_INDEX_WIDTH];
+wire [BANK1_INDEX_WIDTH-1 :0] b1_write_indexer_val = b1_write_address_val[6+:BANK1_INDEX_WIDTH];
+
+
+assign dfx_stream_store_reset = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_store_mask_read_val : 0;
+assign dfx_stream_load_reset  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_CLEAR_MGS))      ? b1_load_mask_read_val  : 0;
+assign dfx_stream_store_init  = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_store_mask_read_val : 0;
+assign dfx_stream_load_init   = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)) ? b1_load_mask_read_val  : 0;
+
+assign dfx_rm_program = ((b0_main_state == STATE_MAIN_PROCESS) && (b0_recon_state == STATE_RECON_REPROG)) ? b1_vs_rm_recon_select_read_val: 0;
+
+wire [BANK1_RM_SELECT_WIDTH-1:0] dfx_rm_nreset_expand;
+genvar dfx_rm_nreset_i;
+generate
+    for (dfx_rm_nreset_i = 0; dfx_rm_nreset_i < NUM_REGION; dfx_rm_nreset_i = dfx_rm_nreset_i + 1) begin : gen_nreset_expand
+        assign dfx_rm_nreset_expand[dfx_rm_nreset_i*SLOTS_PER_REGION +: SLOTS_PER_REGION] = {SLOTS_PER_REGION{dfx_rm_nreset[dfx_rm_nreset_i]}};
     end
-    // otherwise, we do not allow to set the endCnt register
+endgenerate
+
+wire dfx_rm_nreset_current = (dfx_rm_nreset_expand & b1_vs_rm_recon_select_read_val) != 0;
+
+
+
+/////////////////////////////////////////////
+////// PROCEDURE   //////////////////////////
+/////////////////////////////////////////////
+
+/////////////////////////////////////////////
+////// BANK 0 REG  //////////////////////////
+/////////////////////////////////////////////
+assign b0_main_state_read_val         = b0_main_state;
+assign b0_recon_state_read_val        = b0_recon_state;
+assign b0_exec_state_read_val         = b0_exec_state;
+assign b0_last_session_read_val       = b0_last_session;
+assign b0_cur_query_read_val          = b0_cur_query;
+assign b0_amt_query_read_val          = b0_amt_query;
+assign b0_amt_query_per_iter_read_val = b0_amt_query_per_iter;
+assign b0_dma_ip_addr_read_val        = b0_dma_ip_addr;
+assign b0_pr_ip_addr_read_val        = b0_pr_ip_addr;
+
+assign b0_intr_ena_read_val           = b0_intr_ena;
+assign b0_intr_status_read_val        = b0_intr_status;
+assign b0_mperf_read_val              = b0_mperf;
+
+wire ps_b0_writable = b0_main_state == STATE_MAIN_SHUTDOWN;
+
+always@(posedge clk)begin
+
+if (ps_b0_writable && b0_last_session_write_req       )begin b0_last_session       <= b0_last_session_write_val;      end
+if (ps_b0_writable && b0_amt_query_write_req          )begin b0_amt_query          <= b0_amt_query_write_val;         end
+if (ps_b0_writable && b0_amt_query_per_iter_write_req )begin b0_amt_query_per_iter <= b0_amt_query_per_iter_write_val;end
+if (ps_b0_writable && b0_dma_ip_addr_write_req        )begin b0_dma_ip_addr        <= b0_dma_ip_addr_write_val;       end
+if (ps_b0_writable && b0_pr_ip_addr_write_req         )begin b0_pr_ip_addr         <= b0_pr_ip_addr_write_val;       end
+
+
+if      (!nreset)                                begin b0_intr_ena <= 0;                     end
+else if (ps_b0_writable && b0_intr_ena_write_req)begin b0_intr_ena <= b0_intr_ena_write_val; end
+
+//// mperf: PS-writable in SHUTDOWN, free-running while recon or exec engine is active
+if      (!nreset)                             begin b0_mperf <= 0;                  end
+else if (ps_b0_writable && b0_mperf_write_req)begin b0_mperf <= b0_mperf_write_val; end
+else if ((b0_recon_state != STATE_RECON_SHUTDOWN) ||
+         (b0_exec_state  != STATE_EXEC_SHUTDOWN ))begin b0_mperf <= b0_mperf + 1;   end
+
+
 end
 
-///////////////////////////////////
-//////////// dma address setting///
-///////////////////////////////////
-assign ext_bank0_out_dmaBaseAddr = dmaBaseAddr;
-always @(posedge clk or negedge reset)begin
-    if (~reset) begin
-        dmaBaseAddr <= 0;
-    end else if (mainStatus == STATUS_SHUTDOWN) begin
-        if (ext_bank0_set_dmaBaseAddr) begin
-            dmaBaseAddr <= ext_bank0_inp_dmaBaseAddr;
-        end
-    end
 
-end
-///////////////////////////////////////////
-//////////// dma address setting        ///
-///////////////////////////////////////////
-assign ext_bank0_out_dfxCtrlAddr = dfxCtrlAddr;
-always @(posedge clk or negedge reset)begin
-    if (~reset) begin
-        dfxCtrlAddr <= 0;
-    end else if (mainStatus == STATUS_SHUTDOWN) begin
-        if (ext_bank0_set_dfxCtrlAddr) begin
-            dfxCtrlAddr <= ext_bank0_inp_dfxCtrlAddr;
-        end
-    end
-end
 
-///////////////////////////////////////////
-//////////// interrupt  enable          ///
-///////////////////////////////////////////
-assign ext_bank0_out_intrEna = intrEna;
-always @(posedge clk or negedge reset) begin
-    if (~reset) begin
-        intrEna <= 0;
-    end else if (mainStatus == STATUS_SHUTDOWN) begin
-        if (ext_bank0_set_intrEna) begin
-            intrEna <= ext_bank0_inp_intrEna; // set the interrupt enable signal
-        end
-    end
-end
 
-///////////////////////////////////////////
-//////////// interrupt signal           ///
-///////////////////////////////////////////
-assign ext_bank0_out_intr = intr;
-always @(posedge clk or negedge reset) begin
-    if (~reset) begin
-        intr <= 0;
-    end else if (mainStatus == STATUS_SHUTDOWN) begin
-        if ((ext_bank0_set_intr && ext_bank0_inp_intr) || hw_intr_clear) begin
-            intr <= 0; // reset the interrupt signal
-        end
-    end else if (finishRound && intrEna)begin
-            intr <= 1;
-    end
-end
+/////////////////////////////////////////////
+////// BANK 1 MEM  //////////////////////////
+/////////////////////////////////////////////
 
-///////////////////////////////////////////
-//////////// round trip                 ///
-///////////////////////////////////////////
-assign ext_bank0_out_roundTrip = roundTrip;
-always @(posedge clk or negedge reset) begin
-    if (~reset) begin
-        roundTrip <= 0;
-    end else if (mainStatus == STATUS_SHUTDOWN) begin
-        if (ext_bank0_set_roundTrip) begin
-            roundTrip <= ext_bank0_inp_roundTrip; // set the round trip counter
+always@(posedge clk) begin
+
+    b1_dma_src_addr_read_val  <= b1_dma_src_addr [b1_read_indexer];
+    b1_dma_src_size_read_val  <= b1_dma_src_size [b1_read_indexer];
+    b1_dma_des_addr_read_val  <= b1_dma_des_addr [b1_read_indexer];
+    b1_dma_des_size_read_val  <= b1_dma_des_size [b1_read_indexer];
+    b1_prof_recon_read_val    <= b1_prof_recon   [b1_read_indexer];
+    b1_prof_exec_read_val     <= b1_prof_exec    [b1_read_indexer];
+    b1_vs_rm_recon_select_read_val <= b1_vs_rm_recon_select[b1_read_indexer];
+    b1_vs_rm_exec_select_read_val  <= b1_vs_rm_exec_select [b1_read_indexer];
+    b1_load_mask_read_val     <= b1_load_mask    [b1_read_indexer];
+    b1_store_mask_read_val    <= b1_store_mask   [b1_read_indexer];
+    b1_complete_mask_read_val <= b1_complete_mask[b1_read_indexer];
+    b1_next_session_read_val  <= b1_next_session [b1_read_indexer];
+
+    if (b0_main_state == STATE_MAIN_SHUTDOWN) begin
+
+        if (b1_dma_src_addr_write_req)       begin b1_dma_src_addr[b1_write_indexer_val]  <= b1_dma_src_addr_write_val; end
+        if (b1_dma_src_size_write_req)       begin b1_dma_src_size[b1_write_indexer_val]  <= b1_dma_src_size_write_val; end
+        if (b1_dma_des_addr_write_req)       begin b1_dma_des_addr[b1_write_indexer_val]  <= b1_dma_des_addr_write_val; end
+        if (b1_dma_des_size_write_req)       begin b1_dma_des_size[b1_write_indexer_val]  <= b1_dma_des_size_write_val; end
+        if (b1_prof_recon_write_req)         begin b1_prof_recon[b1_write_indexer_val]    <= b1_prof_recon_write_val;   end
+        if (b1_prof_exec_write_req)          begin b1_prof_exec[b1_write_indexer_val]     <= b1_prof_exec_write_val;    end
+        if (b1_vs_rm_recon_select_write_req) begin b1_vs_rm_recon_select[b1_write_indexer_val] <= b1_vs_rm_recon_select_write_val; end
+        if (b1_vs_rm_exec_select_write_req)  begin b1_vs_rm_exec_select[b1_write_indexer_val]  <= b1_vs_rm_exec_select_write_val; end
+        if (b1_load_mask_write_req)          begin b1_load_mask[b1_write_indexer_val]     <= b1_load_mask_write_val;    end
+        if (b1_store_mask_write_req)         begin b1_store_mask[b1_write_indexer_val]    <= b1_store_mask_write_val;   end
+        if (b1_complete_mask_write_req)      begin b1_complete_mask[b1_write_indexer_val] <= b1_complete_mask_write_val; end
+        if (b1_next_session_write_req)       begin b1_next_session[b1_write_indexer_val]  <= b1_next_session_write_val; end
+
+    end else if (b0_main_state == STATE_MAIN_PROCESS) begin
+
+        //// partial update complete mask
+        b1_complete_mask[b1_read_indexer] <= (b1_complete_mask[b1_read_indexer] | dfx_stream_fin);
+
+        //// partial update recon profiler
+        if ( (b0_recon_state == STATE_RECON_REPROG      ) |
+             (b0_recon_state == STATE_RECON_W4SLAVERESET) |
+             (b0_recon_state == STATE_RECON_W4SLAVEOP   )
+        )begin
+            b1_prof_recon[b1_read_indexer]    <= b1_prof_recon[b1_read_indexer] + 1;
         end
-    end else if (finishRound) begin
-        roundTrip <= roundTrip + 1; // increment the round trip counter
+        //// partial update exec profiler
+        if (    (b0_exec_state == STATE_EXEC_INITIALIZE_PR_CTRL)     |
+                (b0_exec_state == STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK) |
+                (b0_exec_state == STATE_EXEC_CLEAR_MGS)              |
+                (b0_exec_state == STATE_EXEC_INITIALIZE_MGS)         |
+                (b0_exec_state == STATE_EXEC_INITIALIZE_DMA)         |
+                (b0_exec_state == STATE_EXEC_SET_DMA_LOAD)           |
+                (b0_exec_state == STATE_EXEC_SET_DMA_STORE)          |
+                (b0_exec_state == STATE_EXEC_TRIGGERING)             |
+                (b0_exec_state == STATE_EXEC_WAIT4FIN)            )begin
+
+           b1_prof_exec[b1_read_indexer] <= b1_prof_exec[b1_read_indexer] + 1;
+        end
+
+    end else if (b0_main_state == STATE_MAIN_PRE_SHUTDOWN)begin
+        b1_dma_src_addr[b1_read_indexer] <= b1_dma_src_addr_read_val + b1_dma_src_size_read_val;
+        b1_dma_des_addr[b1_read_indexer] <= b1_dma_des_addr_read_val + b1_dma_des_size_read_val;
     end
 end
 
 
-/////////////////////////////////////////////////////
-//////////// dma and mgs stream initialization //////
-/////////////////////////////////////////////////////
-assign slaveMgsLoadReset  = (mainStatus == STATUS_CLEAR_MGS)      ? bank1_out_ld_mask : 0; ///// the magic sequencer will load the data from the bank1 slot
-assign slaveMgsStoreReset = (mainStatus == STATUS_CLEAR_MGS)      ? bank1_out_st_mask : 0; ///// the magic sequencer will load the data from the bank1 slot
-assign slaveMgsLoadInit   = (mainStatus == STATUS_INITIALIZE_MGS) ? bank1_out_ld_mask : 0; ///// the magic sequencer will load the data from the bank1 slot
-assign slaveMgsStoreInit  = (mainStatus == STATUS_INITIALIZE_MGS) ? bank1_out_st_mask : 0; ///// the magic sequencer will store the data to the bank1 slot
-assign slaveInit[DMA_INIT_TASK_CNT-1: 0] = dmaInitTask[DMA_INIT_TASK_CNT-1: 0];
 
+always@( posedge clk) begin
 
-//////////////////////////////////////////////
-///////// CONTROL SYSTEM  /////////////////////
-///////////////////////////////////////////////
-
-always @(posedge clk or negedge reset ) begin
-
-    ///// case the system is commanded by the outsider
-    if (~reset) begin
-        mainStatus <= STATUS_SHUTDOWN;
-        mainCnt    <= 0;
-        mainTrigger <= 0;
-        dmaInitTask <= 0;
-    end else if (ext_bank0_set_control) begin
-        case (ext_bank0_inp_control)
+    // main state
+    if (~nreset)begin
+        b0_main_state   <= STATE_MAIN_SHUTDOWN;
+        b0_intr_status  <= 0;
+        b1_read_indexer <= 0;
+        b0_cur_query    <= 0;
+    end else if (b0_control_cmd_write_req) begin
+        //  master command from PS
+        case(b0_control_cmd_write_val)
             CTRL_CLEAR: begin
-                mainStatus  <= STATUS_SHUTDOWN;
-                mainCnt     <= 0;
-                mainTrigger <= 0;
-                dmaInitTask <= 0;
+                b0_main_state   <= STATE_MAIN_SHUTDOWN;
+
+                b1_read_indexer <= 0;
+                b0_cur_query    <= 0;
             end
             CTRL_SHUTDOWN: begin
-                mainStatus <= STATUS_SHUTDOWN;
+                b0_main_state  <= STATE_MAIN_SHUTDOWN; // we don't reset recon and exec state due to debuggability
             end
             CTRL_START: begin
-                if ( (mainStatus == STATUS_SHUTDOWN) && (~intr) ) begin
-                    mainStatus <= STATUS_REPROG;
-                    mainCnt    <= 0; // reset the counter
-                    mainTrigger<= 1;
-                end
-            end
-            default: begin
-                // do nothing, just keep the current status
+                b0_main_state   <= STATE_MAIN_PROCESS;
+                b0_recon_state  <= STATE_RECON_SHUTDOWN;
+                b0_exec_state   <= STATE_EXEC_SHUTDOWN;
+                b0_intr_status  <= 0;
+                b1_read_indexer <= 0;
+                b0_cur_query    <= 0;
             end
         endcase
     end else begin
-
-        case (mainStatus)
-            STATUS_SHUTDOWN: begin
-                if (hw_ctrl_start && (~intr)) begin
-                    mainStatus <= STATUS_REPROG; // go to reprogramming state
-                    mainCnt    <= 0; // reset the counter
-                    mainTrigger <= 1; // set the trigger to 1
+        case(b0_main_state)
+            STATE_MAIN_SHUTDOWN:begin
+                if (b1_read_indexer_req)begin
+                    b1_read_indexer <= b1_read_indexer_val;
+                end
+                b0_cur_query    <= 0;
+            end
+            STATE_MAIN_PROCESS:begin
+                if (all_sync)begin
+                    b0_main_state <= STATE_MAIN_PRE_SHUTDOWN;
                 end
             end
-            STATUS_REPROG: begin
-                // do nothing, just keep the current status
-                // we can trigger the slave to do something
-
-                // if (slaveReprogAccept) begin
-                //     mainStatus <= STATUS_INITIALIZING; // go to initializing state
-                //     dmaInitTask <= 1; //// intializee the init task
-                // end
-                mainStatus  <= STATUS_W4SLAVERESET;
-            end
-            STATUS_W4SLAVERESET: begin
-                ///// wait4 reset occur
-                if (~nslaveReset)begin
-                    mainStatus <= STATUS_W4SLAVEOP;
-                end
-
-            end
-            STATUS_W4SLAVEOP: begin
-                if (nslaveReset) begin
-                    mainStatus  <= STATUS_CLEAR_MGS;
-                end
-            end
-            STATUS_CLEAR_MGS: begin
-                mainStatus <= STATUS_INITIALIZE_MGS;
-            end
-            STATUS_INITIALIZE_MGS: begin
-                    mainStatus  <= STATUS_INITIALIZE_DMA;
-                    dmaInitTask <= 1;
-            end
-            STATUS_INITIALIZE_DMA: begin
-                // do nothing, just keep the current status
-                // we can trigger the slave to do something
-                if (slaveFinInit[DMA_TASK_RESET_INTR_END]) begin /// slaveFinInit is one cycle
-                    if(bank1_out_ld_mask[0])begin
-                        dmaInitTask <= 1 << DMA_TASK_LOAD_TASK_BEG; /// shift to the next task
-                        mainStatus  <= STATUS_SET_DMA_LOAD;
-                    end else if(bank1_out_st_mask[0]) begin
-                        dmaInitTask <= 1 << DMA_TASK_STORE_TASK_BEG; /// shift to the next task
-                        mainStatus  <= STATUS_SET_DMA_STORE;
-                    end else begin
-                        dmaInitTask <= 0; /// no task to do
-                        mainStatus  <= STATUS_TRIGGERING; // go to load state
+            STATE_MAIN_PRE_SHUTDOWN: begin
+                b0_main_state   <= STATE_MAIN_PROCESS;
+                b1_read_indexer <= b1_next_session_read_val;
+                if (b0_last_session_read_val == b1_read_indexer) begin   /// each batch is finish
+                    //// auto restart if amt query is not fin yet
+                    b0_cur_query <= b0_cur_query + b0_amt_query_per_iter;
+                    if ( (b0_cur_query + b0_amt_query_per_iter) == b0_amt_query)begin
+                        b0_main_state <= STATE_MAIN_SHUTDOWN;
+                        if (b0_intr_ena)begin
+                            b0_intr_status <= 1;
+                        end
                     end
-                end else if (slaveFinInit != 0) begin
-                    dmaInitTask <= dmaInitTask << 1; /// shift to the next task
-                end
-            end
-            STATUS_SET_DMA_LOAD: begin
-                // do nothing, just keep the current status
-                // we can trigger the slave to do something
-                if (slaveFinInit[DMA_TASK_LOAD_TASK_END]) begin /// slaveFinInit is one cycle
-                    if(bank1_out_st_mask[0]) begin
-                        dmaInitTask <= 1 << DMA_TASK_STORE_TASK_BEG; /// shift to the next task
-                        mainStatus <= STATUS_SET_DMA_STORE; // go to store state
-                    end else begin
-                        dmaInitTask <= 0;
-                        mainStatus  <= STATUS_TRIGGERING; // go to triggering state
-                    end
-                end else if (slaveFinInit != 0) begin
-                    dmaInitTask <= dmaInitTask << 1; /// shift to the next task
-                end
 
-            end
-            STATUS_SET_DMA_STORE: begin
-                // do nothing, just keep the current status
-                // we can trigger the slave to do something
-                if (slaveFinInit[DMA_TASK_STORE_TASK_END]) begin /// slaveFinInit is one cycle
-                    dmaInitTask <= 0; /// no task to do
-                    mainStatus <= STATUS_TRIGGERING; // go to triggering state
-                end else if (slaveFinInit != 0) begin
-                    dmaInitTask <= dmaInitTask << 1; /// shift to the next task
                 end
             end
-            STATUS_TRIGGERING: begin
-                mainStatus <= STATUS_WAIT4FIN;
-            end
-            STATUS_WAIT4FIN: begin
-                if(slave_bank1_out_st_mask == slave_bank1_out_st_intr_mask) begin
-                    // the slave has finished executing, we can go to the next step
-                    if (mainCnt < endCnt) begin
-                        mainCnt <= mainCnt + 1; // increment the counter
-                        mainTrigger <= (mainTrigger << 1);
-                        mainStatus <= STATUS_REPROG; // go back to initializing state
-                    end else begin
-                        mainCnt     <= 0; // reset the counter
-                        mainTrigger <= 0;
-                        mainStatus <= STATUS_SHUTDOWN; // go back to shutdown state
-                    end
+
+
+        endcase
+
+
+    end
+
+    // recon state
+    if (~nreset)begin
+        b0_recon_state  <= STATE_RECON_SHUTDOWN;
+    end else if (b0_control_cmd_write_req && (b0_control_cmd_write_val == CTRL_CLEAR)) begin
+        b0_recon_state  <= STATE_RECON_SHUTDOWN;
+    end else begin
+        case (b0_recon_state)
+            STATE_RECON_SHUTDOWN: begin
+                if (b0_main_state == STATE_MAIN_PROCESS)begin // main start we then start
+                    b0_recon_state <= STATE_RECON_REPROG;
                 end
             end
-            default: begin
-                // do nothing, just keep the current status
+            STATE_RECON_REPROG      : begin // data from bank 1 is ready from this state
+                b0_recon_state <= STATE_RECON_W4SLAVERESET;
+                if (b1_vs_rm_recon_select_read_val == 0) begin
+                    b0_recon_state <= STATE_RECON_FIN_SYNC;
+                end
+            end
+            STATE_RECON_W4SLAVERESET: begin
+                if (~dfx_rm_nreset_current) begin
+                    b0_recon_state <= STATE_RECON_W4SLAVEOP;
+                end
+            end
+            STATE_RECON_W4SLAVEOP   : begin
+                if (dfx_rm_nreset_current) begin
+                    b0_recon_state <= STATE_RECON_FIN_SYNC;
+                end
+             end
+            STATE_RECON_FIN_SYNC    : begin
+                if (all_sync)begin b0_recon_state <= STATE_RECON_SHUTDOWN; end
             end
         endcase
     end
 
+    // exec state
+    if (~nreset)begin
+        b0_exec_state <= STATE_EXEC_SHUTDOWN;
+        dma_init_task <= 0;
+        pr_ctrl_task  <= 0;
+    end else if (b0_control_cmd_write_req && (b0_control_cmd_write_val == CTRL_CLEAR)) begin
+        b0_exec_state <= STATE_EXEC_SHUTDOWN;
+        dma_init_task <= 0;
+        pr_ctrl_task  <= 0;
+    end else begin
+        case (b0_exec_state)
+            STATE_EXEC_SHUTDOWN: begin
+                if (b0_main_state == STATE_MAIN_PROCESS)begin // main start we then start
+                    b0_exec_state <= STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK;
+                end
+            end
+            STATE_EXEC_PR_CTRL_REQ_SKIP_CHECK: begin // bank 1 data ready here
+                if (b1_vs_rm_exec_select_read_val == 0) begin
+                    b0_exec_state <= STATE_EXEC_FIN_SYNC;
+                end else begin
+                    b0_exec_state   <= STATE_EXEC_INITIALIZE_PR_CTRL;
+                    pr_ctrl_task    <= 1;
+                end
+            end
+            STATE_EXEC_INITIALIZE_PR_CTRL: begin
+                if (pr_ctrl_fin_task[PR_CTRL_TASK_AP_START]) begin
+                     b0_exec_state <= STATE_EXEC_CLEAR_MGS;
+                     pr_ctrl_task <= 0;
+                end else if (pr_ctrl_fin_task != 0) begin
+                     pr_ctrl_task <= pr_ctrl_task << 1;
+                end
+            end
+            STATE_EXEC_CLEAR_MGS: begin
+                b0_exec_state <= STATE_EXEC_INITIALIZE_MGS;
+            end
+            STATE_EXEC_INITIALIZE_MGS: begin
+                b0_exec_state <= STATE_EXEC_INITIALIZE_DMA;
+                dma_init_task <= 1;
+            end
+            STATE_EXEC_INITIALIZE_DMA: begin
+                if (dma_fin_task[DMA_TASK_RESET_INTR_END])begin
+                    if (b1_load_mask_read_val[0])begin
+                        b0_exec_state <= STATE_EXEC_SET_DMA_LOAD;
+                        dma_init_task <= 1 << DMA_TASK_LOAD_TASK_BEG;
+                    end else if (b1_store_mask_read_val[0]) begin
+                        b0_exec_state <= STATE_EXEC_SET_DMA_STORE;
+                        dma_init_task <= 1 << DMA_TASK_STORE_TASK_BEG;
+                    end else begin
+                        b0_exec_state <= STATE_EXEC_TRIGGERING;
+                        dma_init_task <= 0;
+                    end
+                end else if (dma_fin_task != 0) begin
+                    dma_init_task <= dma_init_task << 1;
+                end
+            end
+            STATE_EXEC_SET_DMA_LOAD: begin
+                if (dma_fin_task[DMA_TASK_LOAD_TASK_END])begin
+                    if(b1_store_mask_read_val[0]) begin
+                        b0_exec_state <= STATE_EXEC_SET_DMA_STORE;
+                        dma_init_task <= 1 << DMA_TASK_STORE_TASK_BEG;
+                    end else begin
+                        b0_exec_state <= STATE_EXEC_TRIGGERING;
+                        dma_init_task <= 0;
+                    end
+                end else if (dma_fin_task != 0) begin
+                    dma_init_task <= dma_init_task << 1;
+                end
+            end
+            STATE_EXEC_SET_DMA_STORE: begin
+                if (dma_fin_task[DMA_TASK_STORE_TASK_END])begin
+                    b0_exec_state <= STATE_EXEC_TRIGGERING;
+                    dma_init_task <= 0;
+                end else if (dma_fin_task != 0) begin
+                    dma_init_task <= dma_init_task << 1;
+                end
+            end
+            STATE_EXEC_TRIGGERING: begin
+                b0_exec_state <= STATE_EXEC_WAIT4FIN;
+            end
+            STATE_EXEC_WAIT4FIN: begin
+                if (b1_store_mask_read_val == b1_complete_mask_read_val) begin
+                     b0_exec_state <= STATE_EXEC_FIN_SYNC;
+                end
+            end
+            STATE_EXEC_FIN_SYNC: begin
+                if (all_sync)begin b0_exec_state <= STATE_EXEC_SHUTDOWN; end
+            end
+        endcase
+    end
 end
 
-///////////////////////////////////////////////
-///////// BANK1 slot table ///////////////////
-///////////////////////////////////////////////
 
-SlotArr #(
-.INDEX_WIDTH    (BANK1_INDEX_WIDTH),
-.SRC_ADDR_WIDTH (BANK1_SRC_ADDR_WIDTH),
-.SRC_SIZE_WIDTH (BANK1_SRC_SIZE_WIDTH),
-.DST_ADDR_WIDTH (BANK1_DST_ADDR_WIDTH),
-.DST_SIZE_WIDTH (BANK1_DST_SIZE_WIDTH),
-.STATUS_WIDTH   (BANK1_STATUS_WIDTH),
-.PROFILE_WIDTH  (BANK1_PROFILE_WIDTH),
-.LD_MSK_WIDTH   (BANK1_LD_MSK_WIDTH),
-.ST_MSK_WIDTH   (BANK1_ST_MSK_WIDTH)
-) dayta (
-    .clk(clk),
-    .reset(reset),
-    // Declare an array of slots
-    .inp_index              (bank1_inp_index),
-    .inp_src_addr           (ext_bank1_inp_src_addr),
-    .inp_src_size           (ext_bank1_inp_src_size),
-    .inp_des_addr           (ext_bank1_inp_des_addr),
-    .inp_des_size           (ext_bank1_inp_des_size),
-    .inp_status             (ext_bank1_inp_status),
-    .inp_profile            (bank1_inp_profile), // it must share with ps and auto inc
-    .inp_ld_mask            (ext_bank1_inp_ld_mask),
-    .inp_st_mask            (ext_bank1_inp_st_mask),
-    .inp_st_intr_mask_ack   (bank1_inp_st_intr_mask_ack),
-    .inp_st_intr_mask_abs   (bank1_inp_st_intr_mask_abs),
-
-    .set_src_addr         (bank1_set_fin_src_addr),
-    .set_src_size         (bank1_set_fin_src_size),
-    .set_des_addr         (bank1_set_fin_des_addr),
-    .set_des_size         (bank1_set_fin_des_size),
-    .set_status           (bank1_set_fin_status  ),
-    .set_profile          (bank1_set_fin_profile ),
-    .set_ld_mask          (bank1_set_fin_ld_mask),
-    .set_st_mask          (bank1_set_fin_st_mask),
-    .set_st_intr_mask_ack (bank1_set_fin_intr_mask_ack),
-    .set_st_intr_mask_abs (bank1_set_fin_intr_mask_abs),
-
-    // Output ports0
-    .out_index        (bank1_out_index),
-    .out_src_addr     (bank1_out_src_addr),      // actually it is a wire
-    .out_src_size     (bank1_out_src_size),      // actually it is a wire
-    .out_des_addr     (bank1_out_des_addr),      // actually it is a wire
-    .out_des_size     (bank1_out_des_size),      // actually it is a wire
-    .out_status       (bank1_out_status) ,      // actually it is a wire
-    .out_profile      (bank1_out_profile),       // actually it is a wire
-    .out_ld_mask      (bank1_out_ld_mask),
-    .out_st_mask      (bank1_out_st_mask),
-    .out_st_intr_mask (bank1_out_st_intr_mask)
-);
 
 endmodule

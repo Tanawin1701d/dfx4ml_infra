@@ -1,0 +1,12 @@
+{
+  "name": "s2m_with_axi",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "s2m_with_axi"
+  },
+  "previousBuildStatusMap": {}
+}

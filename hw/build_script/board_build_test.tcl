@@ -12,51 +12,55 @@ set project_root [file normalize [file join [file dirname [info script]] ../]]
 
 source [file join $project_root build_script build.tcl]
 
-set clk_frq 99999001 ;
-set rm_index_width 2 ;
-set num_dfx_streamer 2 ; # dma included
-set interface_widths [list 32 32 ] ;# Must be power of two
-set applied_interface_widths [list 32 32] ;# Must be <= interface_widths
-set storage_index_widths [list 10 10] ;
+set clk_frq 99999001
+set rm_index_width 2
 
+# Two streamers (index 0 = DMA pass-through, index 1 = load/store)
+# Each dict: load_width (bytes), store_width (bytes), actual_width (bits), amount_row
+set dfx_streamers_list [list \
+    {load_width 4 store_width 4 actual_width 32 amount_row 1024} \
+    {load_width 4 store_width 4 actual_width 32 amount_row 1024} \
+]
 
-set num_actual_rm 2
+# One DFX region using streamer 1 for load and store
+set dfx_regions_list [list \
+    {load_streamers {1} store_streamers {1}} \
+]
 
-set input_maps [list 0 -1 ]
-set output_maps [list -1 0 ]
+# One region, two RMs
+# Each RM dict: load_io_map (list of {io_idx kernel_idx}), store_io_map
+set rm_0_maps {load_io_map {{1 0}} store_io_map {{1 0}}}
+set rm_1_maps {load_io_map {{1 0}} store_io_map {{1 0}}}
+set rm_schemetics_list [list [list $rm_0_maps $rm_1_maps]]
 
-set input_1_maps [list -1 0 ]
-set output_1_maps [list 0 -1 ]
+set num_dfx_streamer [llength $dfx_streamers_list]
+set num_dfx_region   [llength $dfx_regions_list]
 
-set input_map_list [list $input_maps $input_1_maps]
-set output_map_list [list $output_maps $output_1_maps]
-set ip_map_list [list "" ""]
 set test_mode 1
-
-set create_new_block 1
-
-set ip_src ""
 
 set project_path [file join $project_root test_prj]
 set board "kv260"
 set req_gen_ip 0
 set num_core 4
 set user_repo_path ""
-
+set user_rm_build_tcl_path ""
+set board_build_tcl_path ""
+set constraint_xdc_path ""
 
 build $project_path  \
+      [file normalize [file join [file dirname [info script]] ../..]] \
       $board \
       $user_repo_path \
+      $user_rm_build_tcl_path \
       $req_gen_ip \
       $num_core \
       $clk_frq \
       $rm_index_width \
       $num_dfx_streamer \
-      $interface_widths \
-      $applied_interface_widths \
-      $storage_index_widths \
-      $num_actual_rm\
-      $input_map_list \
-      $output_map_list \
-      $ip_map_list \
-      $test_mode
+      $num_dfx_region \
+      $dfx_streamers_list \
+      $dfx_regions_list \
+      $rm_schemetics_list \
+      $test_mode \
+      $board_build_tcl_path \
+      $constraint_xdc_path

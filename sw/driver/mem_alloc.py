@@ -60,6 +60,7 @@ def alloc_data_uint(alloc_shape = (16, ), alloc_type = np.float32, input_x = Non
         if (alloc_shape != input_x.shape) or (alloc_type != input_x.dtype):
             raise Exception("the specified shape and input_x shape is mismatch")
         np.copyto(buf0, input_x)
+        buf0.flush()   # write cache → DRAM so DMA sees fresh data
         print("copy finish")
 
     return buf0, buf0.physical_address, buf0.nbytes

@@ -152,7 +152,6 @@
     \setlength{\parindent}{0pt}
     \begin{tabular}[t]{@{}p{0.45\textwidth}}
       {
-        \protect{\includegraphics[width=20mm]{images/cernlogo.eps}}
         }
     \end{tabular}
     \hfill
