@@ -1,4 +1,4 @@
-"""Magic streamer bank/group allocation.
+"""Dfx streamer bank/group allocation.
 
 Standalone port of ``_magic_streamer_report`` from
 ``project7/hls4ml/simple_conv_nn_skip4_vitis_unified.py``.
@@ -13,19 +13,19 @@ tags must all be 0 (single region) or 0/1 (two regions); anything else raises.
 """
 
 # bank geometry defaults (match the source script)
-MAGIC_STREAMER_BANK_WIDTH = 64    # bits per bank I/O
-MAGIC_STREAMER_BANK_DEPTH = 4096  # rows per bank
+DFX_STREAMER_BANK_WIDTH = 64    # bits per bank I/O
+DFX_STREAMER_BANK_DEPTH = 4096  # rows per bank
 
 
-def magic_streamer_report(
+def dfx_streamer_report(
     streams,
     total_banks,
     amt_phase,
-    bank_width=MAGIC_STREAMER_BANK_WIDTH,
-    bank_depth=MAGIC_STREAMER_BANK_DEPTH,
+    bank_width=DFX_STREAMER_BANK_WIDTH,
+    bank_depth=DFX_STREAMER_BANK_DEPTH,
     debug=False,
 ):
-    """Compute and print bank/group allocation for the inter-partition magic streamer.
+    """Compute and print bank/group allocation for the inter-partition dfx streamer.
 
     Args:
         streams: ordered list of dicts with keys
@@ -51,7 +51,7 @@ def magic_streamer_report(
     regions = sorted({s['region'] for s in streams})
     if regions and not set(regions).issubset({0, 1}):
         raise ValueError(
-            f"[magic-streamer] regions {regions} unsupported; this scheme only "
+            f"[dfx-streamer] regions {regions} unsupported; this scheme only "
             f"handles 1 or 2 regions (region tags must be 0 or 1)."
         )
 
@@ -84,14 +84,14 @@ def magic_streamer_report(
         # cannot be buffered by the current single-bank-group scheme.
         if amt_query_per_bankGrp == 0:
             raise ValueError(
-                f"[magic-streamer] stream '{stream['name']}' has amt_entry_per_query="
+                f"[dfx-streamer] stream '{stream['name']}' has amt_entry_per_query="
                 f'{amt_entry_per_query} > BANK_DEPTH={BD}; one query does not fit in a '
                 f'single bank group. Increase bank_depth or split the stream.'
             )
 
     # --- show stream clarification --------------
     stream_border = '  ' + '─' * 148
-    print('[magic-streamer] streams:')
+    print('[dfx-streamer] streams:')
     print(stream_border)
     print(
         f'  | {"name":<10} | {"shape":<18} | {"region":>6} | {"alloc_phase":>11} | {"free_phase":>10} '
@@ -119,7 +119,7 @@ def magic_streamer_report(
 
     for alloc_phase in range(0, amt_phase):
         if debug:
-            print(f'\n[magic-streamer] ───── phase {alloc_phase} ─────')
+            print(f'\n[dfx-streamer] ───── phase {alloc_phase} ─────')
 
         phase_streams = [s for s in streams if s['alloc_phase'] == alloc_phase]
         if debug:
@@ -146,7 +146,7 @@ def magic_streamer_report(
                             f'next_fin_phase={stream["free_phase"]})'
                         )
                     break
-            # if there is no magic streamer, create new one
+            # if there is no dfx streamer, create new one
             if not found:
                 new_dfx_streamer = {
                     'name': f'streamer_{last_dfx_streamer_id}',
@@ -184,11 +184,11 @@ def magic_streamer_report(
 
     # bug-2 guard: nothing to upgrade if no dfx_streamers were created
     if not dfx_streamers:
-        print('[magic-streamer] no dfx_streamers allocated — skipping upgrade loop.')
+        print('[dfx-streamer] no dfx_streamers allocated — skipping upgrade loop.')
         return {'dfx_streamers': dfx_streamers, 'total_banks_used': 0}
 
     if debug:
-        print(f'\n[magic-streamer] ───── upgrade loop (budget={total_banks} banks) ─────')
+        print(f'\n[dfx-streamer] ───── upgrade loop (budget={total_banks} banks) ─────')
     upgrade_iter = 0
     while True:
         upgrade_iter += 1
@@ -226,7 +226,7 @@ def magic_streamer_report(
     # --- show dfx streamr clarification --------------
     outer_border = '  ' + '─' * 92
     inner_border = '      ' + '·' * 86
-    print('[magic-streamer] dfx_streamers:')
+    print('[dfx-streamer] dfx_streamers:')
     print(outer_border)
     print(f'  | {"name":<14} | {"region":>6} | {"amt_banks_per_entry":>19} | {"next_fin_phase":>14} | {"mul_factor":>10} |')
     print(outer_border)
@@ -248,7 +248,7 @@ def magic_streamer_report(
     print(outer_border)
 
     min_total_query = min(d['mul_factor'] * s['amt_query_per_bankGrp'] for d in dfx_streamers for s in d['streams'])
-    print(f'[magic-streamer] lowest total_query across all streams = {min_total_query}')
+    print(f'[dfx-streamer] lowest total_query across all streams = {min_total_query}')
 
     return {
         'dfx_streamers': dfx_streamers,
