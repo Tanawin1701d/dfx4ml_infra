@@ -44,6 +44,7 @@ module S_AXI_WRITE #(
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_send_val        , output reg b0_dma_ip_addr_send_req,       // actually it is wire but we want to put it into always block
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_send_val         , output reg b0_pr_ip_addr_send_req,        // actually it is wire but we want to put it into always block
     output wire                             b0_intr_ena_send_val           , output reg b0_intr_ena_send_req,          // actually it is wire but we want to put it into always block
+    output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_send_val              , output reg b0_mperf_send_req,             // actually it is wire but we want to put it into always block
 
     //// bank1 interconnect
 
@@ -145,6 +146,7 @@ assign b0_amt_query_per_iter_send_val = S_AXI_WDATA[BANK0_QUERY_BIT_LEN -1: 0];
 assign b0_dma_ip_addr_send_val        = S_AXI_WDATA[GLOB_ADDR_WIDTH     -1: 0];
 assign b0_pr_ip_addr_send_val         = S_AXI_WDATA[GLOB_ADDR_WIDTH     -1: 0];
 assign b0_intr_ena_send_val           = S_AXI_WDATA[0];
+assign b0_mperf_send_val              = S_AXI_WDATA[BANK0_QUERY_BIT_LEN -1: 0];
 
 
 
@@ -160,6 +162,7 @@ always @(*) begin
     b0_dma_ip_addr_send_req        = 0;
     b0_pr_ip_addr_send_req         = 0;
     b0_intr_ena_send_req           = 0;
+    b0_mperf_send_req              = 0;
 
 
     b1_dma_src_addr_send_req       = 0;
@@ -193,6 +196,7 @@ always @(*) begin
                     8'h09: begin b0_pr_ip_addr_send_req         = 1; end
                     8'h0A: begin b0_intr_ena_send_req           = 1; end
                     // 8'h0B:       intr status
+                    8'h0C: begin b0_mperf_send_req              = 1; end
                     default: begin end
                 endcase
             end

@@ -127,6 +127,7 @@ wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_read_val;
 wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_read_val;
 wire                             b0_intr_ena_read_val;
 wire                             b0_intr_status_read_val; assign dfx_intr = b0_intr_status_read_val;
+wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_read_val;
     //////// BANK 0 WRITE
 wire [BANK0_CONTROL_WIDTH -1: 0] b0_control_cmd_write_val        ; wire b0_control_cmd_write_req       ;
 wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_write_val       ; wire b0_last_session_write_req      ;
@@ -135,6 +136,7 @@ wire [BANK0_QUERY_BIT_LEN -1: 0] b0_amt_query_per_iter_write_val ; wire b0_amt_q
 wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        ; wire b0_dma_ip_addr_write_req       ;
 wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val         ; wire b0_pr_ip_addr_write_req        ;
 wire                             b0_intr_ena_write_val           ; wire b0_intr_ena_write_req          ;
+wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_write_val              ; wire b0_mperf_write_req             ;
     //////// BANK 1 READ
 wire                         b1_read_indexer_req;
 wire [GLOB_ADDR_WIDTH -1: 0] b1_read_address_val;
@@ -205,6 +207,7 @@ DFX_Mng_Core #(
         .b0_pr_ip_addr_read_val        (b0_pr_ip_addr_read_val),
         .b0_intr_ena_read_val          (b0_intr_ena_read_val),
         .b0_intr_status_read_val       (b0_intr_status_read_val),
+        .b0_mperf_read_val             (b0_mperf_read_val),
             //////// BANK 0 WRITE
         .b0_control_cmd_write_val       (b0_control_cmd_write_val)        , .b0_control_cmd_write_req        (b0_control_cmd_write_req),
         .b0_last_session_write_val      (b0_last_session_write_val)       , .b0_last_session_write_req       (b0_last_session_write_req),
@@ -213,6 +216,7 @@ DFX_Mng_Core #(
         .b0_dma_ip_addr_write_val       (b0_dma_ip_addr_write_val)        , .b0_dma_ip_addr_write_req        (b0_dma_ip_addr_write_req),
         .b0_pr_ip_addr_write_val        (b0_pr_ip_addr_write_val)         , .b0_pr_ip_addr_write_req         (b0_pr_ip_addr_write_req),
         .b0_intr_ena_write_val          (b0_intr_ena_write_val)           , .b0_intr_ena_write_req           (b0_intr_ena_write_req),
+        .b0_mperf_write_val             (b0_mperf_write_val)              , .b0_mperf_write_req              (b0_mperf_write_req),
             //////// BANK 1 READ
         .b1_read_indexer_req(b1_read_indexer_req),
         .b1_read_address_val(b1_read_address_val),
@@ -413,7 +417,8 @@ S_AXI_READ #(
     .b0_dma_ip_addr_send_val        (b0_dma_ip_addr_read_val),
     .b0_pr_ip_addr_send_val         (b0_pr_ip_addr_read_val),
     .b0_intr_ena_send_val           (b0_intr_ena_read_val),
-    .b0_intr_status_send_val        (b0_intr_status_read_val)
+    .b0_intr_status_send_val        (b0_intr_status_read_val),
+    .b0_mperf_send_val              (b0_mperf_read_val)
 
 );
 
@@ -460,6 +465,7 @@ S_AXI_WRITE #(
     .b0_dma_ip_addr_send_val       (b0_dma_ip_addr_write_val)       , .b0_dma_ip_addr_send_req       (b0_dma_ip_addr_write_req),
     .b0_pr_ip_addr_send_val        (b0_pr_ip_addr_write_val)        , .b0_pr_ip_addr_send_req        (b0_pr_ip_addr_write_req),
     .b0_intr_ena_send_val          (b0_intr_ena_write_val)          , .b0_intr_ena_send_req          (b0_intr_ena_write_req),
+    .b0_mperf_send_val             (b0_mperf_write_val)             , .b0_mperf_send_req             (b0_mperf_write_req),
 
     //// bank1 interconnect
 

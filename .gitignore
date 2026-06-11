@@ -60,3 +60,4 @@ archive
 
 # Large numpy data files
 *.npy
+/.claude/settings.json

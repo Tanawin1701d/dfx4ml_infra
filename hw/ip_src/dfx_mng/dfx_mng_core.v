@@ -36,6 +36,7 @@ module DFX_Mng_Core #(
     output wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_read_val,
     output wire                             b0_intr_ena_read_val,
     output wire                             b0_intr_status_read_val,
+    output wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_read_val,
     //////// BANK 0 WRITE
     input wire [BANK0_CONTROL_WIDTH -1: 0] b0_control_cmd_write_val        , input wire b0_control_cmd_write_req,
     input wire [BANK1_INDEX_WIDTH   -1: 0] b0_last_session_write_val       , input wire b0_last_session_write_req,
@@ -44,6 +45,7 @@ module DFX_Mng_Core #(
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_write_val        , input wire b0_dma_ip_addr_write_req,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_write_val        , input wire b0_pr_ip_addr_write_req,
     input wire                             b0_intr_ena_write_val           , input wire b0_intr_ena_write_req,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_write_val              , input wire b0_mperf_write_req,
     //////// BANK 1 READ
     input  wire                                    b1_read_indexer_req,
     input  wire [GLOB_ADDR_WIDTH            -1: 0] b1_read_address_val,
@@ -159,6 +161,7 @@ reg [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr;
 reg [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr;
 reg                             b0_intr_ena;
 reg                             b0_intr_status;
+reg [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf;
 /////////////////////////////////////////////
 ////// BANK 1 MEM  //////////////////////////
 /////////////////////////////////////////////
@@ -227,6 +230,7 @@ assign b0_pr_ip_addr_read_val        = b0_pr_ip_addr;
 
 assign b0_intr_ena_read_val           = b0_intr_ena;
 assign b0_intr_status_read_val        = b0_intr_status;
+assign b0_mperf_read_val              = b0_mperf;
 
 wire ps_b0_writable = b0_main_state == STATE_MAIN_SHUTDOWN;
 
@@ -241,6 +245,12 @@ if (ps_b0_writable && b0_pr_ip_addr_write_req         )begin b0_pr_ip_addr      
 
 if      (!nreset)                                begin b0_intr_ena <= 0;                     end
 else if (ps_b0_writable && b0_intr_ena_write_req)begin b0_intr_ena <= b0_intr_ena_write_val; end
+
+//// mperf: PS-writable in SHUTDOWN, free-running while recon or exec engine is active
+if      (!nreset)                             begin b0_mperf <= 0;                  end
+else if (ps_b0_writable && b0_mperf_write_req)begin b0_mperf <= b0_mperf_write_val; end
+else if ((b0_recon_state != STATE_RECON_SHUTDOWN) ||
+         (b0_exec_state  != STATE_EXEC_SHUTDOWN ))begin b0_mperf <= b0_mperf + 1;   end
 
 
 end

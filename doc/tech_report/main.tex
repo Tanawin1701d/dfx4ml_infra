@@ -272,7 +272,7 @@ Fig.~\ref{fig:dfx_mng_reg} illustrates the DFX Manager's internal memory. The sy
 % =============================================================================
 \paragraph{\textbf{Bank 0 — Global Control Registers}}
 
-This bank is mainly used to control the flow control system and slave IP identifiers. It provides 12 registers accessible from the processor (PS) via the AXI-LITE protocol. Note that each Bank~0 register occupies a full row (64~B stride), since bits[13:6] select the row with no column multiplexing inside Bank~0. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/dfx\_mng\_core.v}}
+This bank is mainly used to control the flow control system and slave IP identifiers. It provides 13 registers accessible from the processor (PS) via the AXI-LITE protocol. Note that each Bank~0 register occupies a full row (64~B stride), since bits[13:6] select the row with no column multiplexing inside Bank~0. The code is at \textcolor{darkgreen}{\texttt{hw/ip\_src/dfx\_mng/dfx\_mng\_core.v}}
 
 \vspace{1.0em}
 
@@ -361,6 +361,9 @@ This bank is mainly used to control the flow control system and slave IP identif
 
 \addr{0x02C0} & \reg{INTR\_STATUS} & 1 bit & \badro &
   Interrupt status. Set to \textbf{1} when \reg{CUR\_QUERY}~$=$~\reg{AMT\_QUERY}. Cleared on CLEAR or START. \\
+
+\addr{0x0300} & \reg{MPERF} & {\small\reg{BANK0\_QUERY}\newline\reg{\_BIT\_LEN}} & \badrw &
+  Global performance counter. Increments every clock cycle while \reg{RECON\_STATE} or \reg{EXEC\_STATE} is not in SHUTDOWN, measuring total engine-busy cycles across a run. Writable from the PS while the system is in SHUTDOWN (like the other R/W Bank~0 registers); cleared on hardware reset. \\
 
 \end{longtable}
 

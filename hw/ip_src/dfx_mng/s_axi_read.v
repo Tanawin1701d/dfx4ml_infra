@@ -67,7 +67,8 @@ module S_AXI_READ #(
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_dma_ip_addr_send_val,
     input wire [GLOB_ADDR_WIDTH     -1: 0] b0_pr_ip_addr_send_val,
     input wire                             b0_intr_ena_send_val,
-    input wire                             b0_intr_status_send_val
+    input wire                             b0_intr_status_send_val,
+    input wire [BANK0_QUERY_BIT_LEN -1: 0] b0_mperf_send_val
 
 
 
@@ -149,6 +150,7 @@ always @(*) begin
                 8'h09:   begin S_AXI_RDATA =                                                 b0_pr_ip_addr_send_val         ; end
                 8'h0A:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-1){1'b0}}                  , b0_intr_ena_send_val          }; end
                 8'h0B:   begin S_AXI_RDATA = {{(GLOB_DATA_WIDTH-1){1'b0}}                  , b0_intr_status_send_val       }; end
+                8'h0C:   begin S_AXI_RDATA =                                                 b0_mperf_send_val              ; end
                 default: begin S_AXI_RDATA = 0                                                                              ; end
             endcase
 

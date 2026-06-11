@@ -38,6 +38,7 @@ class DFX_Mng:
         self.REG_PR_IP_ADDR         = (0, 0x09, 0)  # read/write (writable in SHUTDOWN)
         self.REG_INTR_ENA           = (0, 0x0A, 0)  # read/write (writable in SHUTDOWN)
         self.REG_INTR_STATUS        = (0, 0x0B, 0)  # read only
+        self.REG_MPERF              = (0, 0x0C, 0)  # read/write (writable in SHUTDOWN); auto-increments while recon/exec engine is active
 
         # bank 1 slot field address meta
         # rowIdx is replaced by slot_idx at call time via gen_addr_for_slot
@@ -98,6 +99,8 @@ class DFX_Mng:
         return self.read(self.gen_addr(*self.REG_INTR_ENA))
     def get_intr_status(self):
         return self.read(self.gen_addr(*self.REG_INTR_STATUS))
+    def get_mperf(self):
+        return self.read(self.gen_addr(*self.REG_MPERF))
 
     def get_slot(self, slot_idx):
 
@@ -149,6 +152,8 @@ class DFX_Mng:
         return self.write(self.gen_addr(*self.REG_PR_IP_ADDR), value)
     def set_intr_ena(self, value):
         return self.write(self.gen_addr(*self.REG_INTR_ENA), value)
+    def set_mperf(self, value):
+        return self.write(self.gen_addr(*self.REG_MPERF), value)
 
     def set_slot(self, slot_t, slot_idx, value):
         if slot_t in (self.SLOT_VS_RM_RECON_SEL, self.SLOT_VS_RM_EXEC_SEL) and value != 0 and bin(value).count('1') != 1:
@@ -262,6 +267,7 @@ class DFX_Mng:
         pr_ip_addr         = self.get_pr_ip_addr()
         intr_ena           = self.get_intr_ena()
         intr_status        = self.get_intr_status()
+        mperf              = self.get_mperf()
 
         W = 55
         progress = (f"{cur_query}/{amt_query}"
@@ -283,6 +289,7 @@ class DFX_Mng:
         print("├" + "─" * W + "┤")
         intr_line = f"ena={'1' if intr_ena else '0'}  status={'1 (pending)' if intr_status else '0'}"
         print(f"│  {'INTERRUPT':<22}: {intr_line:<{W-26}}│")
+        print(f"│  {'MPERF':<22}: {mperf:<{W-26}}│")
         print("└" + "─" * W + "┘")
 
     def print_slot_data(self):
@@ -376,6 +383,15 @@ class DFX_Mng:
         self.set_intr_ena(0x1)
         check("REG_INTR_ENA",           0x1,        self.get_intr_ena(),           mask=0x1)
 
+        # mperf free-runs while recon/exec engine is not in SHUTDOWN, so the
+        # read-back is only deterministic when both engines are confirmed idle
+        mperf_checked = (self.get_recon_state() == 0) and (self.get_exec_state() == 0)
+        if mperf_checked:
+            self.set_mperf(0x5A5A5A5A)
+            check("REG_MPERF",          0x5A5A5A5A, self.get_mperf())
+        else:
+            print("  [SKIP] REG_MPERF — recon/exec engine not in SHUTDOWN (counter free-running)")
+
         # ---- step 3: Bank 1 slot registers ---------------------------------
         print(f"\n[test] ===== Bank 1 slot registers (0..{self.LIM_AMT_SLOT - 1}) =====")
 
@@ -429,7 +445,7 @@ class DFX_Mng:
             check(f"slot[{s}] SLOT_NEXT_SESSION",    next_session,  rb_next_session, mask=(1 << self.SLOT_INDEX_WIDTH) - 1)
 
         # ---- step 4: summary -----------------------------------------------
-        total  = 6 + self.LIM_AMT_SLOT * 12
+        total  = (7 if mperf_checked else 6) + self.LIM_AMT_SLOT * 12
         passed = total - len(failures)
         print(f"\n[test] ===== Result: {passed}/{total} passed =====")
         if failures:
