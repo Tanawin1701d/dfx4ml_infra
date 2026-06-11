@@ -43,7 +43,10 @@ hw_builder = HwBuildHelper(
 hw_builder.run_build()
 hw_builder.package_export_files()
 
-sw_builder = SwBuildHelper(export_folder_path="./export", num_pr_region=1, rm_index_width=2, num_streamer=1)
+sw_builder = SwBuildHelper(hw_builder=hw_builder)
+# All parameters are derived from hw_builder; explicit values override, and the
+# fully manual form still works:
+# SwBuildHelper(export_folder_path="./export", num_pr_region=1, rm_index_width=2, num_streamer=1)
 sw_builder.package_export_file()
 ```
 

@@ -4,7 +4,36 @@ import shutil
 
 class SwBuildHelper:
 
-    def __init__(self, export_folder_path, num_pr_region, rm_index_width, num_streamer):
+    def __init__(self,
+                 export_folder_path = None,
+                 num_pr_region      = None,
+                 rm_index_width     = None,
+                 num_streamer       = None,
+                 hw_builder         = None):
+        # hw_builder: optional HwBuildHelper instance. Any parameter left as None
+        # is taken from it (export_folder_path, num_dfx_region, rm_index_width,
+        # num_dfx_streamer); explicitly passed values always win.
+        if hw_builder is not None:
+            if getattr(hw_builder, "ip_only_mode", False):
+                raise ValueError(
+                    "hw_builder was created with for_ip_only(); it carries no "
+                    "region/streamer configuration")
+            if export_folder_path is None: export_folder_path = hw_builder.export_folder_path
+            if num_pr_region      is None: num_pr_region      = hw_builder.num_dfx_region
+            if rm_index_width     is None: rm_index_width     = hw_builder.rm_index_width
+            if num_streamer       is None: num_streamer       = hw_builder.num_dfx_streamer
+
+        missing = [name for name, val in [
+            ("export_folder_path", export_folder_path),
+            ("num_pr_region",      num_pr_region),
+            ("rm_index_width",     rm_index_width),
+            ("num_streamer",       num_streamer),
+        ] if val is None]
+        if missing:
+            raise ValueError(
+                f"missing parameters: {', '.join(missing)} "
+                f"(pass them explicitly or provide hw_builder=)")
+
         self.export_folder_path = export_folder_path
         self.num_pr_region      = num_pr_region
         self.rm_index_width     = rm_index_width

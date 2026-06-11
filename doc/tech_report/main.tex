@@ -747,16 +747,13 @@ hw_builder.run_build()
 hw_builder.package_export_files()
 
 # Software Build
-sw_builder = SwBuildHelper(
-    export_folder_path = "./export",
-    num_pr_region      = 2,
-    rm_index_width     = 2,
-    num_streamer       = 2
-)
+# All parameters are derived from hw_builder; pass export_folder_path,
+# num_pr_region, rm_index_width, or num_streamer explicitly to override.
+sw_builder = SwBuildHelper(hw_builder = hw_builder)
 sw_builder.package_export_file()
 \end{lstlisting}
 
-The following example (Listing~\ref{lst:python_build}) demonstrates how to start building the DFX4ML-ARCH system. The reference file is at \textcolor{darkgreen}{\texttt{example/muti\_region\_test/multi\_region\_test.ipynb}}. Lines 1--2 import the Hardware and Software Build Helpers. Lines 6--22 define the three structured configuration objects (\texttt{dfx\_streamers}, \texttt{dfx\_regions}, \texttt{rm\_schemetics}). Lines 25--45 instantiate \texttt{HwBuildHelper} and invoke synthesis and implementation; Lines 48--54 instantiate \texttt{SwBuildHelper} and export the PYNQ driver files.
+The following example (Listing~\ref{lst:python_build}) demonstrates how to start building the DFX4ML-ARCH system. The reference file is at \textcolor{darkgreen}{\texttt{example/muti\_region\_test/multi\_region\_test.ipynb}}. Lines 1--2 import the Hardware and Software Build Helpers. Lines 6--22 define the three structured configuration objects (\texttt{dfx\_streamers}, \texttt{dfx\_regions}, \texttt{rm\_schemetics}). Lines 25--45 instantiate \texttt{HwBuildHelper} and invoke synthesis and implementation; the final lines instantiate \texttt{SwBuildHelper} and export the PYNQ driver files. \texttt{SwBuildHelper} derives its parameters (\texttt{export\_folder\_path}, \texttt{num\_pr\_region}, \texttt{rm\_index\_width}, \texttt{num\_streamer}) from the \texttt{hw\_builder} instance; any of them can still be passed explicitly to override the derived value, and the fully manual form without \texttt{hw\_builder} remains supported.
 
 Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelper}.
 
