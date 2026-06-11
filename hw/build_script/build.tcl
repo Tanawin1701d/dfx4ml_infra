@@ -177,7 +177,12 @@ proc build {build_tcl_path \
     if {$board == "kv260"} {
         puts "prepare model for kv260 generation"
         source [file join $dfx4ml_root hw build_script kv260 board_build.tcl]
-        set constraint_path [file join $dfx4ml_root hw build_script kv260 constraint.xdc]
+        # Built-in boards ship one constraint file per supported region count:
+        # constraint_<num_dfx_region>_region.xdc
+        set constraint_path [file join $dfx4ml_root hw build_script kv260 constraint_${num_dfx_region}_region.xdc]
+        if {![file exists $constraint_path]} {
+            error "kv260 has no constraint file for $num_dfx_region region(s); supported counts: 1, 2 (expected $constraint_path)"
+        }
         puts "kv260 xdc file is at $constraint_path"
         build_kv260_prj $build_tcl_path
         import_dep $build_tcl_path $dfx4ml_root $req_gen_ip $test_mode \

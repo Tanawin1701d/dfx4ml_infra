@@ -153,7 +153,7 @@ Main state machine states: `SHUTDOWN → PROCESS → PRE_SHUTDOWN`.
 
 Three files are needed per board:
 1. `hw/build_script/<board>/board_build.tcl` — PS block, interconnect, board IPs; must define `build_<board>_prj` and `create_<board>_dfx4ml_design` procs
-2. `hw/build_script/<board>/constraint.xdc` — pblock boundaries for each RP region
+2. `hw/build_script/<board>/constraint_<N>_region.xdc` — pblock boundaries, one file per supported region count `N` (kv260 ships `constraint_1_region.xdc` and `constraint_2_region.xdc`; the build selects the file matching `num_dfx_region`)
 3. Register the new `board` name in `hw/build_script/build.tcl`
 
 Use `hw/build_script/kv260/` as the reference.
