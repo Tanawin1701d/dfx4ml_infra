@@ -61,3 +61,10 @@ archive
 # Large numpy data files
 *.npy
 /.claude/settings.json
+
+# Python caches
+__pycache__/
+*.pyc
+
+# hls4ml_con generated output (quick_start_hls4ml.ipynb)
+hls4ml_dfx_out/

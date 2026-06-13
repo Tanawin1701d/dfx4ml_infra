@@ -1,0 +1,4 @@
+[submodule "hls4ml"]
+	path = hls4ml
+	url = https://github.com/Tanawin1701d/hls4ml.git
+	branch = VitisUnifiedClean_fix_cosim&length_issue
