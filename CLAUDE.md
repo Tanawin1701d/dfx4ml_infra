@@ -15,6 +15,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Full hardware + software build
 Open `quick_start.ipynb` and run all cells. This is the primary entry point.
 
+For the **Keras → hls4ml → dfx4ml** flow (auto-generate user kernels + streamer params
+from a partitioned Keras model), use `quick_start_hls4ml.ipynb` instead — see
+[hls4ml → dfx4ml Backend](#hls4ml--dfx4ml-backend-libhls4ml_con).
+
 ### Python build from a script
 ```python
 from lib.hw_build import HwBuildHelper
@@ -172,6 +176,48 @@ Use `hw/bd_src/dfx_region/dfx_region.tcl` as the reference RM implementation.
 
 ---
 
+## hls4ml → dfx4ml Backend (`lib/hls4ml_con`)
+
+A hls4ml backend plugin that turns a partitioned Keras model into dfx4ml user
+kernels + the three `HwBuildHelper` params. Entry notebook: `quick_start_hls4ml.ipynb`.
+The `hls4ml` source is a **git submodule** (`hls4ml/`); do not edit it for dfx-specific
+behavior — patch the generated project instead (see the writer pattern below).
+
+Registered via `os.environ['HLS4ML_BACKEND_PLUGINS'] = 'hls4ml_con'` (discovered at
+`import hls4ml`); backend name `'VitisUnifiedDFx4ml'` (key `'vitisunifieddfx4ml'`).
+
+| File | Role |
+|---|---|
+| `backend.py` | Registers the `VitisUnifiedDFx4ml` backend (extends hls4ml `VitisUnified`) |
+| `writer.py` | `VitisUnifiedDFx4mlWriter` — multi-port flat AXI-Stream kernels (one AXIS port/streamer, TKEEP+TLAST), csim/cosim, ip_catalog packaging, post-write patches |
+| `streamer_glue.py` | `compute_dfx_params(partitions, streams, …)` → dict with `dfx_streamers`/`dfx_regions`/`rm_schemetics` (+ inspection extras); `build_dispatcher_tcl()` stitches the user-BD TCL |
+| `tcl_gen.py` | Renders `create_dfx_region_user_bd` from `dfx_region_user_bd.tcl.template`; one VLNV fragment per (region, rm) |
+| `dfx_region_user_bd.tcl.template` | TCL proc body (markers `__VLNV_TABLE__`/`__KERNEL__`/`__CTRL_BUSIF__`/`__*_PIN__`) |
+| `templates/vitis_unified/` | dfx-modified kernel templates (`myproject_axi_stream.{cpp,h}`, `nnet_helpers_dfx.h`) |
+
+**Topology model** — the caller describes the cut as `partitions` (one dict per
+(region, rm): `name`/`project`/`region`/`rm`/`inputs`/`outputs`; `inputs`/`outputs`
+are stream names ordered by kernel port, `'DMA'` = streamer 0) and `streams` (one dict
+per inter-partition tensor: `name`/`shape`/`precision`/`region`/`alloc_phase`/`free_phase`).
+`compute_dfx_params` assigns streamers (index 0 = DMA always), unions per-region
+load/store streamers, and builds per-(region,rm) `(streamer_idx, kernel_port)` maps
+(`kernel_port == -1` ⇒ that RM leaves the port idle → a Stream_*_Dummy is wired in).
+All regions must declare the same RM count. Bus widths must be powers of two.
+
+**Wiring into the build** — `HwBuildHelper` accepts `dfx=compute_dfx_params(...)` and
+unpacks `dfx_streamers`/`dfx_regions`/`rm_schemetics` from it (explicitly-passed values
+still win); pass `user_rm_build_tcl_path=` the file from `build_dispatcher_tcl()`.
+
+**Writer post-write patches** (applied to the generated firmware in
+`<out>/firmware/nnet_utils/`, after `super().write_hls()`, so the submodule stays pristine):
+- `_patch_nnet_helpers_keeplast` — float AXIS packet → `hls::axis<float,0,0,0,24>` (TKEEP|TLAST)
+- `_patch_nnet_dense_resource_lutram` — weight ROM `ROM_nP_BRAM` → `ROM_1P_LUTRAM` for
+  reuse_factor > 1 (all 3 dense_resource specializations); guarded for existence and
+  idempotency (the commented-out line still contains the search string, so re-running
+  without the `ROM_1P_LUTRAM` guard would mangle it — matters on the FIFO re-convert path).
+
+---
+
 ## Examples
 
 | Directory | Description |
@@ -188,9 +234,11 @@ Use `hw/bd_src/dfx_region/dfx_region.tcl` as the reference RM implementation.
 
 | File | Purpose |
 |---|---|
-| `lib/hw_build.py` | `HwBuildHelper` — Python build entry point, TCL template renderer |
+| `lib/hw_build.py` | `HwBuildHelper` — Python build entry point, TCL template renderer; accepts `dfx=` to splat streamer params |
 | `lib/sw_build.py` | `SwBuildHelper` — packages drivers + test notebook |
 | `lib/run_build.tcl.template` | Template for the generated Vivado build script |
+| `lib/hls4ml_con/` | hls4ml → dfx4ml backend plugin (see [section](#hls4ml--dfx4ml-backend-libhls4ml_con)) |
+| `quick_start_hls4ml.ipynb` | Keras → hls4ml → dfx4ml entry notebook |
 | `hw/build_script/build.tcl` | Main Vivado build orchestrator (board dispatch + DFX run setup) |
 | `hw/ip_src/dfx_mng/dfx_mng_core.v` | DFX Manager RTL core (state machines, register banks) |
 | `hw/ip_src/compose_ip.tcl` | Composes all custom IPs into `ip_repo/` |
