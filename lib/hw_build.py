@@ -27,14 +27,15 @@ class HwBuildHelper:
                  num_core,
                  clk_frq,
                  rm_index_width,
-                 dfx_streamers,
-                 dfx_regions,
-                 rm_schemetics,
-                 test_mode,
-                 vivado_path,
-                 export_folder_path,
-                 board_build_tcl  = "",
-                 constraint_xdc   = ""):
+                 dfx_streamers      = None,
+                 dfx_regions        = None,
+                 rm_schemetics      = None,
+                 test_mode          = 1,
+                 vivado_path        = "",
+                 export_folder_path = "",
+                 board_build_tcl    = "",
+                 constraint_xdc     = "",
+                 dfx                = None):
         # dfx_streamers : list of dicts, index 0 = DMA streamer
         #   each dict: { load_width: int(bytes), store_width: int(bytes),
         #                actual_width: int(bits), amount_row: int }
@@ -44,6 +45,22 @@ class HwBuildHelper:
         # rm_schemetics : 2-D list [region_idx][rm_idx]
         #   each element dict: { load_io_map:  [(io_index, kernel_idx),...],
         #                        store_io_map: [(io_index, kernel_idx),...] }
+        # dfx : convenience — the dict returned by
+        #   lib.hls4ml_con.streamer_glue.compute_dfx_params(). When given, the
+        #   dfx_streamers / dfx_regions / rm_schemetics are unpacked from it (an
+        #   explicitly-passed value still wins over the dfx entry).
+        if dfx is not None:
+            if dfx_streamers is None: dfx_streamers = dfx["dfx_streamers"]
+            if dfx_regions   is None: dfx_regions   = dfx["dfx_regions"]
+            if rm_schemetics is None: rm_schemetics = dfx["rm_schemetics"]
+        _missing_dfx = [n for n, v in (("dfx_streamers", dfx_streamers),
+                                       ("dfx_regions", dfx_regions),
+                                       ("rm_schemetics", rm_schemetics)) if v is None]
+        if _missing_dfx:
+            raise ValueError(
+                f"missing {', '.join(_missing_dfx)}; pass them explicitly or supply "
+                f"dfx=compute_dfx_params(...)")
+
         custom_params = {"board_build_tcl": board_build_tcl, "constraint_xdc": constraint_xdc}
         if board == "custom":
             missing = [k for k, v in custom_params.items() if not v]

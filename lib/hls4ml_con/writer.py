@@ -489,6 +489,7 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
         super().write_hls(model, is_multigraph=is_multigraph)
         self._install_dfx_sim_headers(model)
         self._patch_nnet_helpers_keeplast(model)
+        self._patch_nnet_dense_resource_lutram(model)
         self._write_dfx_region_fragment(model)
 
     def _install_dfx_sim_headers(self, model):
@@ -511,6 +512,30 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
         with open(path) as f:
             content = f.read()
         patched = content.replace('hls::axis<float, 0, 0, 0>', 'hls::axis<float, 0, 0, 0, 24>')
+        if patched != content:
+            with open(path, 'w') as f:
+                f.write(patched)
+
+    def _patch_nnet_dense_resource_lutram(self, model):
+        """Map the weight ROM to LUTRAM instead of BRAM for reuse_factor > 1.
+
+        The stock dense_resource template pins the weight array to
+        ``ROM_nP_BRAM`` when reuse_factor > 1; on a dfx region the BRAM budget is
+        tight, so patch the copied firmware header to use ``ROM_1P_LUTRAM``
+        instead. Patches all three dense_resource specializations.
+        """
+        path = os.path.join(model.config.get_output_dir(), 'firmware', 'nnet_utils', 'nnet_dense_resource.h')
+        if not os.path.exists(path):
+            return
+        with open(path) as f:
+            content = f.read()
+        if 'ROM_1P_LUTRAM' in content:  # already patched (e.g. fifo re-convert) — replacement is not idempotent
+            return
+        patched = content.replace(
+            '#pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM',
+            '// #pragma HLS RESOURCE variable=weights core=ROM_nP_BRAM\n'
+            '        #pragma HLS RESOURCE variable=weights core=ROM_1P_LUTRAM',
+        )
         if patched != content:
             with open(path, 'w') as f:
                 f.write(patched)
