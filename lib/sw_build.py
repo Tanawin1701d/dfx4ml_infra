@@ -9,7 +9,8 @@ class SwBuildHelper:
                  num_pr_region      = None,
                  rm_index_width     = None,
                  num_streamer       = None,
-                 hw_builder         = None):
+                 hw_builder         = None,
+                 hls4ml_build       = None):
         # hw_builder: optional HwBuildHelper instance. Any parameter left as None
         # is taken from it (export_folder_path, num_dfx_region, rm_index_width,
         # num_dfx_streamer); explicitly passed values always win.
@@ -22,6 +23,19 @@ class SwBuildHelper:
             if num_pr_region      is None: num_pr_region      = hw_builder.num_dfx_region
             if rm_index_width     is None: rm_index_width     = hw_builder.rm_index_width
             if num_streamer       is None: num_streamer       = hw_builder.num_dfx_streamer
+
+        # hls4ml_build: optional lib.hls4ml_build.Hls4ml_build instance. num_pr_region /
+        # num_streamer / rm_index_width are taken from it (run hb.compute_streamer_glue()
+        # first). export_folder_path is not carried by Hls4ml_build — pass it explicitly
+        # (or provide hw_builder=). Explicitly passed values always win.
+        if hls4ml_build is not None:
+            if hls4ml_build.dfx is None:
+                raise ValueError(
+                    "hls4ml_build.dfx is not set; call "
+                    "hls4ml_build.compute_streamer_glue() before the software export")
+            if num_pr_region  is None: num_pr_region  = hls4ml_build.num_regions
+            if num_streamer   is None: num_streamer   = len(hls4ml_build.dfx["dfx_streamers"])
+            if rm_index_width is None: rm_index_width = hls4ml_build.rm_index_width
 
         missing = [name for name, val in [
             ("export_folder_path", export_folder_path),
@@ -81,7 +95,3 @@ class SwBuildHelper:
         code = code.replace('LIM_AMT_SLOT_VAL',     str(1 << self.rm_index_width))
         with open(path, 'w') as f:
             f.write(code)
-        
-        
-
-        

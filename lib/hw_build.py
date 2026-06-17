@@ -20,13 +20,13 @@ class HwBuildHelper:
     def __init__(self,
                  build_folder_path,
                  dfx_root_path,
-                 board,
-                 user_repo_path,
-                 user_rm_build_tcl_path,
-                 req_gen_ip,
-                 num_core,
-                 clk_frq,
-                 rm_index_width,
+                 board                  = None,
+                 user_repo_path         = None,
+                 user_rm_build_tcl_path = None,
+                 req_gen_ip             = 1,
+                 num_core               = 4,
+                 clk_frq                = 99999001,
+                 rm_index_width         = None,
                  dfx_streamers      = None,
                  dfx_regions        = None,
                  rm_schemetics      = None,
@@ -35,7 +35,8 @@ class HwBuildHelper:
                  export_folder_path = "",
                  board_build_tcl    = "",
                  constraint_xdc     = "",
-                 dfx                = None):
+                 dfx                = None,
+                 hls4ml_build       = None):
         # dfx_streamers : list of dicts, index 0 = DMA streamer
         #   each dict: { load_width: int(bytes), store_width: int(bytes),
         #                actual_width: int(bits), amount_row: int }
@@ -46,9 +47,34 @@ class HwBuildHelper:
         #   each element dict: { load_io_map:  [(io_index, kernel_idx),...],
         #                        store_io_map: [(io_index, kernel_idx),...] }
         # dfx : convenience — the dict returned by
-        #   lib.hls4ml_con.streamer_glue.compute_dfx_params(). When given, the
+        #   lib.hls4ml_build.compute_dfx_params(). When given, the
         #   dfx_streamers / dfx_regions / rm_schemetics are unpacked from it (an
         #   explicitly-passed value still wins over the dfx entry).
+        # hls4ml_build : convenience — an lib.hls4ml_build.Hls4ml_build instance. When
+        #   given, board / user_repo_path / user_rm_build_tcl_path / rm_index_width / dfx /
+        #   vivado_path are taken from it (run hb.compute_streamer_glue() first so hb.dfx
+        #   and hb.user_rm_tcl are populated). Explicitly-passed values still win.
+        if hls4ml_build is not None:
+            if hls4ml_build.dfx is None or hls4ml_build.user_rm_tcl is None:
+                raise ValueError(
+                    "hls4ml_build.dfx / user_rm_tcl are not set; call "
+                    "hls4ml_build.compute_streamer_glue() before building the hardware")
+            if board is None:                  board = hls4ml_build.board
+            if user_repo_path is None:         user_repo_path = str(hls4ml_build.out_root)
+            if user_rm_build_tcl_path is None: user_rm_build_tcl_path = hls4ml_build.user_rm_tcl
+            if rm_index_width is None:          rm_index_width = hls4ml_build.rm_index_width
+            if dfx is None:                    dfx = hls4ml_build.dfx
+            if not vivado_path:                vivado_path = hls4ml_build.vivado_bin
+
+        _missing_args = [n for n, v in (("board", board),
+                                        ("user_repo_path", user_repo_path),
+                                        ("user_rm_build_tcl_path", user_rm_build_tcl_path),
+                                        ("rm_index_width", rm_index_width)) if v is None]
+        if _missing_args:
+            raise ValueError(
+                f"missing {', '.join(_missing_args)}; pass them explicitly or supply "
+                f"hls4ml_build=Hls4ml_build(...)")
+
         if dfx is not None:
             if dfx_streamers is None: dfx_streamers = dfx["dfx_streamers"]
             if dfx_regions   is None: dfx_regions   = dfx["dfx_regions"]
