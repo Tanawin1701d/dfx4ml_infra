@@ -5,8 +5,11 @@
 # and wires its AXI-Stream ports to the dfx region streamer ports.
 ##################################################################
 
-# block_name -> packaged kernel VLNV (generated, one entry per (region, rm))
-array set _DFX4ML_KERNEL_VLNV {
+# block_name -> packaged kernel VLNV (generated, one entry per (region, rm)).
+# Fully-qualify the array as ::_DFX4ML_KERNEL_VLNV so it lands in the global
+# namespace even when this file is `source`d from inside a proc (build.tcl's
+# import_dep does exactly that) — the proc below reads it via `global`.
+array set ::_DFX4ML_KERNEL_VLNV {
 __VLNV_TABLE__}
 
 proc create_dfx_region_user_bd { \

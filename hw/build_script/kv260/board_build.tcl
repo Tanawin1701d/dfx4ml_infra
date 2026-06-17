@@ -499,9 +499,12 @@ proc create_kv260_dfx4ml_design { parentCell \
     assign_bd_address -offset 0xA0030000 -range 0x00010000 -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] [get_bd_addr_segs dfx_unified_0/dma_hier/axi_dma_0/S_AXI_LITE/Reg] -force
     for {set r 0} {$r < $num_dfx_region} {incr r} {
         set pr_ctrl_offset [format 0x%08X [expr {0xA0050000 + $r * 0x00010000}]]
+        # query the PR-ctrl segment via the region's S_AXI_LITE_PR_CTRL interface pin so
+        # this works for both test mode (AXI_Lite_Shut_0/S_AXI) and user mode
+        # (kernel_0/s_axi_control) without hardcoding the inner IP name.
         assign_bd_address -offset $pr_ctrl_offset -range 0x00010000 \
             -target_address_space [get_bd_addr_spaces dfx_unified_0/DFX_Mng/M_AXI] \
-            [get_bd_addr_segs dfx_pr_region_${r}_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+            [get_bd_addr_segs -of_objects [get_bd_intf_pins dfx_pr_region_${r}_0/S_AXI_LITE_PR_CTRL]] -force
     }
 
     #source from processor
@@ -514,9 +517,10 @@ proc create_kv260_dfx4ml_design { parentCell \
     assign_bd_address -offset $intc_offset -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs axi_intc_0/S_AXI/Reg] -force
     for {set r 0} {$r < $num_dfx_region} {incr r} {
         set pr_ctrl_offset [format 0x%08X [expr {0xA0050000 + $r * 0x00010000}]]
+        # same generic lookup as the DFX_Mng/M_AXI loop above (mode-agnostic).
         assign_bd_address -offset $pr_ctrl_offset -range 0x00010000 \
             -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] \
-            [get_bd_addr_segs dfx_pr_region_${r}_0/AXI_Lite_Shut_0/S_AXI/reg0] -force
+            [get_bd_addr_segs -of_objects [get_bd_intf_pins dfx_pr_region_${r}_0/S_AXI_LITE_PR_CTRL]] -force
     }
 
     # Exclude Address Segments

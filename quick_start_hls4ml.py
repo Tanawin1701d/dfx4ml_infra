@@ -86,12 +86,14 @@ print('partition models:', [m.name for m in (halfA, halfB, part1, part2, part3, 
 SPLIT = '2part'
 
 CONFIGS = {
+ # single PR region: halfA (rm 0) and halfB (rm 1) are swapped at runtime in the
+ # same region; all streams live in region 0 (streamers persist across the swap).
  '2part': [
-   Partition('halfA', 'p_halfA', halfA, region=0, inputs=[DMA], outputs=[
+   Partition('halfA', 'p_halfA', halfA, region=0, rm=0, inputs=[DMA], outputs=[
        Stream('bneck', region=0, alloc_phase=0, free_phase=1),
        Stream('skip2', region=0, alloc_phase=0, free_phase=1),
-       Stream('skip1', region=1, alloc_phase=0, free_phase=1)]),
-   Partition('halfB', 'p_halfB', halfB, region=1,
+       Stream('skip1', region=0, alloc_phase=0, free_phase=1)]),
+   Partition('halfB', 'p_halfB', halfB, region=0, rm=1,
              inputs=['bneck', 'skip2', 'skip1'], outputs=[DMA]),
  ],
  '4part': [
