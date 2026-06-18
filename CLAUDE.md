@@ -212,15 +212,18 @@ still win); pass `user_rm_build_tcl_path=` the file from `build_dispatcher_tcl()
 `Hls4ml_build` wraps the whole Keras → hls4ml → dfx4ml flow as a class (what
 `quick_start_hls4ml.ipynb` does cell-by-cell). It is a small package: `builder.py`
 (core: ctor/validation/tool-paths) composes the per-stage mixins `_convert.py` /
-`_csim.py` / `_synth.py` / `_glue.py`; `dfx_params.py` holds `compute_dfx_params`;
-`topology.py` holds the typed topology helpers; `__init__.py` re-exports
-`Hls4ml_build`, `Partition`, `Stream`, `DMA`, `compute_dfx_params`. Construct it with
-`partitions`, `out_root`, conversion config, and the `vitis_path` / `vivado_path` install
-dirs (it sources their `settings64.sh` onto `PATH` via `setup_env()`). Methods:
+`_csim.py` / `_synth.py` / `_glue.py` / `_diag.py`; `dfx_params.py` holds
+`compute_dfx_params`; `topology.py` holds the typed topology helpers; `__init__.py`
+re-exports `Hls4ml_build`, `Partition`, `Stream`, `DMA`, `compute_dfx_params`. Construct it
+with `partitions`, `out_root`, conversion config, and the `vitis_path` / `vivado_path`
+install dirs (it sources their `settings64.sh` onto `PATH` via `setup_env()`). Methods:
 `convert_all(fifo_opt=)` (get the partial model), `csim_partition` / `csim_chain`
 (end-to-end csim), `synth_all(fifo_opt=)` (C-synthesis + ip_catalog package, with/without
-FIFO-depth optimization), `compute_streamer_glue()` (sets `self.dfx` + `self.user_rm_tcl`).
-It also hosts the relocated `compute_dfx_params` (in `dfx_params.py`).
+FIFO-depth optimization), `compute_streamer_glue()` (sets `self.dfx` + `self.user_rm_tcl`),
+`diag_bisect(keras_model, probe_layers, x_input)` (per-layer HLS csim bisect — converts a
+one-layer-deep probe model for each layer and reports where the fixed-point signal
+collapses / goes uniform, reusing the instance's conversion config). It also hosts the
+relocated `compute_dfx_params` (in `dfx_params.py`).
 
 **Topology — typed helpers (`topology.py`)** — `Partition` / `Stream` are the **single**
 topology representation (no parallel dict schema; the whole pipeline — including

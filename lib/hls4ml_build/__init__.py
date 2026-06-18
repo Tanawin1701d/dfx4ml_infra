@@ -10,6 +10,7 @@ lived only as cells in `quick_start_hls4ml.ipynb`. The class body is split by co
 | `_csim.py`      | `CsimMixin`     -- single-partition + end-to-end chained csim      |
 | `_synth.py`     | `SynthMixin`    -- C-synthesis + package (with/without FIFO opt)   |
 | `_glue.py`      | `GlueMixin`     -- streamer glue + dispatcher TCL                  |
+| `_diag.py`      | `DiagMixin`     -- per-layer HLS csim bisect (signal-collapse diag)|
 | `dfx_params.py` | `compute_dfx_params` (relocated from `hls4ml_con/streamer_glue`)   |
 | `topology.py`   | `Partition` / `Stream` / `DMA` -- typed, low-boilerplate topology  |
 

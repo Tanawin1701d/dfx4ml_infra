@@ -22,11 +22,12 @@ import hls4ml
 
 from ._convert import ConvertMixin
 from ._csim    import CsimMixin
+from ._diag    import DiagMixin
 from ._glue    import GlueMixin
 from ._synth   import SynthMixin
 
 
-class Hls4ml_build(ConvertMixin, CsimMixin, SynthMixin, GlueMixin):
+class Hls4ml_build(ConvertMixin, CsimMixin, SynthMixin, GlueMixin, DiagMixin):
     """Orchestrate the Keras -> hls4ml -> dfx4ml flow for a partitioned model.
 
     Describe the cut with the typed `Partition` / `Stream` helpers. ``amt_phase`` /
