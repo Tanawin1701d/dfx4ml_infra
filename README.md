@@ -1,7 +1,9 @@
-# DFX4ML-ARCH
+# DFX4ML
 
 
-DFX4ML-ARCH is an FPGA architecture where the FPGA's ML modules autonomously swap its own ML accelerator kernels during execution. Without any CPU involvement in the reconfiguration process, the FPGA loads and replaces partial bitstreams on-chip, enabling large ML models — too big to fit the device at once — to run in full by executing segment by segment across a self-managed reconfigurable region.
+DFX4ML is an FPGA architecture where the FPGA's ML modules autonomously swap its own ML accelerator kernels during execution. Without any CPU involvement in the reconfiguration process, the FPGA loads and replaces partial bitstreams on-chip, enabling large ML models — too big to fit the device at once — to run in full by executing segment by segment across a self-managed reconfigurable region.
+
+With **two reconfigurable regions**, DFX4ML **hides the reconfiguration latency**: while one region runs its ML kernel, the other is already being reprogrammed with the next segment's bitstream. The slow on-chip reconfiguration is overlapped with useful compute, so the model streams through back-to-back segments with the bitstream-swap time largely masked behind execution.
 
 **Tested on:** Zynq UltraScale+ (KV260) · Vivado 2023.2 · Ubuntu 22.04 + PYNQ
 
@@ -10,10 +12,11 @@ DFX4ML-ARCH is an FPGA architecture where the FPGA's ML modules autonomously swa
 ## Table of Contents
 
 - [How It Works](#how-it-works)
+  - [Latency Hiding (Two Regions)](#latency-hiding-two-regions)
 - [Project Structure](#project-structure)
 - [Quick Start (User)](#quick-start-user)
   - [Requirements](#requirements)
-  - [Build and Export](#build-and-export)
+  - [Build and Export (Keras → hls4ml → dfx4ml)](#build-and-export-keras--hls4ml--dfx4ml)
   - [HwBuildHelper Parameters](#hwbuildhelper-parameters)
 - [Contributor Guide](#contributor-guide)
   - [Naming Conventions](#naming-conventions)
@@ -26,17 +29,26 @@ DFX4ML-ARCH is an FPGA architecture where the FPGA's ML modules autonomously swa
 
 ## How It Works
 
-DFX4ML-ARCH splits the FPGA fabric into two regions:
+DFX4ML splits the FPGA fabric into multiple regions:
 
 | Region | Role |
 |---|---|
 | **Static Region** | Always-active control logic: DFX Manager, DFX Controller, DFX Streamer(s), DMA Controller |
 | **Reconfigurable Region (RP)** | Swappable ML kernels loaded at runtime via AXI-Stream |
 
-<img src="doc/tech_report/images/overall_system.png" alt="DFX4ML-ARCH Overall Architecture" width="600"/>
+<img src="doc/tech_report/images/overall_system.png" alt="DFX4ML Overall Architecture" width="600"/>
 
 
 The **DFX Manager** orchestrates the whole flow autonomously: it commands the DFX Controller to load a partial bitstream from DDR into the RP via ICAP3, pre-loads/stores data using the DFX Streamers (on-chip BRAM buffers), and moves bulk data through the DMA Controller — all without host CPU intervention. This self-reconfiguration loop enables a sequential execution pipeline where each ML model segment runs in the RP, then the FPGA reprograms itself for the next segment, until the full model completes.
+
+### Latency Hiding (Two Regions)
+
+On-chip partial reconfiguration is slow — loading a bitstream through ICAP3 can dominate the runtime if every segment must wait for its region to finish reprogramming. DFX4ML-ARCH avoids that stall by running **two reconfigurable regions in a ping-pong schedule**:
+
+- While **region A executes** the current segment's kernel,
+- **region B is reconfigured** in the background with the next segment's bitstream.
+
+When region A finishes, region B is already loaded and runs immediately while region A reprograms for the segment after that. Because reconfiguration overlaps with execution, the bitstream-swap time is hidden behind compute and the model flows through its segments with minimal idle gaps. The DFX Manager schedules this overlap autonomously via its slot-linked-list (one slot reconfigures a region while another slot executes the other), and the DFX Streamers carry the inter-segment data across the swap. A **single-region** configuration still works (segments run strictly sequentially, reconfigure-then-execute) and is the simpler starting point.
 
 ---
 
@@ -46,30 +58,52 @@ The **DFX Manager** orchestrates the whole flow autonomously: it commands the DF
 .
 +-- hw/                          # Hardware source files
 |   +-- bd_src/                  # Vivado block design scripts
-|   |   +-- dfx4ml/              # Static & PR connection script
-|   |   +-- dfx_region/          # Reconfigurable region block design
+|   |   +-- dfx4ml/              # Static & PR top-level connection script
+|   |   +-- dfx_region/          # Reconfigurable region (RM) block design
 |   |   +-- dfx_unified/         # Static region block design
-|   +-- build_script/            # Board-specific build scripts
+|   +-- build_script/            # Build orchestration
+|   |   +-- build.tcl            # Main build orchestrator (board dispatch + DFX runs)
+|   |   +-- build_ip_only.tcl    # IP-only (no synthesis) build
 |   |   +-- kv260/               # KV260 board_build.tcl + constraint_<N>_region.xdc
+|   |   +-- custom/              # Custom-board template scripts
 |   +-- ip_src/                  # Verilog IP sources
+|       +-- compose_ip.tcl       # Composes all custom IPs into ip_repo/
 |       +-- dfx_icap/            # ICAP3 wrapper
-|       +-- dfx_mng/             # DFX Manager IP
-|       +-- dfx_streamer/        # DFX Streamer (BRAM buffer)
-|       +-- dfx_streamer_mshut/  # AXI-Stream master dummy plug
-|       +-- dfx_streamer_sshut/  # AXI-Stream slave dummy plug
+|       +-- dfx_mng/             # DFX Manager IP (state machines + register banks)
+|       +-- dfx_decup_ctrl/      # PR decoupler control
+|       +-- dfx_streamer/        # DFX Streamer (BRAM/URAM buffer)
+|       +-- dfx_streamer_s2m/    # Stream <-> memory variants (s2m / s2m_free)
+|       +-- dfx_stream_aligner_m2s/, dfx_stream_aligner_s2m/  # AXI-S width aligners
+|       +-- dfx_streamer_mshut/, dfx_streamer_sshut/         # AXI-Stream dummy plugs
+|       +-- dfx_streamer_mreset/, dfx_streamer_sreset/       # Streamer reset helpers
+|       +-- dfx_axi_lite_shut/   # AXI-Lite dummy plug
 |       +-- ...
 +-- lib/                         # Python build helpers
-|   +-- hw_build.py              # HwBuildHelper
-|   +-- sw_build.py              # SwBuildHelper
+|   +-- hw_build.py              # HwBuildHelper (hardware build entry point)
+|   +-- sw_build.py              # SwBuildHelper (driver/test packaging)
 |   +-- dfx_streamer_cal.py      # DFX Streamer bank/group allocation calculator
+|   +-- run_build.tcl.template   # Generated Vivado build-script template
+|   +-- transfer_to_pynq.sh      # Copy export folder to the board
+|   +-- hls4ml_build/            # Hls4ml_build orchestrator (convert/csim/synth/glue/diag)
+|   +-- hls4ml_con/              # hls4ml -> dfx4ml backend plugin (VitisUnifiedDFx4ml)
 +-- sw/                          # Software / driver sources
-|   +-- driver/                  # PYNQ Python drivers
-+-- export/                      # Build artifacts (generated)
-|   +-- hw/                      # .bin bitstreams, .hwh handoff files
+|   +-- driver/                  # PYNQ Python drivers (dfx_unified, dfx_mng, dfx_ctrl, ...)
++-- hls4ml/                      # hls4ml source (git submodule)
++-- example/                     # Worked examples + board test notebooks
+|   +-- tutorial/                # Board test notebooks + shared quick-start model
+|   +-- multi_region_test{2..5}/ # Multi-region pipeline examples
+|   +-- query_explore/, exp_dyn_size/, ...  # Exploratory notebooks
++-- export*/                     # Build artifacts (generated; per-part export_part_<N>/)
+|   +-- hw/                      # .bin bitstreams, .hwh handoff, dfx_ctrl_con.txt
 |   +-- driver/                  # Exported PYNQ drivers
-|   +-- test.ipynb               # Board-side test notebook
-+-- quick_start.ipynb            # Build entry point
-+-- doc/tech_report/             # Full technical report (LaTeX)
+|   +-- data/                    # csim reference arrays
+|   +-- *.ipynb                  # Board-side test notebook
++-- quick_start_hls4ml_part_1.ipynb  # Quick start: 1 region, 2 RMs (Keras -> hls4ml -> dfx4ml)
++-- quick_start_hls4ml_part_2.ipynb  # Quick start: 2 regions, 4 RMs (latency hiding)
++-- quick_start.ipynb            # Lower-level build entry point (no hls4ml)
++-- doc/                         # Technical report + experiment logs (LaTeX)
+|   +-- tech_report/             # Full technical report
++-- archive/                     # Legacy / superseded experiments
 ```
 
 ---
@@ -78,63 +112,31 @@ The **DFX Manager** orchestrates the whole flow autonomously: it commands the DF
 
 ### Requirements
 
-- Xilinx Vivado 2023.2 (or compatible)
-- Python 3 with standard library (`subprocess`, `os`, `shutil`, `re`)
+- Xilinx Vivado **and** Vitis 2023.2 (or compatible) — Vitis is needed for the hls4ml C-synthesis step
+- Python 3 with `hls4ml`, TensorFlow/Keras, and NumPy (plus the standard library); the `hls4ml` submodule must be checked out (`git submodule update --init`)
 - KV260 Starter Kit running Ubuntu 22.04 + PYNQ
 
-### Build and Export
+### Build and Export (Keras → hls4ml → dfx4ml)
 
-Open `quick_start.ipynb` and configure the parameters below, then run all cells.
+The quick-start path is the two end-to-end notebooks. Each takes a trained Keras model, partitions it, runs it through **hls4ml** to generate the user kernels, and drives the full dfx4ml hardware + PYNQ software build — no hand-written TCL or `HwBuildHelper` parameters required. Run them **from the repo root** and edit the `VITIS_PATH` / `VIVADO_PATH` cell to point at your 2023.2 installs.
 
-```python
-from lib.hw_build import HwBuildHelper
-from lib.sw_build import SwBuildHelper
+| Notebook | Topology | What it demonstrates |
+|---|---|---|
+| [`quick_start_hls4ml_part_1.ipynb`](quick_start_hls4ml_part_1.ipynb) | **1 region, 2 RMs** (`config_2`) | Single-region sequential swap — `halfA`/`halfB` reconfigure-then-execute in one region. The simplest starting point. |
+| [`quick_start_hls4ml_part_2.ipynb`](quick_start_hls4ml_part_2.ipynb) | **2 regions, 4 RMs** (`config_4`) | Two-region **latency hiding** — `part1`..`part4` ping-pong across two regions so reconfiguration overlaps execution. |
 
-hw_builder = HwBuildHelper(
-    build_folder_path       = "./build_prj",
-    dfx_root_path           = ".",
-    board                   = "kv260",
-    user_repo_path          = "",           # path to your IP repo; required when test_mode=0
-    user_rm_build_tcl_path  = "",           # path to your RM build TCL; required when test_mode=0
-    req_gen_ip              = 1,            # set to 1 on first run or after deleting build_folder_path
-    num_core                = 4,
-    clk_frq                 = 99999001,     # Hz (~100 MHz)
-    rm_index_width          = 2,            # allocates 2^rm_index_width slots
-    # One dict per DFX Streamer; index 0 is always the DMA pass-through streamer.
-    dfx_streamers           = [
-        {"load_width": 4, "store_width": 4, "actual_width": 32, "amount_row": 1024},
-    ],
-    # One dict per reconfigurable region; indices refer into dfx_streamers.
-    dfx_regions             = [
-        {"load_streamers": [0], "store_streamers": [0]},
-    ],
-    # rm_schemetics[region_idx][rm_idx]: I/O port map for each RM variant.
-    # load/store_io_map entries are (streamer_index, kernel_port_index) pairs.
-    rm_schemetics           = [
-        [  # region 0
-            {"load_io_map": [(0, 0)], "store_io_map": [(0, 0)]},   # RM 0
-        ],
-    ],
-    test_mode               = 1,            # set to 0 to use your actual kernel
-    vivado_path             = "<absolute path to vivado binary>",
-    export_folder_path      = "./export"
-)
+Each notebook walks through: load the model → set tool paths → describe the partition topology → convert (hls4ml) → C-sim + save reference data → streamer glue → C-synthesis (+ optional FIFO-depth optimization) → Vivado hardware build → PYNQ software build → stage the board test notebook and data into `export_part_<N>/`. The final cell tells you how to copy that folder to the KV260, where you run the matching board notebook (`hls4ml_1_region_2_rm.ipynb` / `hls4ml_2_region_4_rm.ipynb`).
 
-hw_builder.run_build()
-hw_builder.package_export_files()
+> Both notebooks are driven by the `Hls4ml_build` orchestrator, which ultimately calls `HwBuildHelper` / `SwBuildHelper`. If you want to build a kernel **without** hls4ml — supplying your own exported IP and RM TCL — call `HwBuildHelper` directly; the [HwBuildHelper Parameters](#hwbuildhelper-parameters) table below documents every argument, and `quick_start.ipynb` is the bare-metal reference for that lower-level flow.
 
-# All parameters are derived from hw_builder; explicit values override.
-sw_builder = SwBuildHelper(hw_builder=hw_builder)
-sw_builder.package_export_file()
-```
-
-Outputs written to `export/`:
+Outputs written to `export_part_<N>/`:
 - `hw/system.bin` — full bitstream
 - `hw/region_<R>_rm_<M>.bin` — partial bitstreams (one per region/RM pair)
 - `hw/system.hwh` — hardware handoff file
 - `hw/dfx_ctrl_con.txt` — DFX Controller configuration
 - `driver/` — PYNQ Python drivers
-- `test.ipynb` — board-side test notebook
+- `data/` — csim reference arrays (`x_input.npy`, `y_keras.npy`, `y_pred_hls.npy`)
+- the matching board-side test notebook
 
 ### HwBuildHelper Parameters
 
