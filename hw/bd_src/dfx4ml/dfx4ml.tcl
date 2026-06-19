@@ -39,6 +39,28 @@ proc create_sub_block_design {parentCell \
                     $interface_widths $rm_config "" $m
             }
         }
+
+        # Default (parent) RM: a clean placeholder that plugs every region port
+        # into a dummy (no kernel / no S2M passthrough).  Used as the static
+        # parent PR configuration so the static bitstream is not locked to any
+        # real kernel's routing — the real RMs (rm_0..rm_N) are all swapped in
+        # as children at runtime.  Built via create_dfx_region_bd in both test
+        # and user mode: it only references dfx-repo dummy IPs (Stream_*_Dummy,
+        # AXI_Lite_Shut), never the user kernel, and its boundary ports match
+        # the real RMs (both generators derive ports from the region streamers).
+        set region        [lindex $dfx_regions_list $r]
+        set default_load_map  {}
+        foreach s_idx [dict get $region load_streamers]  { lappend default_load_map  [list $s_idx -1] }
+        set default_store_map {}
+        foreach s_idx [dict get $region store_streamers] { lappend default_store_map [list $s_idx -1] }
+        set default_rm_config [dict create \
+            load_io_map  $default_load_map \
+            store_io_map $default_store_map]
+
+        set default_block_name "dfx_pr_region_${r}_rm_default"
+        puts "create dfx_region $default_block_name (clean dummy-only parent default)"
+        create_dfx_region_bd $parentCell $default_block_name $clk_frq \
+            $interface_widths $default_rm_config "" 0 $r $num_dfx_region $region
     }
 
     ##------------------------------------------------------------
@@ -111,18 +133,20 @@ proc create_dfx4ml_design { parentCell \
         set region     [lindex $dfx_regions_list $r]
         set region_rms [lindex $rm_schemetics_list $r]
 
-        # Build BD list for this region
-        set bd_list {}
+        # Build BD list for this region. The dummy-only default RM leads the
+        # list and is the active/reference variant, so the static (parent) build
+        # uses the clean placeholder; the real RMs follow as swap-in variants.
+        set bd_list [list "dfx_pr_region_${r}_rm_default.bd"]
         for {set m 0} {$m < [llength $region_rms]} {incr m} {
             lappend bd_list "dfx_pr_region_${r}_rm_${m}.bd"
         }
         set bd_list_str [join $bd_list ":"]
 
         set pr_container [ create_bd_cell -type container \
-            -reference "dfx_pr_region_${r}_rm_0" "dfx_pr_region_${r}_0" ]
+            -reference "dfx_pr_region_${r}_rm_default" "dfx_pr_region_${r}_0" ]
         set_property -dict [list \
-            CONFIG.ACTIVE_SIM_BD   "dfx_pr_region_${r}_rm_0.bd" \
-            CONFIG.ACTIVE_SYNTH_BD "dfx_pr_region_${r}_rm_0.bd" \
+            CONFIG.ACTIVE_SIM_BD   "dfx_pr_region_${r}_rm_default.bd" \
+            CONFIG.ACTIVE_SYNTH_BD "dfx_pr_region_${r}_rm_default.bd" \
             CONFIG.ENABLE_DFX      {true} \
             CONFIG.LIST_SIM_BD     $bd_list_str \
             CONFIG.LIST_SYNTH_BD   $bd_list_str \
