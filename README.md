@@ -164,7 +164,7 @@ Outputs written to `export_part_<N>/`:
 
 ## Contributor Guide
 
-> For full architectural details, register maps, state machine descriptions, and driver internals, read the technical report: [tech_report_v0.3.pdf](doc/tech_report/tech_report_v0.3.pdf) (source: [main.tex](doc/tech_report/main.tex)).
+> For full architectural details, register maps, state machine descriptions, and driver internals, read the technical report: [tech_report_v1.0_beta.pdf](doc/tech_report_v1.0_beta.pdf) (source: [main.tex](doc/tech_report/main.tex)).
 
 
 ### Naming Conventions
@@ -251,3 +251,12 @@ Use the `kv260` files as references. Pull requests adding board support are very
 | [sw/driver/mem_alloc.py](sw/driver/mem_alloc.py) | CMA allocation, overcommit mode, cache flush before DMA |
 
 For internal register maps, the DFX Manager state machine, the DFX Unified IP address map, and driver internals, see the technical report.
+
+## License
+
+This project is released under an MIT-style license with an added **non-military
+use restriction** — see [LICENSE](LICENSE). Note that the field-of-use
+restriction means it is *not* an OSI-approved open-source license.
+
+The bundled `hls4ml` submodule is licensed separately under the Apache License
+2.0; refer to its own repository for terms.
