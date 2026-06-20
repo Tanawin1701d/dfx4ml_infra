@@ -57,11 +57,14 @@ proc prepare_model4syn { num_core dfx_regions_list rm_schemetics_list xdc_path }
 
     set num_dfx_region [llength $dfx_regions_list]
 
-    # Parent PR configuration: all regions use rm_0
+    # Parent PR configuration: every region uses its clean dummy-only default RM
+    # (rm_default — plugs all ports to dummies, no real kernel).  This keeps the
+    # static base unlocked from any real kernel's routing; the real RMs
+    # (rm_0..rm_N) are all swapped in as children below.
     set parent_partitions [list]
     for {set r 0} {$r < $num_dfx_region} {incr r} {
         lappend parent_partitions \
-            "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_0_inst_0"
+            "dfx4ml_i/dfx_pr_region_${r}_0:dfx_pr_region_${r}_rm_default_inst_0"
     }
     puts "DEBUG: create_pr_configuration -name config_parent -partitions $parent_partitions"
     create_pr_configuration -name config_parent -partitions $parent_partitions

@@ -83,6 +83,7 @@ create_dfx4ml_design  parentCell  clk_frq  rm_index_width \
 ### Key Architecture Notes
 
 - `dfx_unified_0` has `ENABLE_DFX {0}` — it is a static container; only the `dfx_pr_region_${r}_0` containers have `ENABLE_DFX {true}`.
-- Each PR container's `LIST_SYNTH_BD` / `LIST_SIM_BD` is a colon-separated string of all RM BDs for that region; `ACTIVE_SYNTH_BD` defaults to `rm_0`.
+- Each region also gets a `dfx_pr_region_${r}_rm_default` BD: a clean dummy-only placeholder that plugs every region port into a `Stream_*_Dummy` (no kernel / no S2M passthrough). It is built via `create_dfx_region_bd` in both test and user mode (it references only dfx-repo dummy IPs), and leads each container's BD list as the `-reference` / `ACTIVE_*_BD` variant so the static **parent** PR configuration uses it. The real RMs (`rm_0..rm_N`) are all swapped in as children at runtime — see `prepare_model4syn` in `hw/build_script/build.tcl`.
+- Each PR container's `LIST_SYNTH_BD` / `LIST_SIM_BD` is a colon-separated string of `rm_default` followed by all real RM BDs for that region; `ACTIVE_SYNTH_BD` is `rm_default`.
 - AXI-Stream connections follow the naming convention `dfx_unified_0/M_AXIS_DS${s_idx}` → `dfx_pr_region_${r}_0/S_DS_${s_idx}` for load, reversed for store.
 - Input validation is fully delegated to `create_dfx_unified_bd` and the region BD procs — this proc performs no checks itself.

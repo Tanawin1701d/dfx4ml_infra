@@ -2,13 +2,18 @@
 +-- hw                               # for hardware resource
 |   +-- bd_src                        # Vivado block design script
 |   |   +-- dfx4ml                     # static and pr connection script
-|   |   +-- dfx_region                 # par block design script
+|   |   +-- dfx_region                 # pr block design script
 |   |   +-- dfx_unified                # static region block design script
 |   +-- build_script                  # block design for specific board script
-|   |   +-- kv260
+|   |   +-- kv260                      # KV260 board build + constraints
+|   |   +-- custom                     # custom/template board build
 |   +-- ip_src                        # verilog ip script
-|       +-- dfx_icap                 
+|       +-- dfx_axi_lite_shut
+|       +-- dfx_decup_ctrl
+|       +-- dfx_icap
 |       +-- dfx_mng
+|       +-- dfx_stream_aligner_m2s
+|       +-- dfx_stream_aligner_s2m
 |       +-- dfx_streamer
 |       +-- dfx_streamer_mreset
 |       +-- dfx_streamer_mshut
@@ -18,5 +23,9 @@
 |       +-- dfx_streamer_sshut
 |       +-- fourSp
 +-- lib                              # python library for hw and sw generation
+|   +-- hls4ml_build                  # ML -> hls4ml -> dfx4ml orchestrator
+|   +-- hls4ml_con                     # hls4ml -> dfx4ml backend plugin
+|       +-- passes                     # custom hls4ml optimizer passes
+|       +-- templates                  # dfx-modified kernel templates
 +-- sw                               # for software resource
-    +-- driver
+    +-- driver                        # PYNQ DefaultIP drivers

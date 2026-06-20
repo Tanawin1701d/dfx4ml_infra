@@ -28,10 +28,12 @@ def dfx_streamer_report(
     """Compute and print bank/group allocation for the inter-partition dfx streamer.
 
     Args:
-        streams: ordered list of dicts with keys
-            name, shape (tuple, no batch), precision (bits),
-            region (0|1), alloc_phase (int), free_phase (int).
-            Each dict is mutated in place with the derived geometry fields.
+        streams: ordered list of stream objects (e.g. ``hls4ml_build.topology.Stream``)
+            with attributes name, shape (tuple, no batch), precision (bits),
+            region (0|1), alloc_phase (int), free_phase (int). Consumed by attribute,
+            not by key. Each object is mutated in place with the derived geometry fields
+            (amt_entry_per_query, bits_per_entry, amt_banks_per_entry,
+            amt_query_per_bankGrp) and a normalized tuple ``shape``.
         total_banks: bank budget N.
         amt_phase: number of producing partitions (split - 1).
         bank_width: bits per bank I/O.
@@ -48,7 +50,7 @@ def dfx_streamer_report(
     """
 
     # --- region guard: 1- or 2-region scheme only -------------------------------
-    regions = sorted({s['region'] for s in streams})
+    regions = sorted({s.region for s in streams})
     if regions and not set(regions).issubset({0, 1}):
         raise ValueError(
             f"[dfx-streamer] regions {regions} unsupported; this scheme only "
@@ -62,29 +64,29 @@ def dfx_streamer_report(
     # --- PHASE 1: init ------------------#
     #######################################
     for stream in streams:
-        shape = tuple(int(d) for d in stream['shape'])
+        shape = tuple(int(d) for d in stream.shape)
 
         amt_entry_per_query = 1
         for d in shape[:-1]:
             amt_entry_per_query *= d
         amt_var_per_entry = shape[-1]
-        precision = stream['precision']
+        precision = stream.precision
 
         bits_per_entry = precision * amt_var_per_entry
         amt_banks_per_entry = (bits_per_entry + BW - 1) // BW
         amt_query_per_bankGrp = BD // amt_entry_per_query
 
-        stream['shape'] = shape
-        stream['amt_entry_per_query'] = amt_entry_per_query
-        stream['bits_per_entry'] = bits_per_entry
-        stream['amt_banks_per_entry'] = amt_banks_per_entry
-        stream['amt_query_per_bankGrp'] = amt_query_per_bankGrp
+        stream.shape = shape
+        stream.amt_entry_per_query = amt_entry_per_query
+        stream.bits_per_entry = bits_per_entry
+        stream.amt_banks_per_entry = amt_banks_per_entry
+        stream.amt_query_per_bankGrp = amt_query_per_bankGrp
 
         # bug-3 check: a stream whose single query already exceeds one bank depth
         # cannot be buffered by the current single-bank-group scheme.
         if amt_query_per_bankGrp == 0:
             raise ValueError(
-                f"[dfx-streamer] stream '{stream['name']}' has amt_entry_per_query="
+                f"[dfx-streamer] stream '{stream.name}' has amt_entry_per_query="
                 f'{amt_entry_per_query} > BANK_DEPTH={BD}; one query does not fit in a '
                 f'single bank group. Increase bank_depth or split the stream.'
             )
@@ -101,10 +103,10 @@ def dfx_streamer_report(
     print(stream_border)
     for s in streams:
         print(
-            f'  | {s["name"]:<10} | {str(s["shape"]):<18} | {s["region"]:>6} '
-            f'| {s["alloc_phase"]:>11} | {s["free_phase"]:>10} | {s["precision"]:>9} '
-            f'| {s["amt_entry_per_query"]:>19} | {s["bits_per_entry"]:>14} '
-            f'| {s["amt_banks_per_entry"]:>19} | {s["amt_query_per_bankGrp"]:>21} |'
+            f'  | {s.name:<10} | {str(s.shape):<18} | {s.region:>6} '
+            f'| {s.alloc_phase:>11} | {s.free_phase:>10} | {s.precision:>9} '
+            f'| {s.amt_entry_per_query:>19} | {s.bits_per_entry:>14} '
+            f'| {s.amt_banks_per_entry:>19} | {s.amt_query_per_bankGrp:>21} |'
         )
     print(stream_border)
 
@@ -121,9 +123,9 @@ def dfx_streamer_report(
         if debug:
             print(f'\n[dfx-streamer] ───── phase {alloc_phase} ─────')
 
-        phase_streams = [s for s in streams if s['alloc_phase'] == alloc_phase]
+        phase_streams = [s for s in streams if s.alloc_phase == alloc_phase]
         if debug:
-            print(f'  streams to allocate ({len(phase_streams)}): {[s["name"] for s in phase_streams]}')
+            print(f'  streams to allocate ({len(phase_streams)}): {[s.name for s in phase_streams]}')
             print(f'  free  pool before: {[d["name"] for d in free_dfx_streamers]}')
             print(f'  using pool before: {[d["name"] for d in using_dfx_streamers]}')
 
@@ -131,28 +133,28 @@ def dfx_streamer_report(
         for stream in phase_streams:
             found = False
             for free_dfx_streamer in free_dfx_streamers:
-                if (stream['amt_banks_per_entry'] == free_dfx_streamer['amt_banks_per_entry']) and (
-                    stream['region'] == free_dfx_streamer['region']
+                if (stream.amt_banks_per_entry == free_dfx_streamer['amt_banks_per_entry']) and (
+                    stream.region == free_dfx_streamer['region']
                 ):
-                    free_dfx_streamer['next_fin_phase'] = stream['free_phase']
+                    free_dfx_streamer['next_fin_phase'] = stream.free_phase
                     free_dfx_streamer['streams'].append(stream)
                     free_dfx_streamers.remove(free_dfx_streamer)
                     using_dfx_streamers.append(free_dfx_streamer)
                     found = True
                     if debug:
                         print(
-                            f'    [reuse]  stream {stream["name"]:<10} → {free_dfx_streamer["name"]} '
-                            f'(banks/e={stream["amt_banks_per_entry"]}, region={stream["region"]}, '
-                            f'next_fin_phase={stream["free_phase"]})'
+                            f'    [reuse]  stream {stream.name:<10} → {free_dfx_streamer["name"]} '
+                            f'(banks/e={stream.amt_banks_per_entry}, region={stream.region}, '
+                            f'next_fin_phase={stream.free_phase})'
                         )
                     break
             # if there is no dfx streamer, create new one
             if not found:
                 new_dfx_streamer = {
                     'name': f'streamer_{last_dfx_streamer_id}',
-                    'amt_banks_per_entry': stream['amt_banks_per_entry'],
-                    'region': stream['region'],
-                    'next_fin_phase': stream['free_phase'],
+                    'amt_banks_per_entry': stream.amt_banks_per_entry,
+                    'region': stream.region,
+                    'next_fin_phase': stream.free_phase,
                     'mul_factor': 1,
                     'streams': [stream],
                 }
@@ -161,9 +163,9 @@ def dfx_streamer_report(
                 using_dfx_streamers.append(new_dfx_streamer)
                 if debug:
                     print(
-                        f'    [create] stream {stream["name"]:<10} → {new_dfx_streamer["name"]} '
-                        f'(banks/e={stream["amt_banks_per_entry"]}, region={stream["region"]}, '
-                        f'next_fin_phase={stream["free_phase"]})'
+                        f'    [create] stream {stream.name:<10} → {new_dfx_streamer["name"]} '
+                        f'(banks/e={stream.amt_banks_per_entry}, region={stream.region}, '
+                        f'next_fin_phase={stream.free_phase})'
                     )
 
         # try to free the using_dfx_streamer whose next_fin_phase matches current alloc_phase
@@ -197,17 +199,17 @@ def dfx_streamer_report(
         if debug:
             print(f'\n  ── iter {upgrade_iter} ──  total_banks_used={total_banks_used}/{total_banks}')
             for d in dfx_streamers:
-                cap = d['mul_factor'] * min(s['amt_query_per_bankGrp'] for s in d['streams'])
+                cap = d['mul_factor'] * min(s.amt_query_per_bankGrp for s in d['streams'])
                 print(
                     f'    {d["name"]:<14} mul_factor={d["mul_factor"]:>3} '
                     f'banks={d["amt_banks_per_entry"] * d["mul_factor"]:>4} capacity(Q)={cap}'
                 )
 
-        # find the smallest d["mul_factor"] * stream["amt_query_per_bankGrp"]
+        # find the smallest d["mul_factor"] * stream.amt_query_per_bankGrp
         upgradable_streamer = min(
             dfx_streamers,
             key=lambda streamer: (
-                streamer['mul_factor'] * min(stream['amt_query_per_bankGrp'] for stream in streamer['streams'])
+                streamer['mul_factor'] * min(stream.amt_query_per_bankGrp for stream in streamer['streams'])
             ),
         )
         banks_delta = upgradable_streamer['amt_banks_per_entry']
@@ -239,15 +241,15 @@ def dfx_streamer_report(
         )
         print(inner_border)
         for s in d['streams']:
-            total_query = d['mul_factor'] * s['amt_query_per_bankGrp']
+            total_query = d['mul_factor'] * s.amt_query_per_bankGrp
             print(
-                f'      | {s["name"]:<12} | {s["amt_entry_per_query"]:>19} '
-                f'| {s["amt_query_per_bankGrp"]:>21} | {total_query:>11} |'
+                f'      | {s.name:<12} | {s.amt_entry_per_query:>19} '
+                f'| {s.amt_query_per_bankGrp:>21} | {total_query:>11} |'
             )
         print(inner_border)
     print(outer_border)
 
-    min_total_query = min(d['mul_factor'] * s['amt_query_per_bankGrp'] for d in dfx_streamers for s in d['streams'])
+    min_total_query = min(d['mul_factor'] * s.amt_query_per_bankGrp for d in dfx_streamers for s in d['streams'])
     print(f'[dfx-streamer] lowest total_query across all streams = {min_total_query}')
 
     return {
@@ -257,28 +259,29 @@ def dfx_streamer_report(
     }
 
 
-    # Example return (2-region halfA streams, total_banks=64, amt_phase=1):
+    # Example return (2-region halfA streams, total_banks=64, amt_phase=1). The streamer
+    # banks are dicts; each entry of their 'streams' list is the Stream object passed in,
+    # now carrying the derived geometry attributes (shape/amt_*/bits_per_entry):
     # {
     #     'dfx_streamers': [
     #         {
     #             'name': 'streamer_1', 'region': 0, 'amt_banks_per_entry': 2,
     #             'next_fin_phase': 1, 'mul_factor': 2,
     #             'streams': [
-    #                 {'name': 'ha_bneck', 'shape': (2, 2, 8), 'precision': 16,
-    #                  'region': 0, 'alloc_phase': 0, 'free_phase': 1,
-    #                  'amt_entry_per_query': 4, 'bits_per_entry': 128,
-    #                  'amt_banks_per_entry': 2, 'amt_query_per_bankGrp': 1024},
+    #                 Stream(name='ha_bneck', region=0, alloc_phase=0, free_phase=1,
+    #                        precision=16, shape=(2, 2, 8),    # + amt_entry_per_query=4,
+    #                        # bits_per_entry=128, amt_banks_per_entry=2, amt_query_per_bankGrp=1024)
     #             ],
     #         },
     #         {
     #             'name': 'streamer_2', 'region': 0, 'amt_banks_per_entry': 4,
     #             'next_fin_phase': 1, 'mul_factor': 5,
-    #             'streams': [ {'name': 'ha_skip2', ... 'amt_query_per_bankGrp': 256}, ],
+    #             'streams': [ Stream(name='ha_skip2', ...) ],   # amt_query_per_bankGrp=256
     #         },
     #         {
     #             'name': 'streamer_3', 'region': 1, 'amt_banks_per_entry': 2,
     #             'next_fin_phase': 1, 'mul_factor': 20,
-    #             'streams': [ {'name': 'ha_skip1', ... 'amt_query_per_bankGrp': 64}, ],
+    #             'streams': [ Stream(name='ha_skip1', ...) ],   # amt_query_per_bankGrp=64
     #         },
     #     ],
     #     'total_banks_used': 64,   # 2*2 + 4*5 + 2*20

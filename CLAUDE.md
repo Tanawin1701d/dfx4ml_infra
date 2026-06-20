@@ -15,6 +15,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Full hardware + software build
 Open `quick_start.ipynb` and run all cells. This is the primary entry point.
 
+For the **Keras → hls4ml → dfx4ml** flow (auto-generate user kernels + streamer params
+from a partitioned Keras model), use `quick_start_hls4ml.ipynb` instead — see
+[hls4ml → dfx4ml Backend](#hls4ml--dfx4ml-backend-libhls4ml_con).
+
 ### Python build from a script
 ```python
 from lib.hw_build import HwBuildHelper
@@ -172,6 +176,84 @@ Use `hw/bd_src/dfx_region/dfx_region.tcl` as the reference RM implementation.
 
 ---
 
+## hls4ml → dfx4ml Backend (`lib/hls4ml_con`)
+
+A hls4ml backend plugin that turns a partitioned Keras model into dfx4ml user
+kernels + the three `HwBuildHelper` params. Entry notebook: `quick_start_hls4ml.ipynb`.
+The `hls4ml` source is a **git submodule** (`hls4ml/`); do not edit it for dfx-specific
+behavior — patch the generated project instead (see the writer pattern below).
+
+Registered via `os.environ['HLS4ML_BACKEND_PLUGINS'] = 'hls4ml_con'` (discovered at
+`import hls4ml`); backend name `'VitisUnifiedDFx4ml'` (key `'vitisunifieddfx4ml'`).
+
+| File | Role |
+|---|---|
+| `backend.py` | Registers the `VitisUnifiedDFx4ml` backend (extends hls4ml `VitisUnified`) |
+| `writer.py` | `VitisUnifiedDFx4mlWriter` — multi-port flat AXI-Stream kernels (one AXIS port/streamer, TKEEP+TLAST), csim/cosim, ip_catalog packaging, post-write patches |
+| `streamer_glue.py` | `build_dispatcher_tcl()` stitches the user-BD TCL; `stream_geometry_from_hls()`. (`compute_dfx_params` moved to `lib/hls4ml_build.py`.) |
+| `tcl_gen.py` | Renders `create_dfx_region_user_bd` from `dfx_region_user_bd.tcl.template`; one VLNV fragment per (region, rm) |
+| `dfx_region_user_bd.tcl.template` | TCL proc body (markers `__VLNV_TABLE__`/`__KERNEL__`/`__CTRL_BUSIF__`/`__*_PIN__`) |
+| `templates/vitis_unified/` | dfx-modified kernel templates (`myproject_axi_stream.{cpp,h}`, `nnet_helpers_dfx.h`) |
+
+**Topology model** — the caller describes the cut as a list of `Partition` objects
+(see the typed helpers below), one per (region, rm). `compute_dfx_params(partitions, …)`
+(in `lib/hls4ml_build/dfx_params.py`) gathers each producer's `partition.streams`,
+assigns streamers (index 0 = DMA always), unions per-region load/store streamers, and
+builds per-(region,rm) `(streamer_idx, kernel_port)` maps (`kernel_port == -1` ⇒ that RM
+leaves the port idle → a Stream_*_Dummy is wired in). All regions must declare the same
+RM count. Bus widths must be powers of two.
+
+**Wiring into the build** — `HwBuildHelper` accepts `dfx=compute_dfx_params(...)` and
+unpacks `dfx_streamers`/`dfx_regions`/`rm_schemetics` from it (explicitly-passed values
+still win); pass `user_rm_build_tcl_path=` the file from `build_dispatcher_tcl()`.
+
+### `Hls4ml_build` orchestrator (`lib/hls4ml_build/`)
+
+`Hls4ml_build` wraps the whole Keras → hls4ml → dfx4ml flow as a class (what
+`quick_start_hls4ml.ipynb` does cell-by-cell). It is a small package: `builder.py`
+(core: ctor/validation/tool-paths) composes the per-stage mixins `_convert.py` /
+`_csim.py` / `_synth.py` / `_glue.py` / `_diag.py`; `dfx_params.py` holds
+`compute_dfx_params`; `topology.py` holds the typed topology helpers; `__init__.py`
+re-exports `Hls4ml_build`, `Partition`, `Stream`, `DMA`, `compute_dfx_params`. Construct it
+with `partitions`, `out_root`, conversion config, and the `vitis_path` / `vivado_path`
+install dirs (it sources their `settings64.sh` onto `PATH` via `setup_env()`). Methods:
+`convert_all(fifo_opt=)` (get the partial model), `csim_partition` / `csim_chain`
+(end-to-end csim), `synth_all(fifo_opt=)` (C-synthesis + ip_catalog package, with/without
+FIFO-depth optimization), `compute_streamer_glue()` (sets `self.dfx` + `self.user_rm_tcl`),
+`diag_bisect(keras_model, probe_layers, x_input)` (per-layer HLS csim bisect — converts a
+one-layer-deep probe model for each layer and reports where the fixed-point signal
+collapses / goes uniform, reusing the instance's conversion config). It also hosts the
+relocated `compute_dfx_params` (in `dfx_params.py`).
+
+**Topology — typed helpers (`topology.py`)** — `Partition` / `Stream` are the **single**
+topology representation (no parallel dict schema; the whole pipeline — including
+`dfx_streamer_report` — consumes `Stream` objects by attribute). Describe the cut with
+`Partition(name, project, model, region, rm=, inputs=[…], outputs=[…])`, where an input is
+a stream name (or `DMA`) and an output is `DMA` or
+`Stream(name, region, alloc_phase, free_phase, precision=16)`. A `Stream` declares only
+its bank-lifetime fields; `shape` is **derived** (filled in by the producing `Partition`
+from `model.outputs`) and the geometry fields (`amt_banks_per_entry`, …) are filled in by
+`dfx_streamer_report` — never hand-written. `compute_dfx_params` shallow-copies each
+`Stream` before allocation so the declared topology stays pristine. After construction a
+`Partition` exposes `.streams` (the produced `Stream` objects, with `shape` set),
+`.output_names`, and resolved `.input_flat`/`.output_flat`; `amt_phase`/`num_regions` are
+**inferred** by `Hls4ml_build` (override any explicitly).
+
+**Handoff** — `HwBuildHelper(hls4ml_build=hb, …)` and `SwBuildHelper(hls4ml_build=hb,
+export_folder_path=…)` pull their config from the instance (board, `user_repo_path`,
+`user_rm_build_tcl_path`, `dfx`, `rm_index_width`, Vivado path / region+streamer counts);
+explicitly-passed values still win. Run `hb.compute_streamer_glue()` first.
+
+**Writer post-write patches** (applied to the generated firmware in
+`<out>/firmware/nnet_utils/`, after `super().write_hls()`, so the submodule stays pristine):
+- `_patch_nnet_helpers_keeplast` — float AXIS packet → `hls::axis<float,0,0,0,24>` (TKEEP|TLAST)
+- `_patch_nnet_dense_resource_lutram` — weight ROM `ROM_nP_BRAM` → `ROM_1P_LUTRAM` for
+  reuse_factor > 1 (all 3 dense_resource specializations); guarded for existence and
+  idempotency (the commented-out line still contains the search string, so re-running
+  without the `ROM_1P_LUTRAM` guard would mangle it — matters on the FIFO re-convert path).
+
+---
+
 ## Examples
 
 | Directory | Description |
@@ -188,9 +270,12 @@ Use `hw/bd_src/dfx_region/dfx_region.tcl` as the reference RM implementation.
 
 | File | Purpose |
 |---|---|
-| `lib/hw_build.py` | `HwBuildHelper` — Python build entry point, TCL template renderer |
-| `lib/sw_build.py` | `SwBuildHelper` — packages drivers + test notebook |
+| `lib/hw_build.py` | `HwBuildHelper` — Python build entry point, TCL template renderer; accepts `dfx=` to splat streamer params, or `hls4ml_build=` to pull config from an `Hls4ml_build` |
+| `lib/sw_build.py` | `SwBuildHelper` — packages drivers + test notebook; accepts `hw_builder=` or `hls4ml_build=` |
+| `lib/hls4ml_build/` | `Hls4ml_build` — orchestrates convert/csim/synth/streamer-glue for a partitioned model (per-stage mixins + `dfx_params.py`'s `compute_dfx_params`); hands off to `HwBuildHelper`/`SwBuildHelper` |
 | `lib/run_build.tcl.template` | Template for the generated Vivado build script |
+| `lib/hls4ml_con/` | hls4ml → dfx4ml backend plugin (see [section](#hls4ml--dfx4ml-backend-libhls4ml_con)) |
+| `quick_start_hls4ml.ipynb` | Keras → hls4ml → dfx4ml entry notebook — driven by the `Hls4ml_build` orchestrator (typed `Partition`/`Stream` topology, `convert_all`/`csim_chain`/`synth_all`/`compute_streamer_glue`, `hls4ml_build=` handoff) |
 | `hw/build_script/build.tcl` | Main Vivado build orchestrator (board dispatch + DFX run setup) |
 | `hw/ip_src/dfx_mng/dfx_mng_core.v` | DFX Manager RTL core (state machines, register banks) |
 | `hw/ip_src/compose_ip.tcl` | Composes all custom IPs into `ip_repo/` |
