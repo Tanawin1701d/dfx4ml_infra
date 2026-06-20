@@ -6,6 +6,8 @@
 \usepackage{rotating}
 \usepackage{verbatim}
 \usepackage{fancyvrb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage{listings}
 \lstdefinestyle{python}{
   language=Python,
@@ -67,23 +69,23 @@
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 \newcommand{\subrow}[1]{\rowcolor{sectionbg} \multicolumn{5}{l}{\small\textbf{\textsc{#1}}} \\}
 
-\title{DFX4ML-ARCH}
+\title{DFX4ML}
 \author{
 	Omitted for blind review
 }
-\email{author.email@cern.ch}
+\email{author.email@nowhere.th}
 \date{\today}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-DFX4ML-ARCH presents an FPGA architecture designed to enable partial reconfiguration for machine learning workloads. The project incorporates a self-reconfiguration mechanism, allowing the FPGA fabric to partially reprogram itself. It targets AMD FPGAs equipped with the ICAP3 interface and leverages the PYNQ framework for system integration.
+DFX4ML presents an FPGA architecture designed to enable partial reconfiguration for machine learning workloads. The project incorporates a self-reconfiguration mechanism, allowing the FPGA fabric to partially reprogram itself. It targets AMD FPGAs equipped with the ICAP3 interface and leverages the PYNQ framework for system integration.
 \end{abstract}
 \\ \\ \\
 
 \begin{small}
-\noindent\textbf{Disclaimer:} The technical content, architecture designs, implementation decisions, and all intellectual contributions in this report are entirely the work of the authors. Generative AI tools were used solely for grammar correction and readability enhancement of the written text. No AI-generated technical content, code, or design decisions are included.
+\noindent\textbf{Disclaimer:} The technical content, architecture designs, implementation decisions, and all intellectual contributions in this report are entirely the work of the authors. Generative AI tools were used solely for grammar correction, readability enhancement, and summarization of the written text/code. No AI-generated technical content, code, or design decisions are included.
 
 \medskip
 \noindent\textbf{Template:} This document uses the CERN ATS Note \LaTeX{} template, available at \url{https://www.overleaf.com/latex/templates/cern-ats-note/yzjmgkrvtsqg}.
@@ -115,7 +117,7 @@ This project is composed of sections:
     \begin{enumerate}
     \item \textbf{Hardware Architecture}: it describes the architecture idea, hardware implementation details, and reconfigurable parameters.
     \item \textbf{Software Driver}: This driver mainly controls our hardware IP and Xilinx IP in the programmable logic. In this version, we provide only the PYNQ driver.
-    \item \textbf{Build Procedure}: This section provides our formal approach to enable DFX4ML-ARCH to integrate with existing Hardware Machine Learning Frameworks and to specific FPGA board.
+    \item \textbf{Build Procedure}: This section provides our formal approach to enable DFX4ML to integrate with existing Hardware Machine Learning Frameworks and to specific FPGA board.
     \end{enumerate}
 
 
@@ -135,7 +137,7 @@ This project is composed of sections:
 
 \subsection{Naming Convention}
 
-DFX4ML-ARCH adopts the following naming conventions across its Python and Verilog codebase.
+DFX4ML adopts the following naming conventions across its Python and Verilog codebase.
 
 \begin{itemize}
     \item \textbf{Python classes and Verilog module names} use \textit{Pascal\_Snake\_Case} \newline (e.g., \texttt{Hw\_Build\_Helper}, \texttt{Dfx\_Streamer}).
@@ -149,15 +151,15 @@ Note that this convention is not strictly enforced throughout the entire codebas
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.8\textwidth]{images/overall_system.png}
-\caption{\label{fig:overviewArch} DFX4ML-ARCH overall architecture}
+\caption{\label{fig:overviewArch} DFX4ML overall architecture}
 \end{figure}
 
-Fig.\ref{fig:overviewArch} illustrates the overall hardware architecture of DFX4ML-ARCH. The hardware architecture is composed of 4 major parts:
+Fig.\ref{fig:overviewArch} illustrates the overall hardware architecture of DFX4ML. The hardware architecture is composed of 4 major parts:
 
 \begin{enumerate}
 \item \textbf{Main Processor}. This project focuses on the Xilinx SoC with the PYNQ framework. The PYNQ framework allows users to manage memory allocation and initialization. Moreover, the processor is responsible for controlling Programmable Logic and communicating with the PMU processor.
 \item \textbf{PMU and CSU}. The Platform Management Unit (PMU) and Control Security Unit (CSU) are the Xilinx SoC's management systems. The PMU is a dedicated processor used to manage the system's routine tasks and secure the system at the hardware level. In this project, we have to command the PMU to orchestrate the Programmable Logic permissions.
-\item \textbf{Programmable Logic}. To support partial reconfiguration, the DFX4ML-ARCH is divided into 2 region:
+\item \textbf{Programmable Logic}. To support partial reconfiguration, the DFX4ML is divided into 2 region:
   \begin{enumerate}
     \item \textbf{Static Region}. The region that is always active and contains the control logic and temporary memory storage. We propose four main components:
       \begin{enumerate}
@@ -565,6 +567,68 @@ In contrast, the Stream Transceiver and Stream Receiver connection ports are ope
 
 To support the parallel execution between (\textbf{Latency Hiding Technique}), the stream transceiver and stream receiver have their own dedicated DFX Decoupler (red box); therefore, it enables the DFX Streamer operating while there are reconfiguring modules.
 
+\subsection{Buffer Sizing} 
+
+The buffer sizing of the DFX Streamer(s) is computed automatically from the partitioned model's stream geometry. The overall procedure is summarised in Algorithm~\ref{alg:magic_streamer}. It works in four stages:
+
+\begin{enumerate}
+  \item compute the bank geometry of every stream;
+  \item hand each stream a physical streamer for the phases it is alive, reusing a free streamer of the same size and region whenever possible;
+  \item spend the remaining bank budget on the streamer with the smallest capacity;
+  \item report the result.
+\end{enumerate} 
+
+\begin{algorithm}[H]
+\caption{DFX streamer buffer allocation}
+\label{alg:magic_streamer}
+\begin{algorithmic}[1]
+\Require streams (each with \emph{shape}, \emph{precision}, \emph{region}, \emph{allocPhase}, \emph{freePhase}); bank budget $N$; phase count $P$; bank width $BW$ and depth $BD$
+\Ensure for every streamer: its bank count and buffered-query capacity
+\Statex
+\State \textbf{Stage 1: per-stream geometry}
+\For{each stream $s$}
+    \State $entries \gets$ product of all but the last dimension of $s.shape$ \Comment{items per query}
+    \State $bits \gets s.precision \times (\text{last dimension of } s.shape)$
+    \State $s.banks \gets \lceil bits / BW \rceil$ \Comment{banks needed for one item}
+    \State $s.cap \gets \lfloor BD / entries \rfloor$ \Comment{queries one bank set can hold}
+    \If{$s.cap = 0$}
+        \State \textbf{error}: ``one query does not fit in a bank set''
+    \EndIf
+\EndFor
+\Statex
+\State \textbf{Stage 2: allocate streamers across phases (reuse when possible)}
+\State $free \gets \emptyset$;\quad $using \gets \emptyset$;\quad $streamers \gets \emptyset$
+\For{$phase \gets 0$ \textbf{to} $P-1$}
+    \ForAll{stream $s$ with $s.allocPhase = phase$}
+        \State look for a free streamer $f$ with $f.banks = s.banks$ \textbf{and} $f.region = s.region$
+        \If{such $f$ exists}
+            \State attach $s$ to $f$;\quad $f.freePhase \gets s.freePhase$;\quad move $f$ from $free$ to $using$
+        \Else
+            \State create new streamer ($banks = s.banks$, $region = s.region$, $mul = 1$, holding $s$)
+            \State add it to $using$ and to $streamers$
+        \EndIf
+    \EndFor
+    \State move each $using$ streamer whose $freePhase = phase$ back to $free$ \Comment{data no longer needed}
+\EndFor
+\If{$streamers = \emptyset$}
+    \State \Return $\{streamers,\ banksUsed = 0\}$
+\EndIf
+\Statex
+\State \textbf{Stage 3: grow buffers within the bank budget (water-filling)}
+\While{\textbf{true}}
+    \State $banksUsed \gets \sum_{d \in streamers} d.banks \times d.mul$
+    \State $b \gets$ streamer with the smallest capacity $d.mul \times d.cap$ \Comment{the bottleneck}
+    \If{$banksUsed + b.banks > N$}
+        \State \textbf{break} \Comment{next growth would exceed the budget}
+    \EndIf
+    \State $b.mul \gets b.mul + 1$ \Comment{give the bottleneck one more bank set}
+\EndWhile
+\Statex
+\State \textbf{Stage 4: report}
+\State \Return $\{streamers,\ banksUsed,\ \min_{d \in streamers}(d.mul \times d.cap)\}$
+\end{algorithmic}
+\end{algorithm}
+
 \subsection{DFX\_CTRL}
 
 DFX\_CTRL is the Xilinx DFX IP used to retrieve the bitstream file from DDR memory and reconfigure the partial reconfigurable region using the ICAP3 port. To achieve this, we need to configure the IP's internal memory to match our requirements.
@@ -664,12 +728,12 @@ Our build script sets a default base address of \addr{0xA000\_0000} for the DFX 
 
 \paragraph{\textbf{Driver Component}}
 
-This section illustrates the PYNQ driver overview used to command the DFX4ML-ARCH hardware.
+This section illustrates the PYNQ driver overview used to command the DFX4ML hardware.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.65\textwidth]{images/software_diagram.png}
-\caption{\label{fig:software_overview} DFX4ML-ARCH Driver Overview}
+\caption{\label{fig:software_overview} DFX4ML Driver Overview}
 \end{figure}
 
 
@@ -752,7 +816,7 @@ sw_builder = SwBuildHelper(hw_builder = hw_builder)
 sw_builder.package_export_file()
 \end{lstlisting}
 
-The following example (Listing~\ref{lst:python_build}) demonstrates how to start building the DFX4ML-ARCH system. The reference file is at \textcolor{darkgreen}{\texttt{example/muti\_region\_test/multi\_region\_test.ipynb}}. Lines 1--2 import the Hardware and Software Build Helpers. Lines 6--22 define the three structured configuration objects (\texttt{dfx\_streamers}, \texttt{dfx\_regions}, \texttt{rm\_schemetics}). Lines 25--45 instantiate \texttt{HwBuildHelper} and invoke synthesis and implementation; the final lines instantiate \texttt{SwBuildHelper} and export the PYNQ driver files. \texttt{SwBuildHelper} derives its parameters (\texttt{export\_folder\_path}, \texttt{num\_pr\_region}, \texttt{rm\_index\_width}, \texttt{num\_streamer}) from the \texttt{hw\_builder} instance; any of them can still be passed explicitly to override the derived value, and the fully manual form without \texttt{hw\_builder} remains supported.
+The following example (Listing~\ref{lst:python_build}) demonstrates how to start building the DFX4ML system. The reference file is at \textcolor{darkgreen}{\texttt{example/muti\_region\_test/multi\_region\_test.ipynb}}. Lines 1--2 import the Hardware and Software Build Helpers. Lines 6--22 define the three structured configuration objects (\texttt{dfx\_streamers}, \texttt{dfx\_regions}, \texttt{rm\_schemetics}). Lines 25--45 instantiate \texttt{HwBuildHelper} and invoke synthesis and implementation; the final lines instantiate \texttt{SwBuildHelper} and export the PYNQ driver files. \texttt{SwBuildHelper} derives its parameters (\texttt{export\_folder\_path}, \texttt{num\_pr\_region}, \texttt{rm\_index\_width}, \texttt{num\_streamer}) from the \texttt{hw\_builder} instance; any of them can still be passed explicitly to override the derived value, and the fully manual form without \texttt{hw\_builder} remains supported.
 
 Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelper}.
 
@@ -772,7 +836,7 @@ Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelpe
 \endfoot
 \texttt{build\_folder\_path} & Path to the directory where Vivado project files and other temporary working files are written. The folder will be created if it does not exist. \\
 \hline
-\texttt{dfx\_root\_path} & Root path of the DFX4ML-ARCH source repository, used to locate IP cores, build scripts, and constraint files. \\
+\texttt{dfx\_root\_path} & Root path of the DFX4ML source repository, used to locate IP cores, build scripts, and constraint files. \\
 \hline
 \texttt{board} & Target FPGA board identifier. Use a known board name (e.g., \texttt{kv260}) or \texttt{"custom"} to supply \texttt{board\_build\_tcl} and \texttt{constraint\_xdc} manually. \\
 \hline
@@ -810,7 +874,7 @@ Table~\ref{tab:hw_build_params} describes each parameter of \texttt{HwBuildHelpe
 
 \subsection{ML Framework Integration}
 
-DFX4ML-ARCH provides the official solution for enabling Hardware Machine Learning frameworks to integrate their own sub-kernels into each Reconfigurable Module (RM).
+DFX4ML provides the official solution for enabling Hardware Machine Learning frameworks to integrate their own sub-kernels into each Reconfigurable Module (RM).
 
 To integrate the module, users must complete the following steps:
 \begin{enumerate}
@@ -897,7 +961,252 @@ To define a new board, users must create or modify the following files:
     \item \texttt{build\_script}: users must modify the file at \newline\textcolor{darkgreen}{\texttt{hw/build\_script/build.tcl}} to invoke the block design creation procedure. Users may use the kv260 option as a reference.
   \end{enumerate}
 
-The DFX4ML-ARCH authors would appreciate pull requests for board-specific files.
+The DFX4ML authors would appreciate pull requests for board-specific files.
+
+
+
+
+\section{HLS4ML Integration}
+
+The DFX4ML build flow described in Section~4 expects the user to hand-author
+each Reconfigurable Module (RM) as a Vivado-exported IP plus a Tcl block-design
+procedure, and to hand-write the three streamer configuration objects
+(\texttt{dfx\_streamers}, \texttt{dfx\_regions}, \texttt{rm\_schemetics}). For
+neural-network workloads this is error-prone: the kernel ports, the AXI-Stream bus
+widths, and the inter-region buffer geometry must all agree with the partitioned
+model. To remove that burden we provide a
+\textbf{hls4ml}~\cite{fastml_hls4ml} integration that turns a partitioned ML
+model directly into dfx4ml user kernels and the matching \texttt{HwBuildHelper}
+parameters.
+
+The integration is delivered as two cooperating Python components plus two driver 
+notebooks:
+
+\begin{itemize}
+  \item \textcolor{darkgreen}{\texttt{lib/hls4ml\_con}} --- a hls4ml \emph{backend
+        plugin} that customises hls4ml's code generation and IP packaging so each
+        partition is emitted as a multi-port flat AXI-Stream kernel compatible with
+        the DFX Streamer boundary (Section~5.1).
+  \item \textcolor{darkgreen}{\texttt{lib/hls4ml\_build}} --- an \emph{orchestrator}
+        class, \texttt{Hls4ml\_build}, that drives the whole Keras
+        $\rightarrow$ hls4ml $\rightarrow$ dfx4ml flow (convert, csim, synthesis,
+        streamer-glue) and hands off directly to \texttt{HwBuildHelper} /
+        \texttt{SwBuildHelper} (Section~5.2).
+  \item \textcolor{darkgreen}{\texttt{quick\_start\_hls4ml\_part\_1.ipynb}} and
+        \textcolor{darkgreen}{\texttt{quick\_start\_hls4ml\_part\_2.ipynb}} --- two
+        end-to-end example notebooks (Section~5.3).
+\end{itemize}
+
+\noindent
+The hls4ml source itself is included as a Git submodule
+(\textcolor{darkgreen}{\texttt{hls4ml/}}) and is treated as read-only: all
+dfx-specific behaviour is injected from the plugin (via overridden templates and
+post-write patches), so the submodule never has to be forked.
+
+\subsection{The \texttt{hls4ml\_con} Backend Plugin}
+
+\texttt{hls4ml} discovers external backends through the
+\texttt{HLS4ML\_BACKEND\_PLUGINS} environment variable; the user sets
+\texttt{os.environ['HLS4ML\_BACKEND\_PLUGINS'] = 'hls4ml\_con'} \emph{before}
+importing hls4ml. The plugin then registers a new backend named
+\texttt{VitisUnifiedDFx4ml} (lookup key \texttt{vitisunifieddfx4ml}) which extends
+hls4ml's stock \texttt{VitisUnified} backend. Selecting this backend during
+conversion is what makes hls4ml emit dfx4ml-compatible firmware. Table~\ref{tab:hls4ml_con}
+lists the files that make up the plugin.
+
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{|L{3.5cm}|L{9.3cm}|}
+\caption{Contents of \texttt{lib/hls4ml\_con}}
+\label{tab:hls4ml_con} \\
+\hline
+\textbf{File} & \textbf{Role} \\
+\hline
+\endfirsthead
+\hline
+\textbf{File} & \textbf{Role} \\
+\hline
+\endhead
+\hline
+\endfoot
+\texttt{backend.py} & Registers the \texttt{VitisUnifiedDFx4ml} backend (subclass of \texttt{VitisUnified}). Establishes the conversion flow and default project configuration. \\
+\hline
+\texttt{writer.py} & \texttt{VitisUnifiedDFx4mlWriter} --- emits each partition as a \emph{multi-port flat AXI-Stream} kernel (one AXI-Stream port per streamer, each carrying \texttt{TKEEP} and \texttt{TLAST}), and drives C simulation (csim), co-simulation (cosim), and \texttt{ip\_catalog} packaging. After hls4ml's own \texttt{write\_hls()} runs it applies the post-write patches described below. \\
+\hline
+\texttt{streamer\_glue.py} & \texttt{build\_dispatcher\_tcl()} stitches the per-(region,\,rm) Tcl fragments into the single user block-design dispatcher; \texttt{stream\_geometry\_from\_hls()} reads each output port's width/depth back out of the generated HLS project. \\
+\hline
+\texttt{tcl\_gen.py} & Renders \texttt{create\_dfx\_region\_user\_bd} from \texttt{dfx\_region\_user\_bd.tcl.template}, emitting one IP VLNV fragment per (region,\,rm) pair. \\
+\hline
+\texttt{dfx\_region\_user\_\newline bd.tcl.template} & The Tcl procedure body, with markers (\texttt{\_\_VLNV\_TABLE\_\_}, \texttt{\_\_KERNEL\_\_}, \texttt{\_\_CTRL\_BUSIF\_\_}, \texttt{\_\_*\_PIN\_\_}) that \texttt{tcl\_gen.py} substitutes. \\
+\hline
+\texttt{templates/\newline vitis\_unified/} & dfx-modified kernel templates (\texttt{myproject\_axi\_\allowbreak stream.\{cpp,h\}}, \texttt{nnet\_\allowbreak helpers\_dfx.h}) that replace the stock hls4ml templates for this backend. \\
+\hline
+\end{longtable}
+
+\noindent\textbf{Multi-port kernel model.}
+The standard hls4ml'VitisUnifiedBackend AXI-Stream kernel exposes a single input and a single output stream.
+DFX4ML instead routes each tensor that crosses a region boundary through its
+own DFX Streamer. The writer therefore generates one flat AXI-Stream port per
+streamer the kernel touches, in kernel-port order, each carrying \texttt{TKEEP} and
+\texttt{TLAST} (both mandatory at the RP boundary, see Section~4.2). A kernel port
+that a particular RM variant does not use is left idle and wired to a
+\texttt{Stream\_*\_Dummy} so that every RM variant inside a region presents an
+identical interface to the static fabric --- a requirement for partial
+reconfiguration.
+
+\noindent\textbf{Post-write patches.}
+Because the hls4ml submodule is read-only, the writer mutates the generated
+firmware in place (in \textcolor{darkgreen}{\texttt{<out>/firmware/nnet\_utils/}})
+\emph{after} \texttt{super().write\_hls()} returns:
+\begin{itemize}
+  \item \texttt{\_patch\_nnet\_helpers\_keeplast} --- promotes the float AXI-Stream
+        packet type to \texttt{hls::axis<float,0,0,0,24>} so that \texttt{TKEEP} and
+        \texttt{TLAST} are present on the wire.
+  \item \texttt{\_patch\_nnet\_dense\_resource\_lutram} --- for
+        \texttt{reuse\_factor > 1}, retargets the dense weight ROM from
+        \texttt{ROM\_nP\_BRAM} to \texttt{ROM\_1P\_LUTRAM} across all three
+        \texttt{dense\_resource} specializations. The patch is guarded for
+        existence and idempotency so it is safe to re-run on the FIFO re-convert
+        path.
+\end{itemize}
+
+\subsection{The \texttt{Hls4ml\_build} Orchestrator}
+
+\texttt{Hls4ml\_build} (in \textcolor{darkgreen}{\texttt{lib/hls4ml\_build}}) wraps
+the entire flow as a single class so the user does not have to invoke hls4ml,
+csim, synthesis, and the streamer-glue computation by hand. It is organised as a
+small package: a core (\texttt{builder.py}: constructor, validation, tool paths)
+that composes per-stage mixins (\texttt{\_convert.py}, \texttt{\_csim.py},
+\texttt{\_synth.py}, \texttt{\_glue.py}, \texttt{\_diag.py}); \texttt{dfx\_params.py}
+holds \texttt{compute\_dfx\_params}; and \texttt{topology.py} holds the typed
+topology helpers.
+
+\noindent\textbf{Typed topology.}
+The cut is described with two dataclasses --- \texttt{Partition} and \texttt{Stream}
+--- which are the \emph{single} topology representation consumed throughout the
+pipeline (there is no parallel dict schema). A \texttt{Partition} is one RM variant
+(kernel) placed at a (\texttt{region},\,\texttt{rm}) coordinate; its \texttt{inputs}
+and \texttt{outputs} are ordered by kernel port, where each entry is either the
+sentinel \texttt{DMA} (the external DMA path, streamer index 0) or a \texttt{Stream}.
+A \texttt{Stream} declares only its bank-lifetime fields --- \texttt{region} (which
+region owns the BRAM bank) and \texttt{alloc\_phase}\,/\,\texttt{free\_phase} (its
+lifetime in reconfiguration phases) --- plus an optional \texttt{precision}. Crucially,
+everything else is \emph{derived}, never hand-written: a stream's \texttt{shape} is
+filled in by the producing \texttt{Partition} from the matching Keras model output
+(so a hand-typed shape can never disagree with the model), and the geometry fields
+(\texttt{amt\_banks\_per\_entry}, \dots) are filled in later during bank allocation.
+The number of reconfiguration phases (\texttt{amt\_phase}) and regions
+(\texttt{num\_regions}) are likewise inferred from the topology.
+
+\begin{lstlisting}[style=python, caption={Describing the cut with the typed topology helpers}, numbers=left, label={lst:hls4ml_topology}]
+from hls4ml_build import Hls4ml_build, Partition, Stream, DMA
+
+parts = [
+    Partition('halfA', 'p_halfA', halfA, region=0, inputs=[DMA], outputs=[
+        Stream('bneck', region=0, alloc_phase=0, free_phase=1),
+        Stream('skip2', region=0, alloc_phase=0, free_phase=1),
+        Stream('skip1', region=1, alloc_phase=0, free_phase=1)]),
+    Partition('halfB', 'p_halfB', halfB, region=1,
+              inputs=['bneck', 'skip2', 'skip1'], outputs=[DMA]),
+]
+\end{lstlisting}
+
+\noindent\textbf{Validation.}
+On construction the orchestrator validates the topology: stream names must be
+unique, every non-\texttt{DMA} I/O name must resolve to a stream some partition
+produces, and there must be exactly one entry partition (a \texttt{DMA} input) and
+exactly one exit partition (a \texttt{DMA} output). It also warns (without failing)
+when partitions are not listed in producer-first order, since end-to-end csim
+assumes that order.
+
+\noindent\textbf{Stage methods.}
+The orchestrator is constructed with the partition list, an output root, the
+conversion configuration (backend, precision, reuse factor, \dots), and the Vitis /
+Vivado install directories. When those install dirs are given it sources each
+tool's \texttt{settings64.sh} onto \texttt{PATH} (\texttt{setup\_env()}). The flow
+is then driven through the methods in Table~\ref{tab:hls4ml_build_methods}.
+
+\begin{longtable}{|L{4cm}|L{8.8cm}|}
+\caption{\texttt{Hls4ml\_build} stage methods}
+\label{tab:hls4ml_build_methods} \\
+\hline
+\textbf{Method} & \textbf{Purpose} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Method} & \textbf{Purpose} \\
+\hline
+\endhead
+\hline
+\endfoot
+\texttt{convert\_all(\allowbreak fifo\_opt=)} & Convert every partition's Keras model through hls4ml with the \texttt{VitisUnifiedDFx4ml} backend, producing one HLS \texttt{ModelGraph} per partition (the ``partial model''). \\
+\hline
+\texttt{csim\_partition(\allowbreak name, inputs)} & Run C simulation on a single partition. \\
+\hline
+\texttt{csim\_chain(x0=, n=)} & Run end-to-end C simulation across the whole chain of partitions, feeding each partition's output to the next, to validate the cut numerically before synthesis. \\
+\hline
+\texttt{diag\_bisect(\allowbreak keras\_model, \allowbreak probe\_layers, \allowbreak x\_input)} & Per-layer HLS csim bisect: converts a one-layer-deep probe model for each layer and reports where the fixed-point signal collapses or goes uniform --- a diagnostic for precision problems. \\
+\hline
+\texttt{compute\_\allowbreak streamer\_glue()} & Compute the streamer assignment and emit the dispatcher Tcl; sets \texttt{self.dfx} (the \texttt{compute\_dfx\_params} result) and \texttt{self.user\_rm\_tcl}. Must be run before the hardware build. \\
+\hline
+\texttt{synth\_all(\allowbreak fifo\_opt=)} & Run C-synthesis and \texttt{ip\_catalog} packaging for every partition, optionally with FIFO-depth optimization. \\
+\hline
+\end{longtable} 
+
+\noindent\textbf{Streamer glue.}
+\texttt{compute\_dfx\_params(\allowbreak partitions, \dots)} (in \texttt{dfx\_params.py}) is the
+heart of the automation. It walks each producer's \texttt{Stream} objects, assigns
+streamers (index 0 is always the DMA), unions the load/store streamers per region,
+and builds the per-(region,\,rm) \texttt{(streamer\_idx, kernel\_port)} maps; a
+\texttt{kernel\_port} of $-1$ marks a port that the RM leaves idle, so a
+\texttt{Stream\_*\_Dummy} is wired in its place. The result is exactly the trio of
+objects (\texttt{dfx\_streamers}, \texttt{dfx\_regions}, \texttt{rm\_schemetics})
+that \texttt{HwBuildHelper} consumes --- it is the automated equivalent of the
+hand-written configuration in Listing~\ref{lst:python_build}.
+
+\noindent\textbf{Handoff to the build.}
+Both build helpers accept the orchestrator instance directly and pull their
+configuration from it. \texttt{HwBuildHelper(hls4ml\_build=hb, \dots)} unpacks
+\texttt{dfx} into \texttt{dfx\_streamers}\,/\,\texttt{dfx\_regions}\,/%
+\texttt{rm\_schemetics} and uses \texttt{user\_rm\_tcl} as the user RM Tcl;
+\texttt{SwBuildHelper(hls4ml\_build=hb, export\_folder\_path=\dots)} pulls the
+region and streamer counts. Explicitly-passed values still override the derived
+ones. The user must call \texttt{hb.compute\_streamer\_glue()} before the hardware
+build.
+
+\begin{lstlisting}[style=python, caption={End-to-end flow with the orchestrator}, numbers=left, label={lst:hls4ml_flow}]
+from lib.hw_build import HwBuildHelper
+from lib.sw_build import SwBuildHelper
+
+hb = Hls4ml_build(parts, out_root='./hls4ml_dfx_out',
+                  vitis_path  = '/tools/Xilinx/Vitis/2023.2',
+                  vivado_path = '/tools/Xilinx/Vivado/2023.2')
+hb.convert_all()              # 1. get the partial model
+hb.csim_chain()               # 2. (optional) end-to-end csim
+hb.compute_streamer_glue()    # 3. streamer glue (-> hb.dfx, hb.user_rm_tcl)
+hb.synth_all(fifo_opt=True)   # 4. C-synth + ip_catalog package
+
+# hand off to the hardware/software build
+hw = HwBuildHelper(build_folder_path='./build_prj', dfx_root_path='.',
+                   export_folder_path='./export', test_mode=0,
+                   hls4ml_build=hb)
+hw.run_build(); hw.package_export_files()
+SwBuildHelper(hw_builder=hw).package_export_file()
+\end{lstlisting}
+
+\subsection{Quick Start}
+
+Two example notebooks reproduce the flow above cell by cell and serve as the
+recommended entry points:
+
+\begin{itemize}
+  \item \textcolor{darkgreen}{\texttt{quick\_start\_hls4ml\_part\_1.ipynb}} ---
+        configuration \texttt{config\_2}: a single PR region holding two RM
+        variants. The simplest end-to-end example.
+  \item \textcolor{darkgreen}{\texttt{quick\_start\_hls4ml\_part\_2.ipynb}} ---
+        configuration \texttt{config\_4}: two PR regions with four RM variants
+        total, demonstrating a multi-region pipeline with inter-region streams.
+\end{itemize}
+
 
 \bibliography{references}
 \bibliographystyle{plain}
