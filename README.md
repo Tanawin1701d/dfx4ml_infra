@@ -1,4 +1,4 @@
-# DFX4ML
+# DFX4ML [V-1.0-BETA]
 
 
 DFX4ML is an FPGA architecture where the FPGA's ML modules autonomously swap its own ML accelerator kernels during execution. Without any CPU involvement in the reconfiguration process, the FPGA loads and replaces partial bitstreams on-chip, enabling large ML models — too big to fit the device at once — to run in full by executing segment by segment across a self-managed reconfigurable region.
