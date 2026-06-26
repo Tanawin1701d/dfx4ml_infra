@@ -38,7 +38,9 @@ class Stream:
     Only the dfx bank-lifetime fields are declared: ``region`` (which region owns the
     bank), ``alloc_phase`` / ``free_phase`` (its lifetime in reconfiguration phases), and
     optionally ``precision`` (when the stream is quantized differently from the model
-    output). Everything else is *derived*, never hand-written:
+    output) and ``depth`` (the hls::stream FIFO depth used at both the producing and
+    consuming kernel port; defaults to hls4ml's stamped pragma depth when left ``None``).
+    Everything else is *derived*, never hand-written:
 
     * ``shape`` is filled in by the producing :class:`Partition` from the matching Keras
       output port (so a hand-typed shape can't disagree with the model);
@@ -54,6 +56,8 @@ class Stream:
     alloc_phase : int
     free_phase  : int
     precision   : int = 16
+    depth       : int = None   # hls::stream FIFO depth at both producer/consumer ports;
+                               # None -> fall back to hls4ml's stamped stream pragma depth
     # ---- derived (not declared); see class docstring -----------------------------------
     shape                 : tuple = field(default=None, init=False) # set by producing Partition
     amt_entry_per_query   : int   = field(default=None, init=False) # set by dfx_streamer_report

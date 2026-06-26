@@ -48,6 +48,8 @@ class VitisUnifiedDFx4mlBackend(VitisUnifiedBackend):
         axi_mode='axi_stream',
         input_flat=False,
         output_flat=False,
+        in_stream_depths=None,
+        out_stream_depths=None,
         package_as_xo=False,
         **kwargs,
     ):
@@ -69,5 +71,10 @@ class VitisUnifiedDFx4mlBackend(VitisUnifiedBackend):
         # dfx4ml additions: flat (multi-port) AXIS + ip_catalog packaging.
         config['VitisUnifiedConfig']['input_flat'] = input_flat
         config['VitisUnifiedConfig']['output_flat'] = output_flat
+        # Per-port hls::stream FIFO depths (lists aligned with the model in/out ports).
+        # A None entry (or a missing/short list) falls back to the depth hls4ml stamps on
+        # the variable's stream pragma -- see VitisUnifiedDFx4mlWriter._stream_depth.
+        config['VitisUnifiedConfig']['in_stream_depths'] = in_stream_depths
+        config['VitisUnifiedConfig']['out_stream_depths'] = out_stream_depths
         config['VitisUnifiedConfig']['package_as_xo'] = package_as_xo
         return config

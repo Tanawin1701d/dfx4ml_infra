@@ -12,10 +12,11 @@ single-port) with:
 * a per-model ``create_dfx_region_user_bd`` TCL fragment (see :mod:`tcl_gen`)
   that lets the kernel drop into the dfx4ml reconfigurable region.
 
-Templates that this writer modifies (``myproject_axi_stream.cpp`` / ``.h`` and
-``nnet_helpers_dfx.h``) are shipped under ``templates/vitis_unified`` next to
-this file; unchanged templates (bridge, testbench, kernel config, linker) are
-read from the base hls4ml package.
+Templates that this writer modifies (``myproject_axi_stream.cpp`` / ``.h``,
+``nnet_helpers_dfx.h`` and ``hls_kernel_config.cfg`` — the latter flips
+``syn.schedule.enable_dsp_full_reg`` on and binds ``mul`` to DSP) are shipped
+under ``templates/vitis_unified`` next to this file; unchanged templates (bridge,
+testbench, linker) are read from the base hls4ml package.
 """
 
 import os
@@ -47,6 +48,18 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
         assert self._is_axi_stream(), "axi_mode must be 'axi_stream' to use output_flat"
         return bool(self._vu_cfg().get('output_flat', False))
 
+    def _stream_depth(self, ports, cfg_key, i):
+        """FIFO depth for the i-th model stream port.
+
+        Use the user-configured ``in_stream_depths`` / ``out_stream_depths`` entry when
+        one is given (a per-port list in the config); otherwise fall back to the depth
+        hls4ml stamped on the variable's stream pragma (``pragma == ('stream', depth)``).
+        """
+        depths = self._vu_cfg().get(cfg_key) or []
+        if i < len(depths) and depths[i] is not None:
+            return depths[i]
+        return ports[i].pragma[1]
+
     def _get_package_as_xo(self):
         return bool(self._vu_cfg().get('package_as_xo', False))
 
@@ -74,7 +87,7 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
         suffix = 'csim' if is_csim else 'cosim'
         kernel_type = 'xo' if self._get_package_as_xo() else 'ip_catalog'
         with (
-            open(os.path.join(_BASE_TPL_DIR, 'hls_kernel_config.cfg')) as fin,
+            open(os.path.join(_DFX_TPL_DIR, 'hls_kernel_config.cfg')) as fin,
             open(f'{model.config.get_output_dir()}/hls_kernel_config_{suffix}.cfg', 'w') as fout,
         ):
             for line in fin.readlines():
@@ -183,10 +196,12 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
                             f'{indent}static hls::stream<{out.type.name}> {model_out_streams[i]}("{model_out_streams[i]}");\n'
                         )
                     newline += '\n'
-                    for i, inp in enumerate(inputs):
-                        newline += f'{indent}#pragma HLS STREAM variable={model_in_streams[i]} depth={inp.pragma[1]}\n'
-                    for i, out in enumerate(outputs):
-                        newline += f'{indent}#pragma HLS STREAM variable={model_out_streams[i]} depth={out.pragma[1]}\n'
+                    for i in range(len(inputs)):
+                        depth = self._stream_depth(inputs, 'in_stream_depths', i)
+                        newline += f'{indent}#pragma HLS STREAM variable={model_in_streams[i]} depth={depth}\n'
+                    for i in range(len(outputs)):
+                        depth = self._stream_depth(outputs, 'out_stream_depths', i)
+                        newline += f'{indent}#pragma HLS STREAM variable={model_out_streams[i]} depth={depth}\n'
                 if '// hls-fpga-machine-learning insert stream parameter' in newline:
                     stream_params = ', '.join(
                         [f'hls::stream<{inp.type.name}> &{model_in_streams[i]}' for i, inp in enumerate(inputs)]
@@ -489,7 +504,7 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
         super().write_hls(model, is_multigraph=is_multigraph)
         self._install_dfx_sim_headers(model)
         self._patch_nnet_helpers_keeplast(model)
-        self._patch_nnet_dense_resource_lutram(model)
+        # self._patch_nnet_dense_resource_lutram(model)
         self._write_dfx_region_fragment(model)
 
     def _install_dfx_sim_headers(self, model):
