@@ -181,7 +181,11 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
                     newline = top_func_decl_cpp
                 if '// hls-fpga-machine-learning insert interface' in newline:
                     newline = ''.join(f'{indent}#pragma HLS INTERFACE axis port={p}\n' for p in axi_in_ports + axi_out_ports)
+                    # Force ap_ctrl_hs (one-shot start/done, like the PR Ctrl drives it in HW).
+                    # The DATAFLOW default ap_ctrl_chain overlaps transactions and deadlocks
+                    # multi-transaction cosim through the output-sync logic between store ports.
                     newline += (
+                        f'{indent}#pragma HLS INTERFACE ap_ctrl_hs port=return\n'
                         f'{indent}#pragma HLS INTERFACE s_axilite port=return bundle=control\n'
                         f'{indent}#pragma HLS INTERFACE s_axilite port=batch_size bundle=control\n'
                     )
@@ -189,11 +193,11 @@ class VitisUnifiedDFx4mlWriter(VitisUnifiedWriter):
                     newline = ''
                     for i, inp in enumerate(inputs):
                         newline += (
-                            f'{indent}static hls::stream<{inp.type.name}> {model_in_streams[i]}("{model_in_streams[i]}");\n'
+                            f'{indent}hls::stream<{inp.type.name}> {model_in_streams[i]}("{model_in_streams[i]}");\n'
                         )
                     for i, out in enumerate(outputs):
                         newline += (
-                            f'{indent}static hls::stream<{out.type.name}> {model_out_streams[i]}("{model_out_streams[i]}");\n'
+                            f'{indent}hls::stream<{out.type.name}> {model_out_streams[i]}("{model_out_streams[i]}");\n'
                         )
                     newline += '\n'
                     for i in range(len(inputs)):
